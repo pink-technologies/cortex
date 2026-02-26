@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum JobEventType {
+  STATUS
+  TOKEN
+  TOOL_CALL
+  TOOL_RESULT
+  DONE
+  ERROR
+}
+
+model Chat {
+  id        String    @id @default(cuid())
+  title     String?   
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  messages  Message[]
+  jobs      Job[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  role      Role
+  content   String
+  createdAt DateTime @default(now())
+
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  job       Job?     @relation(fields: [jobId], references: [id])
+  jobId     String?
+
+  @@index([chatId])
+}
+
+model Job {
+  id              String     @id @default(cuid())
+  chatId          String
+  triggerMessageId String?
+  status          JobStatus  @default(QUEUED)
+  resultMessageId String?
+  error           String?
+
+  createdAt       DateTime   @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  chat            Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  triggerMessage  Message?   @relation("TriggerMessage", fields: [triggerMessageId], references: [id])
+  resultMessage   Message?   @relation("ResultMessage", fields: [resultMessageId], references: [id])
+
+  events          JobEvent[]
+
+  @@index([chatId])
+  @@index([status])
+}
+
+model JobEvent {
+  id        String   @id @default(cuid())
+  jobId     String
+  type      JobEventType
+  payload   Json
+  createdAt DateTime @default(now())
+
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
