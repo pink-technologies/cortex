@@ -17,10 +17,10 @@ CREATE TYPE "SkillExecutionStatus" AS ENUM ('CANCELED', 'FAILED', 'QUEUED', 'RUN
 CREATE TYPE "SkillExecutionTriggerType" AS ENUM ('CHAT', 'API', 'JOB', 'MANUAL');
 
 -- CreateEnum
-CREATE TYPE "SkillInstallStatus" AS ENUM ('DISABLED', 'ENABLED');
+CREATE TYPE "SkillInstallationStatus" AS ENUM ('DISABLED', 'ENABLED');
 
 -- CreateEnum
-CREATE TYPE "SkillInstallScopeType" AS ENUM ('GLOBAL', 'USER', 'WORKSPACE');
+CREATE TYPE "SkillInstallationScopeType" AS ENUM ('GLOBAL', 'USER', 'WORKSPACE');
 
 -- CreateEnum
 CREATE TYPE "SkillStatus" AS ENUM ('ARCHIVED', 'ACTIVE', 'DISABLED', 'DRAFT');
@@ -109,27 +109,27 @@ CREATE TABLE "skill_release" (
 );
 
 -- CreateTable
-CREATE TABLE "skill_install" (
+CREATE TABLE "skill_installation" (
     "id" TEXT NOT NULL,
     "skillId" TEXT NOT NULL,
     "skillReleaseId" TEXT NOT NULL,
-    "scopeType" "SkillInstallScopeType" NOT NULL,
+    "scopeType" "SkillInstallationScopeType" NOT NULL,
     "scopeId" TEXT NOT NULL,
-    "installPath" TEXT,
-    "status" "SkillInstallStatus" NOT NULL DEFAULT 'ENABLED',
+    "installationPath" TEXT,
+    "status" "SkillInstallationStatus" NOT NULL DEFAULT 'ENABLED',
     "config" JSONB,
     "installedBy" TEXT,
     "installedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "skill_install_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "skill_installation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "skill_permission" (
     "id" TEXT NOT NULL,
-    "skillInstallId" TEXT NOT NULL,
+    "skillInstallationId" TEXT NOT NULL,
     "networkPolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
     "networkAllowlist" JSONB,
     "shellPolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
@@ -146,7 +146,7 @@ CREATE TABLE "skill_permission" (
 -- CreateTable
 CREATE TABLE "skill_execution" (
     "id" TEXT NOT NULL,
-    "skillInstallId" TEXT NOT NULL,
+    "skillInstallationId" TEXT NOT NULL,
     "status" "SkillExecutionStatus" NOT NULL,
     "triggerType" "SkillExecutionTriggerType" NOT NULL,
     "triggeredBy" TEXT,
@@ -188,19 +188,19 @@ CREATE INDEX "skill_release_skillId_idx" ON "skill_release"("skillId");
 CREATE UNIQUE INDEX "skill_release_skillId_version_key" ON "skill_release"("skillId", "version");
 
 -- CreateIndex
-CREATE INDEX "skill_install_skillReleaseId_idx" ON "skill_install"("skillReleaseId");
+CREATE INDEX "skill_installation_skillReleaseId_idx" ON "skill_installation"("skillReleaseId");
 
 -- CreateIndex
-CREATE INDEX "skill_install_scopeType_scopeId_idx" ON "skill_install"("scopeType", "scopeId");
+CREATE INDEX "skill_installation_scopeType_scopeId_idx" ON "skill_installation"("scopeType", "scopeId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "skill_install_scopeType_scopeId_skillId_key" ON "skill_install"("scopeType", "scopeId", "skillId");
+CREATE UNIQUE INDEX "skill_installation_scopeType_scopeId_skillId_key" ON "skill_installation"("scopeType", "scopeId", "skillId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "skill_permission_skillInstallId_key" ON "skill_permission"("skillInstallId");
+CREATE UNIQUE INDEX "skill_permission_skillInstallationId_key" ON "skill_permission"("skillInstallationId");
 
 -- CreateIndex
-CREATE INDEX "skill_execution_skillInstallId_startedAt_idx" ON "skill_execution"("skillInstallId", "startedAt" DESC);
+CREATE INDEX "skill_execution_skillInstallationId_startedAt_idx" ON "skill_execution"("skillInstallationId", "startedAt" DESC);
 
 -- CreateIndex
 CREATE INDEX "skill_execution_status_startedAt_idx" ON "skill_execution"("status", "startedAt" DESC);
@@ -236,16 +236,16 @@ ALTER TABLE "job_event" ADD CONSTRAINT "job_event_jobId_fkey" FOREIGN KEY ("jobI
 ALTER TABLE "skill_release" ADD CONSTRAINT "skill_release_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "skill_install" ADD CONSTRAINT "skill_install_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "skill_installation" ADD CONSTRAINT "skill_installation_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "skill_install" ADD CONSTRAINT "skill_install_skillReleaseId_fkey" FOREIGN KEY ("skillReleaseId") REFERENCES "skill_release"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "skill_installation" ADD CONSTRAINT "skill_installation_skillReleaseId_fkey" FOREIGN KEY ("skillReleaseId") REFERENCES "skill_release"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "skill_permission" ADD CONSTRAINT "skill_permission_skillInstallId_fkey" FOREIGN KEY ("skillInstallId") REFERENCES "skill_install"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "skill_permission" ADD CONSTRAINT "skill_permission_skillInstallationId_fkey" FOREIGN KEY ("skillInstallationId") REFERENCES "skill_installation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "skill_execution" ADD CONSTRAINT "skill_execution_skillInstallId_fkey" FOREIGN KEY ("skillInstallId") REFERENCES "skill_install"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "skill_execution" ADD CONSTRAINT "skill_execution_skillInstallationId_fkey" FOREIGN KEY ("skillInstallationId") REFERENCES "skill_installation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "skill_execution" ADD CONSTRAINT "skill_execution_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE SET NULL ON UPDATE CASCADE;

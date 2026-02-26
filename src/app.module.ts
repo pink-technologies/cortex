@@ -7,11 +7,11 @@ import { Module } from '@nestjs/common';
 
 @Module({
   imports: [
-    DatabaseModule,
     ConfigModule.forRoot({
       envFilePath: `env/.env.${process.env.NODE_ENV ?? 'development'}`,
       isGlobal: true,
     }),
+    DatabaseModule,
   ],
   controllers: [],
   providers: [],

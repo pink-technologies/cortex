@@ -9,9 +9,9 @@ const directoryName = path.resolve(__dirname, '../../..');
 dotenv.config({ path: path.join(directoryName, 'env/.env.development') });
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: 'src/infraestructure/database/prisma/schema.prisma',
   migrations: {
-    path: 'prisma/migrations',
+    path: 'src/infraestructure/database/prisma/migrations',
   },
   datasource: {
     url: process.env['DATABASE_URL'],

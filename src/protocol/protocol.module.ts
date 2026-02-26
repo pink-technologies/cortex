@@ -9,4 +9,4 @@ import { AppService } from './protocol.service';
   controllers: [],
   providers: [AppService],
 })
-export class AppModule { }
+export class ProtocolModule { }
