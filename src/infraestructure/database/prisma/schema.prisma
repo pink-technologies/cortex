@@ -55,12 +55,12 @@ enum SkillExecutionTriggerType {
   MANUAL
 }
 
-enum SkillInstallStatus {
+enum SkillInstallationStatus {
   DISABLED
   ENABLED
 }
 
-enum SkillInstallScopeType {
+enum SkillInstallationScopeType {
   GLOBAL
   USER
   WORKSPACE
@@ -159,8 +159,8 @@ model Skill {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  releases SkillRelease[]
-  installs SkillInstall[]
+  releases      SkillRelease[]
+  installations SkillInstallation[]
 
   @@map("skill")
 }
@@ -180,81 +180,81 @@ model SkillRelease {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  skill    Skill          @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  installs SkillInstall[]
+  skill         Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  installations SkillInstallation[]
 
   @@unique([skillId, version])
   @@index([skillId])
   @@map("skill_release")
 }
 
-model SkillInstall {
+model SkillInstallation {
   id             String                @id @default(cuid())
   skillId        String
   skillReleaseId String
-  scopeType      SkillInstallScopeType
+  scopeType      SkillInstallationScopeType
   scopeId        String
-  installPath    String?
-  status         SkillInstallStatus    @default(ENABLED)
+  installationPath String?
+  status         SkillInstallationStatus    @default(ENABLED)
   config         Json?
   installedBy    String?
   installedAt    DateTime              @default(now())
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
-  skill        Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  skillRelease SkillRelease     @relation(fields: [skillReleaseId], references: [id], onDelete: Restrict)
-  permission   SkillPermission?
-  executions   SkillExecution[]
+  skill            Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillRelease     SkillRelease      @relation(fields: [skillReleaseId], references: [id], onDelete: Restrict)
+  permission       SkillPermission?
+  executions       SkillExecution[]
 
   @@unique([scopeType, scopeId, skillId])
   @@index([skillReleaseId])
   @@index([scopeType, scopeId])
-  @@map("skill_install")
+  @@map("skill_installation")
 }
 
 model SkillPermission {
   id               String           @id @default(cuid())
-  skillInstallId   String           @unique
-  networkPolicy    AccessPolicyType @default(NONE)
+  skillInstallationId String        @unique
+  networkPolicy    AccessPolicyType
   networkAllowlist Json?
-  shellPolicy      AccessPolicyType @default(NONE)
-  fsReadPolicy     AccessPolicyType @default(NONE)
+  shellPolicy      AccessPolicyType
+  fsReadPolicy     AccessPolicyType
   fsReadAllowlist  Json?
-  fsWritePolicy    AccessPolicyType @default(NONE)
+  fsWritePolicy    AccessPolicyType
   fsWriteAllowlist Json?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  skillInstall SkillInstall @relation(fields: [skillInstallId], references: [id], onDelete: Cascade)
+  skillInstallation SkillInstallation @relation(fields: [skillInstallationId], references: [id], onDelete: Cascade)
 
   @@map("skill_permission")
 }
 
 model SkillExecution {
-  id             String                    @id @default(cuid())
-  skillInstallId String
-  status         SkillExecutionStatus
-  triggerType    SkillExecutionTriggerType
-  triggeredBy    String?
-  correlationId  String?
-  inputJson      Json?
-  outputJson     Json?
-  errorText      String?
-  exitCode       Int?
-  chatId         String?
-  jobId          String?
-  startedAt      DateTime                  @default(now())
-  endedAt        DateTime?
-  durationMs     Int?
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
+  id                  String                    @id @default(cuid())
+  skillInstallationId String
+  status              SkillExecutionStatus
+  triggerType         SkillExecutionTriggerType
+  triggeredBy         String?
+  correlationId       String?
+  inputJson           Json?
+  outputJson          Json?
+  errorText           String?
+  exitCode            Int?
+  chatId              String?
+  jobId               String?
+  startedAt           DateTime                  @default(now())
+  endedAt             DateTime?
+  durationMs          Int?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
 
-  skillInstall SkillInstall @relation(fields: [skillInstallId], references: [id], onDelete: Cascade)
-  chat         Chat?        @relation(fields: [chatId], references: [id], onDelete: SetNull)
-  job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  skillInstallation SkillInstallation @relation(fields: [skillInstallationId], references: [id], onDelete: Cascade)
+  chat              Chat?             @relation(fields: [chatId], references: [id], onDelete: SetNull)
+  job               Job?              @relation(fields: [jobId], references: [id], onDelete: SetNull)
 
-  @@index([skillInstallId, startedAt(sort: Desc)])
+  @@index([skillInstallationId, startedAt(sort: Desc)])
   @@index([status, startedAt(sort: Desc)])
   @@index([chatId])
   @@index([jobId])
