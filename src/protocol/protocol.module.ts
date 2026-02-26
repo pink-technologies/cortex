@@ -2,11 +2,11 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common';
-import { AppService } from './app.service';
+import { AppService } from './protocol.service';
 
 @Module({
   imports: [],
   controllers: [],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

@@ -1,0 +1,254 @@
+-- CreateEnum
+CREATE TYPE "AccessPolicyType" AS ENUM ('ALL', 'ALLOWLIST', 'NONE');
+
+-- CreateEnum
+CREATE TYPE "JobEventType" AS ENUM ('DONE', 'ERROR', 'STATUS', 'TOKEN', 'TOOL_CALL', 'TOOL_RESULT');
+
+-- CreateEnum
+CREATE TYPE "JobStatus" AS ENUM ('CANCELED', 'COMPLETED', 'FAILED', 'QUEUED', 'RUNNING');
+
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM', 'TOOL');
+
+-- CreateEnum
+CREATE TYPE "SkillExecutionStatus" AS ENUM ('CANCELED', 'FAILED', 'QUEUED', 'RUNNING', 'SUCCEEDED', 'TIMEOUT');
+
+-- CreateEnum
+CREATE TYPE "SkillExecutionTriggerType" AS ENUM ('CHAT', 'API', 'JOB', 'MANUAL');
+
+-- CreateEnum
+CREATE TYPE "SkillInstallStatus" AS ENUM ('DISABLED', 'ENABLED');
+
+-- CreateEnum
+CREATE TYPE "SkillInstallScopeType" AS ENUM ('GLOBAL', 'USER', 'WORKSPACE');
+
+-- CreateEnum
+CREATE TYPE "SkillStatus" AS ENUM ('ARCHIVED', 'ACTIVE', 'DISABLED', 'DRAFT');
+
+-- CreateEnum
+CREATE TYPE "SkillSourceType" AS ENUM ('GIT', 'LOCAL', 'NPM');
+
+-- CreateTable
+CREATE TABLE "chat" (
+    "id" TEXT NOT NULL,
+    "title" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "chat_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "message" (
+    "id" TEXT NOT NULL,
+    "chatId" TEXT NOT NULL,
+    "role" "Role" NOT NULL,
+    "content" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "jobId" TEXT,
+
+    CONSTRAINT "message_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "job" (
+    "id" TEXT NOT NULL,
+    "chatId" TEXT NOT NULL,
+    "triggerMessageId" TEXT,
+    "status" "JobStatus" NOT NULL DEFAULT 'QUEUED',
+    "resultMessageId" TEXT,
+    "error" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "startedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "job_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "job_event" (
+    "id" TEXT NOT NULL,
+    "jobId" TEXT NOT NULL,
+    "type" "JobEventType" NOT NULL,
+    "payload" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "job_event_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skill" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "status" "SkillStatus" NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skill_release" (
+    "id" TEXT NOT NULL,
+    "skillId" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "sourceType" "SkillSourceType" NOT NULL,
+    "packageName" TEXT,
+    "packageVersion" TEXT,
+    "repositoryUrl" TEXT,
+    "commitSha" TEXT,
+    "entrypoint" TEXT,
+    "checksum" TEXT,
+    "manifest" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_release_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skill_install" (
+    "id" TEXT NOT NULL,
+    "skillId" TEXT NOT NULL,
+    "skillReleaseId" TEXT NOT NULL,
+    "scopeType" "SkillInstallScopeType" NOT NULL,
+    "scopeId" TEXT NOT NULL,
+    "installPath" TEXT,
+    "status" "SkillInstallStatus" NOT NULL DEFAULT 'ENABLED',
+    "config" JSONB,
+    "installedBy" TEXT,
+    "installedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_install_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skill_permission" (
+    "id" TEXT NOT NULL,
+    "skillInstallId" TEXT NOT NULL,
+    "networkPolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
+    "networkAllowlist" JSONB,
+    "shellPolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
+    "fsReadPolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
+    "fsReadAllowlist" JSONB,
+    "fsWritePolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
+    "fsWriteAllowlist" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_permission_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "skill_execution" (
+    "id" TEXT NOT NULL,
+    "skillInstallId" TEXT NOT NULL,
+    "status" "SkillExecutionStatus" NOT NULL,
+    "triggerType" "SkillExecutionTriggerType" NOT NULL,
+    "triggeredBy" TEXT,
+    "correlationId" TEXT,
+    "inputJson" JSONB,
+    "outputJson" JSONB,
+    "errorText" TEXT,
+    "exitCode" INTEGER,
+    "chatId" TEXT,
+    "jobId" TEXT,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "endedAt" TIMESTAMP(3),
+    "durationMs" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "skill_execution_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "message_chatId_idx" ON "message"("chatId");
+
+-- CreateIndex
+CREATE INDEX "job_chatId_idx" ON "job"("chatId");
+
+-- CreateIndex
+CREATE INDEX "job_status_idx" ON "job"("status");
+
+-- CreateIndex
+CREATE INDEX "job_event_jobId_idx" ON "job_event"("jobId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "skill_slug_key" ON "skill"("slug");
+
+-- CreateIndex
+CREATE INDEX "skill_release_skillId_idx" ON "skill_release"("skillId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "skill_release_skillId_version_key" ON "skill_release"("skillId", "version");
+
+-- CreateIndex
+CREATE INDEX "skill_install_skillReleaseId_idx" ON "skill_install"("skillReleaseId");
+
+-- CreateIndex
+CREATE INDEX "skill_install_scopeType_scopeId_idx" ON "skill_install"("scopeType", "scopeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "skill_install_scopeType_scopeId_skillId_key" ON "skill_install"("scopeType", "scopeId", "skillId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "skill_permission_skillInstallId_key" ON "skill_permission"("skillInstallId");
+
+-- CreateIndex
+CREATE INDEX "skill_execution_skillInstallId_startedAt_idx" ON "skill_execution"("skillInstallId", "startedAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "skill_execution_status_startedAt_idx" ON "skill_execution"("status", "startedAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "skill_execution_chatId_idx" ON "skill_execution"("chatId");
+
+-- CreateIndex
+CREATE INDEX "skill_execution_jobId_idx" ON "skill_execution"("jobId");
+
+-- CreateIndex
+CREATE INDEX "skill_execution_correlationId_idx" ON "skill_execution"("correlationId");
+
+-- AddForeignKey
+ALTER TABLE "message" ADD CONSTRAINT "message_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "message" ADD CONSTRAINT "message_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "job" ADD CONSTRAINT "job_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "job" ADD CONSTRAINT "job_triggerMessageId_fkey" FOREIGN KEY ("triggerMessageId") REFERENCES "message"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "job" ADD CONSTRAINT "job_resultMessageId_fkey" FOREIGN KEY ("resultMessageId") REFERENCES "message"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "job_event" ADD CONSTRAINT "job_event_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "job"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_release" ADD CONSTRAINT "skill_release_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_install" ADD CONSTRAINT "skill_install_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_install" ADD CONSTRAINT "skill_install_skillReleaseId_fkey" FOREIGN KEY ("skillReleaseId") REFERENCES "skill_release"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_permission" ADD CONSTRAINT "skill_permission_skillInstallId_fkey" FOREIGN KEY ("skillInstallId") REFERENCES "skill_install"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_execution" ADD CONSTRAINT "skill_execution_skillInstallId_fkey" FOREIGN KEY ("skillInstallId") REFERENCES "skill_install"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_execution" ADD CONSTRAINT "skill_execution_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill_execution" ADD CONSTRAINT "skill_execution_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
