@@ -9,6 +9,29 @@ datasource db {
   provider = "postgresql"
 }
 
+enum AccessPolicyType {
+  ALL
+  ALLOWLIST
+  NONE
+}
+
+enum JobEventType {
+  DONE
+  ERROR
+  STATUS
+  TOKEN
+  TOOL_CALL
+  TOOL_RESULT
+}
+
+enum JobStatus {
+  CANCELED
+  COMPLETED
+  FAILED
+  QUEUED
+  RUNNING
+}
+
 enum Role {
   USER
   ASSISTANT
@@ -16,31 +39,57 @@ enum Role {
   TOOL
 }
 
-enum JobStatus {
+enum SkillExecutionStatus {
+  CANCELED
+  FAILED
   QUEUED
   RUNNING
-  COMPLETED
-  FAILED
-  CANCELED
+  SUCCEEDED
+  TIMEOUT
 }
 
-enum JobEventType {
-  STATUS
-  TOKEN
-  TOOL_CALL
-  TOOL_RESULT
-  DONE
-  ERROR
+enum SkillExecutionTriggerType {
+  CHAT
+  API
+  JOB
+  MANUAL
+}
+
+enum SkillInstallationStatus {
+  DISABLED
+  ENABLED
+}
+
+enum SkillInstallationScopeType {
+  GLOBAL
+  USER
+  WORKSPACE
+}
+
+enum SkillStatus {
+  ARCHIVED
+  ACTIVE
+  DISABLED
+  DRAFT
+}
+
+enum SkillSourceType {
+  GIT
+  LOCAL
+  NPM
 }
 
 model Chat {
-  id        String    @id @default(cuid())
-  title     String?   
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  messages  Message[]
-  jobs      Job[]
+  messages        Message[]
+  jobs            Job[]
+  skillExecutions SkillExecution[]
+
+  @@map("chat")
 }
 
 model Message {
@@ -50,43 +99,165 @@ model Message {
   content   String
   createdAt DateTime @default(now())
 
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  job       Job?     @relation(fields: [jobId], references: [id])
-  jobId     String?
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  jobId String?
+  job   Job?    @relation("JobMessages", fields: [jobId], references: [id])
+
+  triggeredByJobs Job[] @relation("TriggerMessage")
+  resultOfJobs    Job[] @relation("ResultMessage")
 
   @@index([chatId])
+  @@map("message")
 }
 
 model Job {
-  id              String     @id @default(cuid())
-  chatId          String
+  id               String    @id @default(cuid())
+  chatId           String
   triggerMessageId String?
-  status          JobStatus  @default(QUEUED)
-  resultMessageId String?
-  error           String?
+  status           JobStatus @default(QUEUED)
+  resultMessageId  String?
+  error            String?
 
-  createdAt       DateTime   @default(now())
-  startedAt       DateTime?
-  completedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
 
-  chat            Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  triggerMessage  Message?   @relation("TriggerMessage", fields: [triggerMessageId], references: [id])
-  resultMessage   Message?   @relation("ResultMessage", fields: [resultMessageId], references: [id])
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
+  triggerMessage Message? @relation("TriggerMessage", fields: [triggerMessageId], references: [id])
+  resultMessage  Message? @relation("ResultMessage", fields: [resultMessageId], references: [id])
+
+  messages        Message[]        @relation("JobMessages")
   events          JobEvent[]
+  skillExecutions SkillExecution[]
 
   @@index([chatId])
   @@index([status])
+  @@map("job")
 }
 
 model JobEvent {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   jobId     String
   type      JobEventType
   payload   Json
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
-  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
+  @@map("job_event")
+}
+
+model Skill {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  name        String
+  description String?
+  status      SkillStatus @default(ACTIVE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  releases      SkillRelease[]
+  installations SkillInstallation[]
+
+  @@map("skill")
+}
+
+model SkillRelease {
+  id             String          @id @default(cuid())
+  skillId        String
+  version        String
+  sourceType     SkillSourceType
+  packageName    String?
+  packageVersion String?
+  repositoryUrl  String?
+  commitSha      String?
+  entrypoint     String?
+  checksum       String?
+  manifest       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  skill         Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  installations SkillInstallation[]
+
+  @@unique([skillId, version])
+  @@index([skillId])
+  @@map("skill_release")
+}
+
+model SkillInstallation {
+  id             String                @id @default(cuid())
+  skillId        String
+  skillReleaseId String
+  scopeType      SkillInstallationScopeType
+  scopeId        String
+  installationPath String?
+  status         SkillInstallationStatus    @default(ENABLED)
+  config         Json?
+  installedBy    String?
+  installedAt    DateTime              @default(now())
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  skill            Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillRelease     SkillRelease      @relation(fields: [skillReleaseId], references: [id], onDelete: Restrict)
+  permission       SkillPermission?
+  executions       SkillExecution[]
+
+  @@unique([scopeType, scopeId, skillId])
+  @@index([skillReleaseId])
+  @@index([scopeType, scopeId])
+  @@map("skill_installation")
+}
+
+model SkillPermission {
+  id               String           @id @default(cuid())
+  skillInstallationId String        @unique
+  networkPolicy    AccessPolicyType
+  networkAllowlist Json?
+  shellPolicy      AccessPolicyType
+  fsReadPolicy     AccessPolicyType
+  fsReadAllowlist  Json?
+  fsWritePolicy    AccessPolicyType
+  fsWriteAllowlist Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  skillInstallation SkillInstallation @relation(fields: [skillInstallationId], references: [id], onDelete: Cascade)
+
+  @@map("skill_permission")
+}
+
+model SkillExecution {
+  id                  String                    @id @default(cuid())
+  skillInstallationId String
+  status              SkillExecutionStatus
+  triggerType         SkillExecutionTriggerType
+  triggeredBy         String?
+  correlationId       String?
+  inputJson           Json?
+  outputJson          Json?
+  errorText           String?
+  exitCode            Int?
+  chatId              String?
+  jobId               String?
+  startedAt           DateTime                  @default(now())
+  endedAt             DateTime?
+  durationMs          Int?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  skillInstallation SkillInstallation @relation(fields: [skillInstallationId], references: [id], onDelete: Cascade)
+  chat              Chat?             @relation(fields: [chatId], references: [id], onDelete: SetNull)
+  job               Job?              @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([skillInstallationId, startedAt(sort: Desc)])
+  @@index([status, startedAt(sort: Desc)])
+  @@index([chatId])
+  @@index([jobId])
+  @@index([correlationId])
+  @@map("skill_execution")
 }
