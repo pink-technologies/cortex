@@ -10,12 +10,12 @@ Do not suggest stylistic refactors unless they affect correctness, architecture,
 
 ## Authoritative Rulebooks
 
-- skills/nestjs-best-practices/AGENTS.md
-- skills/nestjs-expert/SKILL.md
-- skills/nodejs-backend-patterns/SKILL.md
-- skills/javascript-sdk/SKILL.md
-- skills/prisma-expert/SKILL.md
-- skills/prisma-database-setup/SKILL.md
+- .cursor/skills/nestjs-best-practices/AGENTS.md
+- .cursor/skills/nestjs-expert/SKILL.md
+- .cursor/skills/nodejs-backend-patterns/SKILL.md
+- .cursor/skills/javascript-sdk/SKILL.md
+- .cursor/skills/prisma-expert/SKILL.md
+- .cursor/skills/prisma-database-setup/SKILL.md
 
 Use them as standards.
 
