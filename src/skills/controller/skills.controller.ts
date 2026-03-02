@@ -1,14 +1,17 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Skill } from 'src/infraestructure/database';
+import { SkillResponseDto } from '../dtos/response/skill-response.dto';
 import { SkillsService } from '../service/skills.service';
+import { SkillServiceExceptionFilter } from '../filter/exception.filter';
+import type { SkillsQuery } from '../types/skills-query.type';
 import {
     Controller,
     Get,
     HttpCode,
     Param,
     Query,
+    UseFilters,
 } from '@nestjs/common';
 
 /**
@@ -17,7 +20,8 @@ import {
  * This controller acts as the transport-layer entry point for skill
  * operations and delegates all business logic to the {@link SkillsService}.
  */
-@Controller()
+@Controller('skills')
+@UseFilters(SkillServiceExceptionFilter)
 export class SkillsController {
     // MARK: - Constructor
 
@@ -41,37 +45,16 @@ export class SkillsController {
      *
      * @param id - The unique identifier of the skill to search for.
      *
-     * @returns The matching skill entity.
+     * @returns The matching skill as a response DTO.
      *
      * @throws HttpException If the operation fails due to:
      * - Missing or invalid ID
      * - The requested skill not being found
      */
     @HttpCode(200)
-    @Get('skills/:id')
-    async findById(@Param('id') id: string): Promise<Skill> {
+    @Get('id/:id')
+    async findById(@Param('id') id: string): Promise<SkillResponseDto> {
         return this.skillsService.findById(id);
-    }
-
-    /**
-     * Finds a single skill by name.
-     *
-     * This endpoint fetches the detailed profile of a specific skill using
-     * its human-readable name.
-     *
-     * A successful operation returns **200 OK** with the matching skill.
-     *
-     * @param name - The exact name of the skill to search for.
-     *
-     * @returns The matching skill entity.
-     *
-     * @throws HttpException If the operation fails due to:
-     * - The requested skill not being found
-     */
-    @HttpCode(200)
-    @Get('skills/:name')
-    async findByName(@Param('name') name: string): Promise<Skill> {
-        return this.skillsService.findByName(name);
     }
 
     /**
@@ -87,23 +70,27 @@ export class SkillsController {
      * @returns An object containing a status message.
      */
     @HttpCode(200)
-    @Get('skills/check/registered')
+    @Get('check/registered')
     async isSkillRegistered(@Query('name') name: string): Promise<{ message: string }> {
         return this.skillsService.isSkillRegistered(name);
     }
 
     /**
-     * Retrieves all skills.
+     * Retrieves skills with optional filters and pagination.
      *
-     * This endpoint returns a catalog of all available skills in the system.
+     * Query params (all optional):
+     * - name: filters by skill name (contains, case-insensitive)
+     * - page: 1-based page number
+     * - size: items per page
      *
-     * A successful operation returns **200 OK** with an array of skills.
-     *
-     * @returns An array of all registered skills.
+     * @param query - Query parameters for filtering/pagination
+     * @returns Array of skills as response DTOs
      */
     @HttpCode(200)
     @Get()
-    async retrieve(): Promise<Skill[]> {
-        return this.skillsService.retrieve();
+    async retrieve(
+        @Query() query: SkillsQuery,
+    ): Promise<SkillResponseDto[]> {
+        return this.skillsService.retrieve(query);
     }
 }

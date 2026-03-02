@@ -2,6 +2,7 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
+import type { SkillsQuery } from '../types/skills-query.type';
 import {
     Database,
     Skill,
@@ -74,38 +75,12 @@ export class SkillsRepository {
     }
 
     /**
-     * Finds a skill by its name.
-     *
-     * Use this when the caller resolves skills by human-readable name rather
-     * than id.
-     *
-     * @param name - The skill name to search.
-     * @returns The first matching {@link Skill} entity, or null if none exists.
-     *
-     * @example
-     * ```typescript
-     * const skill = await skillsRepository.findByName('nestjs-best-practices');
-     * if (!skill) {
-     *   throw new SkillNotFoundError();
-     * }
-     * ```
-     */
-    async findByName(name: string): Promise<Skill | null> {
-        return this.database.skill.findFirst({
-            where: { name: name },
-        });
-    }
-
-    /**
      * Checks whether a skill name is already registered.
      *
-     * This method uses a count query rather than fetching full skill records
-     * to avoid unnecessary data retrieval.
+     * Normalizes the name (trim) before lookup. Empty or whitespace-only names
+     * return false (no skill can match).
      *
-     * The skill name is expected to be normalized before being passed to
-     * this method. Normalization should occur at the API boundary.
-     *
-     * @param name - The normalized skill name to check.
+     * @param name - The skill name to check.
      * @returns true if the skill is already registered, false otherwise.
      *
      * @example
@@ -117,29 +92,35 @@ export class SkillsRepository {
      * ```
      */
     async isSkillRegistered(name: string): Promise<boolean> {
+        const trimmedName = name?.trim();
+        if (!trimmedName) return false;
+
         const count = await this.database.skill.count({
-            where: { name: name },
+            where: { name: trimmedName },
         });
 
         return count > 0;
     }
 
     /**
-     * Retrieves all skills ordered alphabetically by name.
+     * Retrieves skills ordered alphabetically, optionally filtered and paginated.
      *
-     * This method is intended for catalog-like responses where clients need
-     * a deterministic ordering for rendering and searching.
-     *
-     * @returns An array of {@link Skill} entities sorted by name ascending.
-     *
-     * @example
-     * ```typescript
-     * const skills = await skillsRepository.retrieve();
-     * ```
+     * @param params - name (search), page (1-based), size (items per page)
+     * @returns Array of skills for the requested page.
      */
-    async retrieve(): Promise<Skill[]> {
+    async retrieve(params: SkillsQuery): Promise<Skill[]> {
+        const page = Math.max(1, params.page ?? 1);
+        const size = Math.max(1, Math.min(params.size ?? 50));
+        const skip = (page - 1) * size;
+        const trimmedName = params.q?.trim();
+
         return this.database.skill.findMany({
+            where: trimmedName ? {
+                name: { contains: trimmedName, mode: 'insensitive' },
+            } : {},
             orderBy: { name: 'asc' },
+            skip,
+            take: size,
         });
     }
 }

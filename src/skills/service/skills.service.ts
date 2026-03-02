@@ -2,11 +2,13 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import { Skill } from 'src/infraestructure/database';
 import { SkillsRepository } from '../repositories/skills.repository';
+import type { SkillsQuery } from '../types/skills-query.type';
+import { SkillResponseDto } from '../dtos/response/skill-response.dto';
 import {
   SkillNotFoundError,
   SkillRequiredIdError,
+  SkillRequiredNameError,
 } from './error/skills.error';
 
 /**
@@ -37,49 +39,39 @@ export class SkillsService {
    * Finds a single skill by id.
    *
    * @param id - The unique identifier of the skill.
-   * @returns The matching skill entity.
+   * @returns The matching skill as a response DTO.
    *
    * @throws SkillRequiredIdError when the id is empty or not provided.
    * @throws SkillNotFoundError when the skill cannot be found.
    */
-  async findById(id: string): Promise<Skill> {
+  async findById(id: string): Promise<SkillResponseDto> {
     const normalizedId = id.trim();
 
-    if (!normalizedId) throw new SkillRequiredIdError;
+    if (!normalizedId) throw new SkillRequiredIdError();
 
     const skill = await this.skillsRepository.findById(normalizedId);
 
-    if (!skill) throw new SkillNotFoundError;
+    if (!skill) throw new SkillNotFoundError();
 
-    return skill;
-  }
-
-  /**
-   * Finds a single skill by name.
-   *
-   * @param name - The name of the skill to search.
-   * @returns The matching skill entity.
-   *
-   * @throws SkillNotFoundError when the skill cannot be found.
-   */
-  async findByName(name: string): Promise<Skill> {
-    const normalizedName = name.trim();
-
-    const skill = await this.skillsRepository.findByName(normalizedName);
-
-    if (!skill) throw new SkillNotFoundError;
-
-    return skill;
+    return SkillResponseDto.from(skill);
   }
 
   /**
    * Checks whether a skill name is already registered.
    *
+   * The name is normalized (trimmed) before lookup; empty or whitespace-only
+   * names are rejected.
+   *
    * @param name - The skill name to validate.
    * @returns A status object describing whether the skill is registered.
+   * @throws SkillRequiredNameError when the name is empty or only whitespace.
    */
   async isSkillRegistered(name: string): Promise<{ message: string }> {
-    const registered = await this.skillsRepository.isSkillRegistered(name);
+    const normalizedName = name.trim();
+
+    if (!normalizedName) throw new SkillRequiredNameError();
+
+    const registered = await this.skillsRepository.isSkillRegistered(normalizedName);
 
     return {
       message: registered
@@ -89,11 +81,19 @@ export class SkillsService {
   }
 
   /**
-   * Retrieves all skills.
+   * Retrieves skills with optional filter and pagination.
+   * Size is fixed at 50 per page. Page is 1-based (1, 2, 3...).
    *
-   * @returns An array of all registered skills.
+   * @param query - name, page
+   * @returns Array of skills (50 max per page).
    */
-  async retrieve(): Promise<Skill[]> {
-    return this.skillsRepository.retrieve();
+  async retrieve(query: SkillsQuery): Promise<SkillResponseDto[]> {
+    const skills = await this.skillsRepository.retrieve({
+      q: query.q,
+      page: query.page,
+      size: query.size,
+    });
+
+    return skills.map(SkillResponseDto.from);
   }
 }

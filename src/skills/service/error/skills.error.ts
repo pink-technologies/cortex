@@ -56,3 +56,19 @@ export class SkillRequiredIdError extends SkillServiceError {
      */
     readonly code = 'SKILL_REQUIRED_ID';
 }
+
+/**
+ * Error thrown when a skill operation that requires a skill name
+ * is invoked with an empty or whitespace-only name.
+ *
+ * This typically happens when the caller passes an empty string
+ * or only spaces to a service method that expects a name (e.g. isSkillRegistered).
+ */
+export class SkillRequiredNameError extends SkillServiceError {
+    // MARK: - Properties
+
+    /**
+     * A machine-readable error code identifying missing skill name errors.
+     */
+    readonly code = 'SKILL_REQUIRED_NAME';
+}
