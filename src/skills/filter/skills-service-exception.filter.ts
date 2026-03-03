@@ -1,21 +1,22 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import {
-  ArgumentsHost,
-  BadRequestException,
-  Catch,
-  ExceptionFilter,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
-
+import { I18nService } from '../../i18n';
 import {
   SkillNotFoundError,
   SkillRequiredIdError,
   SkillRequiredNameError,
   SkillServiceError,
 } from '../service/error/skills.error';
+import {
+  ArgumentsHost,
+  BadRequestException,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 
 /**
  * Skill-specific exception filter.
@@ -32,32 +33,54 @@ import {
  * This filter is intended to be used in the skill boundary
  * (e.g. skills controller or globally when skill errors may propagate).
  */
-@Catch(SkillServiceError)
+@Catch()
 export class SkillServiceExceptionFilter implements ExceptionFilter {
-  catch(exception: SkillServiceError, host: ArgumentsHost): void {
+  // MARK: - Constructor
+
+  /**
+   * Creates a new instance of the class.
+   *
+   * @param i18n - The internationalization service used to resolve
+   * localized, user-facing messages in a consistent and
+   * domain-aware manner.
+   */
+  constructor(private readonly i18n: I18nService) { }
+
+  // MARK: - ExceptionFilter
+
+  catch(exception: unknown, host: ArgumentsHost): void {
+    const i18n = this.i18n;
+
     if (exception instanceof SkillRequiredIdError) {
-      throw new BadRequestException('Skill ID is required.', {
+      throw new BadRequestException(i18n.skills.skillRequiredId(), {
         cause: exception,
       });
     }
 
     if (exception instanceof SkillRequiredNameError) {
-      throw new BadRequestException('Skill name is required.', {
+      throw new BadRequestException(i18n.skills.skillRequiredName(), {
         cause: exception,
       });
     }
 
     if (exception instanceof SkillNotFoundError) {
-      throw new NotFoundException('Skill not found.', {
+      throw new NotFoundException(i18n.skills.skillNotFound(), {
         cause: exception,
       });
     }
 
-    throw new InternalServerErrorException(
-      'An unexpected error occurred while processing the skill request.',
-      {
+    if (exception instanceof SkillServiceError) {
+      throw new InternalServerErrorException(i18n.skills.skillServiceError(), {
         cause: exception,
-      },
-    );
+      });
+    }
+
+    if (exception instanceof HttpException) {
+      throw exception;
+    }
+
+    throw new InternalServerErrorException(i18n.common.serviceUnavailable(), {
+      cause: exception,
+    });
   }
 }
