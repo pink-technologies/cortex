@@ -104,11 +104,26 @@ export class I18nService {
      * unavailable due to internal errors.
      */
     skillNotRegistered: () => this.i18n.t('skills.skill_not_registered'),
-    
+
+    /**
+     * Message displayed when a skill ID is required.
+     */
+    skillRequiredId: () => this.i18n.t('skills.skill_required_id'),
+
+    /**
+     * Message displayed when a skill name is required.
+     */
+    skillRequiredName: () => this.i18n.t('skills.skill_required_name'),
+
     /**
      * Message displayed when a skill is not found.
      */
     skillNotFound: () => this.i18n.t('skills.skill_not_found'),
+
+    /**
+     * Message displayed when an unexpected error occurs while processing a skill request.
+     */
+    skillServiceError: () => this.i18n.t('skills.skill_service_error'),
   };
 
   // MARK: - Constructor
