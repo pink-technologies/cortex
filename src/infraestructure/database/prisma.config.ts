@@ -11,7 +11,7 @@ dotenv.config({ path: path.join(directoryName, 'env/.env.development') });
 export default defineConfig({
   schema: 'src/infraestructure/database/prisma/schema.prisma',
   migrations: {
-    path: 'src/infraestructure/database/prisma/migrations',
+    path: 'prisma/migrations',
   },
   datasource: {
     url: process.env['DATABASE_URL'],

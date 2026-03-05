@@ -1,7 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Skill } from 'src/infraestructure/database';
+import { Skill } from 'src/skills/types/skill.type';
+import { SkillInstallationResponseDto } from '../skill-installation/skill-instalation-response.dto';
 
 /**
  * Data Transfer Object representing a skill returned to the client.
@@ -46,6 +47,11 @@ export class SkillResponseDto {
    */
   readonly updatedAt: Date;
 
+  /**
+   * Installations associated to this skill.
+   */
+  readonly installations: SkillInstallationResponseDto[];
+
   // Static methods
 
   /**
@@ -54,7 +60,7 @@ export class SkillResponseDto {
    * This method acts as a mapping boundary between the domain
    * entity and the API response layer.
    *
-   * @param skill - The domain skill entity from the database layer.
+   * @param skill - Skill entity including installations.
    * @returns A response DTO suitable for API responses.
    */
   static from(skill: Skill): SkillResponseDto {
@@ -66,6 +72,7 @@ export class SkillResponseDto {
       status: skill.status,
       createdAt: skill.createdAt,
       updatedAt: skill.updatedAt,
+      installations: skill.installations.map(SkillInstallationResponseDto.from),
     };
   }
 }

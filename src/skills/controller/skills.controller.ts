@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { SkillResponseDto } from '../dtos/response/skill-response.dto';
+import { SkillResponseDto } from '../dtos/response/skill/skill-response.dto';
 import { SkillsService } from '../service/skills.service';
 import { SkillServiceExceptionFilter } from '../filter/exception.filter';
 import type { SkillsQuery } from '../types/skills-query.type';
@@ -55,24 +55,6 @@ export class SkillsController {
     @Get('id/:id')
     async findById(@Param('id') id: string): Promise<SkillResponseDto> {
         return this.skillsService.findById(id);
-    }
-
-    /**
-     * Checks whether a skill name is already registered.
-     *
-     * This endpoint performs a validation check against the database to
-     * determine if the provided skill name already exists.
-     *
-     * A successful operation returns **200 OK** with a descriptive message.
-     *
-     * @param name - The skill name to check.
-     *
-     * @returns An object containing a status message.
-     */
-    @HttpCode(200)
-    @Get('check/registered')
-    async isSkillRegistered(@Query('name') name: string): Promise<{ message: string }> {
-        return this.skillsService.isSkillRegistered(name);
     }
 
     /**

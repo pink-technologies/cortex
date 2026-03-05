@@ -4,11 +4,10 @@
 import { Injectable } from '@nestjs/common';
 import { SkillsRepository } from '../repositories/skills.repository';
 import type { SkillsQuery } from '../types/skills-query.type';
-import { SkillResponseDto } from '../dtos/response/skill-response.dto';
+import { SkillResponseDto } from '../dtos/response/skill/skill-response.dto';
 import {
   SkillNotFoundError,
-  SkillRequiredIdError,
-  SkillRequiredNameError,
+  SkillRequiredIdError
 } from './error/skills.error';
 
 /**
@@ -54,30 +53,6 @@ export class SkillsService {
     if (!skill) throw new SkillNotFoundError();
 
     return SkillResponseDto.from(skill);
-  }
-
-  /**
-   * Checks whether a skill name is already registered.
-   *
-   * The name is normalized (trimmed) before lookup; empty or whitespace-only
-   * names are rejected.
-   *
-   * @param name - The skill name to validate.
-   * @returns A status object describing whether the skill is registered.
-   * @throws SkillRequiredNameError when the name is empty or only whitespace.
-   */
-  async isSkillRegistered(name: string): Promise<{ message: string }> {
-    const normalizedName = name.trim();
-
-    if (!normalizedName) throw new SkillRequiredNameError();
-
-    const registered = await this.skillsRepository.isSkillRegistered(normalizedName);
-
-    return {
-      message: registered
-        ? 'Skill is already registered.'
-        : 'Skill is not registered.',
-    };
   }
 
   /**

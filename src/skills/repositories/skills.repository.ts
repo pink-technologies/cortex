@@ -4,9 +4,17 @@
 import { Injectable } from '@nestjs/common';
 import type { SkillsQuery } from '../types/skills-query.type';
 import {
-    Database,
-    Skill,
+    Database
 } from 'src/infraestructure/database';
+import { Skill } from '../types/skill.type';
+
+/**
+ * Default maximum number of records returned per page.
+ *
+ * This limit protects the database from large queries and ensures
+ * consistent pagination behavior across the application.
+ */
+const PAGE_SIZE = 50;
 
 /**
  * Repository responsible for querying {@link Skill} entities.
@@ -71,35 +79,10 @@ export class SkillsRepository {
     async findById(id: string): Promise<Skill | null> {
         return this.database.skill.findUnique({
             where: { id: id },
+            include: {
+                installations: true,
+            },
         });
-    }
-
-    /**
-     * Checks whether a skill name is already registered.
-     *
-     * Normalizes the name (trim) before lookup. Empty or whitespace-only names
-     * return false (no skill can match).
-     *
-     * @param name - The skill name to check.
-     * @returns true if the skill is already registered, false otherwise.
-     *
-     * @example
-     * ```typescript
-     * const isRegistered = await skillsRepository.isSkillRegistered('nestjs');
-     * if (isRegistered) {
-     *   throw new SkillNameAlreadyRegisteredError();
-     * }
-     * ```
-     */
-    async isSkillRegistered(name: string): Promise<boolean> {
-        const trimmedName = name?.trim();
-        if (!trimmedName) return false;
-
-        const count = await this.database.skill.count({
-            where: { name: trimmedName },
-        });
-
-        return count > 0;
     }
 
     /**
@@ -110,17 +93,20 @@ export class SkillsRepository {
      */
     async retrieve(params: SkillsQuery): Promise<Skill[]> {
         const page = Math.max(1, params.page ?? 1);
-        const size = Math.max(1, Math.min(params.size ?? 50));
+        const size = Math.max(1, Math.min(params.size ?? PAGE_SIZE));
         const skip = (page - 1) * size;
-        const trimmedName = params.q?.trim();
+        const search = params.q?.trim();
 
         return this.database.skill.findMany({
-            where: trimmedName ? {
-                name: { contains: trimmedName, mode: 'insensitive' },
+            where: search ? {
+                name: { contains: search, mode: 'insensitive' },
             } : {},
             orderBy: { name: 'asc' },
             skip,
             take: size,
+            include: {
+                installations: true,
+            },
         });
     }
 }
