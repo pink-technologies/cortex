@@ -14,7 +14,7 @@
  * - provide user-safe, provider-agnostic error messages,
  * - prevent lower-level storage errors from leaking beyond the storage layer.
  */
-export abstract class StorageError {
+export abstract class StorageError extends Error {
   // MARK: - Properties
 
   /**
