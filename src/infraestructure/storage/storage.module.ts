@@ -7,17 +7,17 @@ import { RedisStorageService } from './redis/redis-storage.service';
 
 @Global()
 @Module({
-    imports: [ConfigModule],
-    exports: [RedisStorageService],
-    providers: [
-        {
-            provide: RedisStorageService,
-            inject: [ConfigService],
-            useFactory: async (config: ConfigService) =>
-                await RedisStorageService.make(
-                    config.get<string>('REDISCLOUD_URL') ?? 'localhost',
-                ),
-        },
-    ],
+  imports: [ConfigModule],
+  exports: [RedisStorageService],
+  providers: [
+    {
+      provide: RedisStorageService,
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) =>
+        await RedisStorageService.make(
+          config.get<string>('REDISCLOUD_URL') ?? 'redis://localhost:6379',
+        ),
+    },
+  ],
 })
-export class StorageModule { }
+export class StorageModule {}

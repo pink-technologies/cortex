@@ -14,13 +14,40 @@
  * - provide user-safe, provider-agnostic error messages,
  * - prevent lower-level storage errors from leaking beyond the storage layer.
  */
-export abstract class StorageError {
+export abstract class StorageError extends Error {
   // MARK: - Properties
 
   /**
    * A machine-readable error code identifying the type of storage failure.
    */
   abstract readonly code: string;
+
+  /**
+   * The underlying error that caused this storage failure.
+   *
+   * This value is intended for internal use only (logging,
+   * tracing, diagnostics) and must not be exposed directly
+   * to API consumers.
+   */
+  readonly cause?: unknown;
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link StorageError} instance.
+   *
+   * @param message - A human-readable description of the storage error.
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(
+    message = 'An unexpected storage error occurred.',
+    cause?: unknown,
+  ) {
+    super(message);
+
+    this.cause = cause;
+    this.name = new.target.name;
+  }
 }
 
 /**
