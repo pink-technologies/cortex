@@ -1,0 +1,8 @@
+{
+  "skill_already_registered": "Skill is already registered.",
+  "skill_not_registered": "Skill is not registered.",
+  "skill_required_id": "Skill ID is required.",
+  "skill_required_name": "Skill name is required.",
+  "skill_not_found": "Skill not found.",
+  "skill_service_error": "An unexpected error occurred while processing the skill request."
+}
