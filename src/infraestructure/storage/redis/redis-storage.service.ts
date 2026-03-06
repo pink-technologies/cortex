@@ -50,11 +50,14 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
      * ```
      */
     static async make(url: string): Promise<RedisStorageService> {
+        let client: Redis | undefined;
+
         try {
-            const client = new Redis(url);
+            client = new Redis(url);
             await client.ping();
             return new RedisStorageService(client);
         } catch {
+            client?.disconnect();
             throw new StorageInitializationError();
         }
     }
@@ -124,12 +127,14 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
     /**
      * Writes a value for the given key.
      *
-     * The value is serialized to JSON automatically (except strings, which are
-     * stored as-is).
+     * The value is serialized with JSON.stringify (all types, including strings).
+     * Stored form is therefore JSON (e.g. the string "hello" is stored as
+     * "hello" with quotes). External tools reading the same key will see
+     * JSON-encoded values; use read/parse for round-trip consistency.
      *
      * @param value - Value to store (must be JSON-serializable).
-     * @param forKey - Key to store the value under.
-     * @throws {StorageWriteError} When the SET operation fails.
+     * @param key - Key to store the value under.
+     * @throws {StorageWriteError} When serialization or the SET operation fails.
      *
      * @example
      * ```typescript
@@ -138,9 +143,9 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
      * ```
      */
     async write<T>(value: T, key: string): Promise<void> {
-        const serialized = JSON.stringify(value);
-
         try {
+            const serialized = JSON.stringify(value);
+
             await this.client.set(key, serialized);
         } catch {
             throw new StorageWriteError();

@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
 import * as path from 'path';
 import { DatabaseModule } from './infraestructure/database';
+import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
 import { SkillsModule } from './skills';
 
@@ -29,6 +30,7 @@ import { SkillsModule } from './skills';
       },
     }),
     DatabaseModule,
+    StorageModule,
     CortexI18nModule,
     SkillsModule,
   ],
