@@ -9,6 +9,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum AgentStatus {
+  ACTIVE
+  DEPRECATED
+}
+
 enum AccessPolicyType {
   ALL
   ALLOWLIST
@@ -77,6 +82,32 @@ enum SkillSourceType {
   GIT
   LOCAL
   NPM
+}
+
+model Agent {
+  id          String       @id @default(cuid())
+  createdAt   DateTime     @default(now())
+  description String?
+  name        String
+  status      AgentStatus  @default(ACTIVE)
+  updatedAt   DateTime     @updatedAt
+  agentSkills AgentSkill[]
+
+  @@map("agent")
+}
+
+model AgentSkill {
+  id        String   @id @default(cuid())
+  agentId   String
+  skillId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id])
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@unique([agentId, skillId])
+  @@map("agent_skill")
 }
 
 model Chat {
@@ -161,6 +192,7 @@ model Skill {
 
   releases      SkillRelease[]
   installations SkillInstallation[]
+  agentSkills   AgentSkill[]
 
   @@map("skill")
 }
@@ -180,7 +212,7 @@ model SkillRelease {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  skill         Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skill         Skill               @relation(fields: [skillId], references: [id], onDelete: Cascade)
   installations SkillInstallation[]
 
   @@unique([skillId, version])
@@ -189,23 +221,23 @@ model SkillRelease {
 }
 
 model SkillInstallation {
-  id             String                @id @default(cuid())
-  skillId        String
-  skillReleaseId String
-  scopeType      SkillInstallationScopeType
-  scopeId        String
+  id               String                     @id @default(cuid())
+  skillId          String
+  skillReleaseId   String
+  scopeType        SkillInstallationScopeType
+  scopeId          String
   installationPath String?
-  status         SkillInstallationStatus    @default(ENABLED)
-  config         Json?
-  installedBy    String?
-  installedAt    DateTime              @default(now())
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  status           SkillInstallationStatus    @default(ENABLED)
+  config           Json?
+  installedBy      String?
+  installedAt      DateTime                   @default(now())
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
 
-  skill            Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  skillRelease     SkillRelease      @relation(fields: [skillReleaseId], references: [id], onDelete: Restrict)
-  permission       SkillPermission?
-  executions       SkillExecution[]
+  skill        Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillRelease SkillRelease     @relation(fields: [skillReleaseId], references: [id], onDelete: Restrict)
+  permission   SkillPermission?
+  executions   SkillExecution[]
 
   @@unique([scopeType, scopeId, skillId])
   @@index([skillReleaseId])
@@ -214,17 +246,17 @@ model SkillInstallation {
 }
 
 model SkillPermission {
-  id               String           @id @default(cuid())
-  skillInstallationId String        @unique
-  networkPolicy    AccessPolicyType
-  networkAllowlist Json?
-  shellPolicy      AccessPolicyType
-  fsReadPolicy     AccessPolicyType
-  fsReadAllowlist  Json?
-  fsWritePolicy    AccessPolicyType
-  fsWriteAllowlist Json?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id                  String           @id @default(cuid())
+  skillInstallationId String           @unique
+  networkPolicy       AccessPolicyType
+  networkAllowlist    Json?
+  shellPolicy         AccessPolicyType
+  fsReadPolicy        AccessPolicyType
+  fsReadAllowlist     Json?
+  fsWritePolicy       AccessPolicyType
+  fsWriteAllowlist    Json?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   skillInstallation SkillInstallation @relation(fields: [skillInstallationId], references: [id], onDelete: Cascade)
 

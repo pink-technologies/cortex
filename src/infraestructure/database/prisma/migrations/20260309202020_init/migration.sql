@@ -1,4 +1,7 @@
 -- CreateEnum
+CREATE TYPE "AgentStatus" AS ENUM ('ACTIVE', 'DEPRECATED');
+
+-- CreateEnum
 CREATE TYPE "AccessPolicyType" AS ENUM ('ALL', 'ALLOWLIST', 'NONE');
 
 -- CreateEnum
@@ -27,6 +30,29 @@ CREATE TYPE "SkillStatus" AS ENUM ('ARCHIVED', 'ACTIVE', 'DISABLED', 'DRAFT');
 
 -- CreateEnum
 CREATE TYPE "SkillSourceType" AS ENUM ('GIT', 'LOCAL', 'NPM');
+
+-- CreateTable
+CREATE TABLE "agent" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "description" TEXT,
+    "name" TEXT NOT NULL,
+    "status" "AgentStatus" NOT NULL DEFAULT 'ACTIVE',
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "agent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "agent_skill" (
+    "id" TEXT NOT NULL,
+    "agentId" TEXT NOT NULL,
+    "skillId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "agent_skill_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "chat" (
@@ -130,12 +156,12 @@ CREATE TABLE "skill_installation" (
 CREATE TABLE "skill_permission" (
     "id" TEXT NOT NULL,
     "skillInstallationId" TEXT NOT NULL,
-    "networkPolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
+    "networkPolicy" "AccessPolicyType" NOT NULL,
     "networkAllowlist" JSONB,
-    "shellPolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
-    "fsReadPolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
+    "shellPolicy" "AccessPolicyType" NOT NULL,
+    "fsReadPolicy" "AccessPolicyType" NOT NULL,
     "fsReadAllowlist" JSONB,
-    "fsWritePolicy" "AccessPolicyType" NOT NULL DEFAULT 'NONE',
+    "fsWritePolicy" "AccessPolicyType" NOT NULL,
     "fsWriteAllowlist" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -165,6 +191,9 @@ CREATE TABLE "skill_execution" (
 
     CONSTRAINT "skill_execution_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "agent_skill_agentId_skillId_key" ON "agent_skill"("agentId", "skillId");
 
 -- CreateIndex
 CREATE INDEX "message_chatId_idx" ON "message"("chatId");
@@ -213,6 +242,12 @@ CREATE INDEX "skill_execution_jobId_idx" ON "skill_execution"("jobId");
 
 -- CreateIndex
 CREATE INDEX "skill_execution_correlationId_idx" ON "skill_execution"("correlationId");
+
+-- AddForeignKey
+ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "message" ADD CONSTRAINT "message_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;

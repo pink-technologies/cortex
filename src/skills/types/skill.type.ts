@@ -1,6 +1,6 @@
 // https://pink-tech.io/
 
-import { Prisma } from "src/infraestructure/database";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Skill payload type that includes the `installations` relation.

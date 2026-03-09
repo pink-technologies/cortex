@@ -6,10 +6,9 @@ import {
   SkillNotFoundError,
   SkillRequiredIdError,
   SkillRequiredNameError,
-  SkillServiceError,
 } from '../service/error/skills.error';
+
 import {
-  ArgumentsHost,
   BadRequestException,
   Catch,
   ExceptionFilter,
@@ -48,7 +47,7 @@ export class SkillServiceExceptionFilter implements ExceptionFilter {
 
   // MARK: - ExceptionFilter
 
-  catch(exception: unknown, host: ArgumentsHost): void {
+  catch(exception: unknown): void {
     const i18n = this.i18n;
 
     if (exception instanceof SkillRequiredIdError) {
@@ -65,12 +64,6 @@ export class SkillServiceExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof SkillNotFoundError) {
       throw new NotFoundException(i18n.skills.skillNotFound(), {
-        cause: exception,
-      });
-    }
-
-    if (exception instanceof SkillServiceError) {
-      throw new InternalServerErrorException(i18n.skills.skillServiceError(), {
         cause: exception,
       });
     }

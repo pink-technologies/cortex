@@ -26,6 +26,48 @@ export class I18nService {
   // MARK: - Helpers
 
   /**
+   * Agents, cross-domain localized messages.
+   *
+   * These messages are specific to the agents domain.
+   */
+  readonly agents = {
+    /**
+     * Message displayed when a agent is required.
+     */
+    agentRequiredName: () => this.i18n.t('agents.agent_required_name'),
+
+    /**
+     * Message displayed when a agent is not found. 
+     */
+    agentNotFound: () => this.i18n.t('agents.agent_not_found'),
+
+    /**
+     * Message displayed when a agent ID is required.
+     */
+    agentRequiredId: () => this.i18n.t('agents.agent_required_id'),
+  };
+
+  /**
+   * Agents skills, cross-domain localized messages.
+   *
+   * These messages are specific to the agents skills domain.
+   */
+  readonly agentsSkills = {
+    /**
+     * Message displayed when a skill is added to an agent successfully.
+     */
+    skillAddedToAgentSuccessfully: () => this.i18n.t('agents-skills.skill_added_to_agent_successfully'),
+
+    /**
+     * Message displayed when a skill is removed from an agent successfully.
+  
+    /**
+     * Message displayed when a skill is removed from an agent successfully.
+     */
+    skillRemovedFromAgentSuccessfully: () => this.i18n.t('agents-skills.skill_removed_from_agent_successfully'),
+  };
+
+  /**
    * Common, cross-domain localized messages.
    *
    * These messages are generic and may be reused across
@@ -78,11 +120,6 @@ export class I18nService {
      * Message displayed when a skill is not found.
      */
     skillNotFound: () => this.i18n.t('skills.skill_not_found'),
-
-    /**
-     * Message displayed when an unexpected error occurs while processing a skill request.
-     */
-    skillServiceError: () => this.i18n.t('skills.skill_service_error'),
   };
 
   // MARK: - Constructor
