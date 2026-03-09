@@ -25,6 +25,7 @@ export class CreateAgentParametersDto {
      * The description of the agent.
      */
     @IsOptional()
-    @IsString()    
+    @IsString()
+    @MaxLength(255, { message: 'The agent description must be less than 255 characters.' })
     description?: string | null;
 }

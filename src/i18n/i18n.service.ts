@@ -34,17 +34,17 @@ export class I18nService {
     /**
      * Message displayed when a agent is required.
      */
-    requiredName: () => this.i18n.t('agents.agent_required_name'),
+    agentRequiredName: () => this.i18n.t('agents.agent_required_name'),
 
     /**
      * Message displayed when a agent is not found. 
      */
-    notFound: () => this.i18n.t('agents.agent_not_found'),
+    agentNotFound: () => this.i18n.t('agents.agent_not_found'),
 
     /**
      * Message displayed when a agent ID is required.
      */
-    requiredId: () => this.i18n.t('agents.agent_required_id'),
+    agentRequiredId: () => this.i18n.t('agents.agent_required_id'),
   };
 
   /**
@@ -53,7 +53,15 @@ export class I18nService {
    * These messages are specific to the agents skills domain.
    */
   readonly agentsSkills = {
+    /**
+     * Message displayed when a skill is added to an agent successfully.
+     */
+    skillAddedToAgentSuccessfully: () => this.i18n.t('agents-skills.skill_added_to_agent_successfully'),
 
+    /**
+     * Message displayed when a skill is removed from an agent successfully.
+     */
+    skillRemovedFromAgentSuccessfully: () => this.i18n.t('agents-skills.skill_removed_from_agent_successfully'),
   };
 
   /**
@@ -119,11 +127,6 @@ export class I18nService {
      * Message displayed when a skill is not found.
      */
     skillNotFound: () => this.i18n.t('skills.skill_not_found'),
-
-    /**
-     * Message displayed when an unexpected error occurs while processing a skill request.
-     */
-    skillServiceError: () => this.i18n.t('skills.skill_service_error'),
   };
 
   // MARK: - Constructor

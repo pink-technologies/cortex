@@ -1,2 +1,2 @@
-export { AgentsRepository } from './agents/agents.repository';
+export { AgentsRepository } from './agents.repository';
 export { AgentsSkillsRepository } from './agents-skills/agents-skills.repository';
