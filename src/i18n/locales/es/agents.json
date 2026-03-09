@@ -1,0 +1,5 @@
+{
+    "agent_required_id": "El ID del agente es obligatorio.",
+    "agent_required_name": "El nombre del agente es obligatorio.",
+    "agent_not_found": "El agente no existe."
+}

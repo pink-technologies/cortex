@@ -7,7 +7,8 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "db:setup": "prisma migrate dev --name init --config src/infraestructure/database/prisma.config.ts --schema src/infraestructure/database/prisma/schema.prisma",
+    "db:setup": "rm -rf src/infraestructure/database/prisma/migrations && npx prisma migrate reset --force --config src/infraestructure/database/prisma.config.ts --schema src/infraestructure/database/prisma/schema.prisma && npx prisma migrate dev --name init --config src/infraestructure/database/prisma.config.ts --schema src/infraestructure/database/prisma/schema.prisma && pnpm db:generate",
+    "db:generate": "prisma generate --schema src/infraestructure/database/prisma/schema.prisma",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

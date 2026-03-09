@@ -2,8 +2,8 @@
 // https://pink-tech.io/
 
 import { SkillResponseDto } from '../dtos/response/skill/skill-response.dto';
-import { SkillsService } from '../service/skills.service';
 import { SkillServiceExceptionFilter } from '../filter/exception.filter';
+import { SkillsService } from '../service/skills.service';
 import type { SkillsQuery } from '../types/skills-query.type';
 import {
     Controller,
