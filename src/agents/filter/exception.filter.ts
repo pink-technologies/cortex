@@ -2,6 +2,7 @@
 // https://pink-tech.io/
 
 import { I18nService } from '../../i18n';
+import { SkillNotFoundError } from 'src/skills/service/error/skills.error';
 import {
     AgentNotFoundError,
     AgentRequiredIdError,
@@ -31,7 +32,13 @@ import {
  * This filter is intended to be used in the agents boundary
  * (e.g. agents controller or globally when agents errors may propagate).
  */
-@Catch()
+@Catch(
+    AgentNotFoundError,
+    AgentRequiredIdError,
+    AgentRequiredNameError,
+    HttpException,
+    SkillNotFoundError,
+)
 export class AgentsExceptionFilter implements ExceptionFilter {
     // MARK: - Constructor
 
@@ -63,6 +70,12 @@ export class AgentsExceptionFilter implements ExceptionFilter {
 
         if (exception instanceof AgentNotFoundError) {
             throw new NotFoundException(i18n.agents.agentNotFound(), {
+                cause: exception,
+            });
+        }
+
+        if (exception instanceof SkillNotFoundError) {
+            throw new NotFoundException(i18n.skills.skillNotFound(), {
                 cause: exception,
             });
         }

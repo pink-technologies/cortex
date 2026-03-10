@@ -5,7 +5,6 @@ import { AgentsExceptionFilter } from 'src/agents/filter/exception.filter';
 import { AgentsSkillsService } from 'src/agents/service/agents-skills/agents-skills.service';
 import { AgentsSkillsResponseDto } from 'src/agents/dto/response/agents-skills/agents-skills.response.dto';
 import { AddSkillsToAgentParametersDto } from 'src/agents/dto/parameters/create/agents-skills/add-skills-to-agent-parameters.dto';
-import { RemoveSkillsFromAgentParametersDto } from 'src/agents/dto/parameters/delete/remove-skills-from-agent-parameters.dto';
 import {
     Body,
     Controller,
@@ -53,13 +52,17 @@ export class AgentsSkillsController {
     /**
      * Removes a skill from an agent.
      *
-     * @param parameters - The parameters for the skill removal.
+     * @param agentId - The unique identifier of the agent.
+     * @param skillId - The unique identifier of the skill to remove.
      * @returns The {@link AgentsSkillsResponseDto} entity.
      */
     @HttpCode(200)
-    @Delete('id/:id')
-    async removeSkillsFromAgent(@Param('id') id: string, @Body() parameters: RemoveSkillsFromAgentParametersDto): Promise<string> {
-        return this.agentsSkillsService.removeSkill(id, parameters.skillId);
+    @Delete('agent/:id/skill/:skillId')
+    async removeSkillsFromAgent(
+        @Param('id') agentId: string,
+        @Param('skillId') skillId: string,
+    ): Promise<string> {
+        return this.agentsSkillsService.removeSkill(agentId, skillId);
     }
 
     /**

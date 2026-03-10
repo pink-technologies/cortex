@@ -1,13 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { SkillServiceError } from "src/skills/service/error/skills.error";
-
 /**
- * Base class for all skill service–level errors.
+ * Base class for all agent service–level errors.
  *
  * This abstract error represents failures that occur within the
- * skill application layer and serves as a boundary
+ * agent application layer and serves as a boundary
  * between orchestration logic and transport-level concerns
  * (e.g. HTTP, GraphQL).
  *

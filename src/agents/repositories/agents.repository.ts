@@ -5,7 +5,6 @@ import { Injectable } from '@nestjs/common';
 import {
     Database,
     type Agent,
-    AgentStatus,
 } from 'src/infraestructure/database';
 
 /**

@@ -94,12 +94,14 @@ export class AgentsService {
     async update(id: string, parameters: UpdateAgentParametersDto): Promise<AgentsResponseDto> {
         if (!id) throw new AgentRequiredIdError;
 
-        if (!parameters.name) throw new AgentRequiredNameError;
-
-        const agent = await this.agentsRepository.update(id, parameters.name, parameters.description);
+        const agent = await this.agentsRepository.findById(id);
 
         if (!agent) throw new AgentNotFoundError;
 
-        return AgentsResponseDto.from(agent);
+        if (!parameters.name) throw new AgentRequiredNameError;
+
+        const updatedAgent = await this.agentsRepository.update(id, parameters.name, parameters.description);
+
+        return AgentsResponseDto.from(updatedAgent);
     }
 }
