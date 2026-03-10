@@ -1,14 +1,13 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from "@nestjs/common";
+import { AgentNotFoundError } from '../error/agents.error';
+import { AgentsSkillsResponseDto } from "src/agents/dto/response/agents-skills/agents-skills.response.dto";
 import { AgentsSkillsRepository } from "../../repositories/agents-skills/agents-skills.repository";
 import { AgentsRepository } from "src/agents/repositories/agents.repository";
-import { SkillsRepository } from "src/skills";
-import { SkillNotFoundError } from "src/skills/service/error/skills.error";
-import { AgentNotFoundError } from "../error/agents.error";
-import { AgentsSkillsResponseDto } from "src/agents/dto/response/agents-skills/agents-skills.response.dto";
+import { Injectable } from "@nestjs/common";
 import { I18nService } from "src/i18n";
+import { SkillsService } from 'src/skills';
 
 
 /**
@@ -31,8 +30,8 @@ export class AgentsSkillsService {
          */
         constructor(
                 private readonly agentsSkillsRepository: AgentsSkillsRepository,
-                private readonly skillsRepository: SkillsRepository,
                 private readonly agentsRepository: AgentsRepository,
+                private readonly skillsService: SkillsService,
                 private readonly i18nService: I18nService,
         ) { }
 
@@ -46,15 +45,14 @@ export class AgentsSkillsService {
          * @returns A success message.
          * @throws AgentNotFoundError when the agent cannot be found.
          * @throws SkillNotFoundError when the skill cannot be found.
+         * @throws SkillRequiredIdError when the skill ID is empty or invalid.
          */
         async addSkill(agentId: string, skillId: string): Promise<string> {
                 const agent = await this.agentsRepository.findById(agentId);
 
                 if (!agent) throw new AgentNotFoundError;
 
-                const skill = await this.skillsRepository.findById(skillId);
-
-                if (!skill) throw new SkillNotFoundError;
+                const skill = await this.skillsService.findById(skillId);
 
                 await this.agentsSkillsRepository.addSkill(agent.id, skill.id);
 
@@ -69,15 +67,14 @@ export class AgentsSkillsService {
          * @returns A success message.
          * @throws AgentNotFoundError when the agent cannot be found.
          * @throws SkillNotFoundError when the skill cannot be found.
+         * @throws SkillRequiredIdError when the skill ID is empty or invalid.
          */
         async removeSkill(agentId: string, skillId: string): Promise<string> {
                 const agent = await this.agentsRepository.findById(agentId);
 
                 if (!agent) throw new AgentNotFoundError;
 
-                const skill = await this.skillsRepository.findById(skillId);
-
-                if (!skill) throw new SkillNotFoundError;
+                const skill = await this.skillsService.findById(skillId);
 
                 await this.agentsSkillsRepository.removeSkill(agent.id, skill.id);
 

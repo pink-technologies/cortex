@@ -5,7 +5,6 @@ import { Injectable } from '@nestjs/common';
 import {
     Database,
     type Agent,
-    AgentStatus,
 } from 'src/infraestructure/database';
 
 /**
@@ -99,7 +98,7 @@ export class AgentsRepository {
      *
      * @param id - The unique agent identifier.
      * @param name - The new name of the agent.
-     * @param description - The new description of the agent.
+     * @param description - The new description (omit to leave existing value unchanged).
      * @returns The updated {@link Agent} entity.
      */
     async update(id: string, name: string, description?: string | null): Promise<Agent> {
@@ -107,7 +106,7 @@ export class AgentsRepository {
             where: { id: id },
             data: {
                 name: name,
-                description: description ?? null,
+                ...(description !== undefined && { description: description ?? null }),
             },
         });
     }
