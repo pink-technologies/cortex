@@ -3,8 +3,11 @@
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
 import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
 import * as path from 'path';
+import { AgentsModule } from './agents';
+import { DatabaseExceptionFilter } from './infraestructure/database';
 import { DatabaseModule } from './infraestructure/database';
 import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
@@ -29,12 +32,18 @@ import { SkillsModule } from './skills';
         watch: true,
       },
     }),
+    AgentsModule,
     DatabaseModule,
     StorageModule,
     CortexI18nModule,
     SkillsModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: DatabaseExceptionFilter,
+    },
+  ],
 })
 export class AppModule { }

@@ -31,7 +31,12 @@ import {
  * This filter is intended to be used in the skill boundary
  * (e.g. skills controller or globally when skill errors may propagate).
  */
-@Catch()
+@Catch(
+  HttpException,
+  SkillNotFoundError,
+  SkillRequiredIdError,
+  SkillRequiredNameError,
+)
 export class SkillServiceExceptionFilter implements ExceptionFilter {
   // MARK: - Constructor
 

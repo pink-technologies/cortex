@@ -78,10 +78,7 @@ export class AgentsSkillsRepository {
      */
     async retrieveByAgentId(agentId: string): Promise<AgentSkill[]> {
         return this.database.agentSkill.findMany({
-            where: { agentId: agentId },
-            include: {
-                skill: true,
-            },
+            where: { agentId: agentId }
         });
     }
 

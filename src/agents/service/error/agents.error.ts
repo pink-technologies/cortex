@@ -1,13 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { SkillServiceError } from "src/skills/service/error/skills.error";
-
 /**
- * Base class for all skill service–level errors.
+ * Base class for all agent service–level errors.
  *
  * This abstract error represents failures that occur within the
- * skill application layer and serves as a boundary
+ * agent application layer and serves as a boundary
  * between orchestration logic and transport-level concerns
  * (e.g. HTTP, GraphQL).
  *
@@ -25,19 +23,6 @@ export abstract class AgentServiceError extends Error {
      * agent service error.
      */
     abstract readonly code: string;
-}
-
-/**
- * Error thrown when an attempt is made to deprecate an agent
- * that is already deprecated.
- */
-export class AgentAlreadyDeprecatedError extends AgentServiceError {
-    // MARK: - Properties
-
-    /**
-     * A machine-readable error code identifying agent-already-deprecated errors.
-     */
-    readonly code = 'AGENT_ALREADY_DEPRECATED';
 }
 
 /**
@@ -70,20 +55,4 @@ export class AgentRequiredIdError extends AgentServiceError {
      * A machine-readable error code identifying missing agent ID errors.
      */
     readonly code = 'AGENT_REQUIRED_ID';
-}
-
-/**
- * Error thrown when a agent operation that requires a agent name
- * is invoked with an empty or whitespace-only name.
- *
- * This typically happens when the caller passes an empty string
- * or only spaces to a service method that expects a name (e.g. isAgentRegistered).
- */
-export class AgentRequiredNameError extends AgentServiceError {
-    // MARK: - Properties
-
-    /**
-     * A machine-readable error code identifying missing agent name errors.
-     */
-    readonly code = 'AGENT_REQUIRED_NAME';
 }

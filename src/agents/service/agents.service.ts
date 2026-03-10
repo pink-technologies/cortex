@@ -5,13 +5,7 @@ import { Injectable } from '@nestjs/common';
 import { AgentsRepository } from '../repositories/agents.repository';
 import { AgentsResponseDto } from '../dto/response/agents-response.dto';
 import { CreateAgentParametersDto } from '../dto/parameters/create/agents/create-agents-parameters';
-import { AgentStatus } from '@prisma/client';
-import {
-    AgentAlreadyDeprecatedError,
-    AgentNotFoundError,
-    AgentRequiredIdError,
-    AgentRequiredNameError,
-} from './error/agents.error';
+import { AgentNotFoundError, AgentRequiredIdError } from './error/agents.error';
 import { UpdateAgentParametersDto } from '../dto/parameters/update/update-agents-parameters.dto';
 
 /**
@@ -43,11 +37,8 @@ export class AgentsService {
      *
      * @param parameters - The parameters for the agent creation.
      * @returns The created agent as a response DTO.
-     * @throws AgentRequiredNameError when the name is empty or not provided.
      */
     async create(parameters: CreateAgentParametersDto): Promise<AgentsResponseDto> {
-        if (!parameters.name) throw new AgentRequiredNameError;
-
         const agent = await this.agentsRepository.create(parameters.name, parameters.description);
 
         return AgentsResponseDto.from(agent);
@@ -94,12 +85,12 @@ export class AgentsService {
     async update(id: string, parameters: UpdateAgentParametersDto): Promise<AgentsResponseDto> {
         if (!id) throw new AgentRequiredIdError;
 
-        if (!parameters.name) throw new AgentRequiredNameError;
-
-        const agent = await this.agentsRepository.update(id, parameters.name, parameters.description);
+        const agent = await this.agentsRepository.findById(id);
 
         if (!agent) throw new AgentNotFoundError;
 
-        return AgentsResponseDto.from(agent);
+        const updatedAgent = await this.agentsRepository.update(id, parameters.name, parameters.description);
+
+        return AgentsResponseDto.from(updatedAgent);
     }
 }
