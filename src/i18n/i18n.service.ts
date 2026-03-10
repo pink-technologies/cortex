@@ -37,7 +37,7 @@ export class I18nService {
     agentRequiredName: () => this.i18n.t('agents.agent_required_name'),
 
     /**
-     * Message displayed when a agent is not found. 
+     * Message displayed when a agent is not found.
      */
     agentNotFound: () => this.i18n.t('agents.agent_not_found'),
 
@@ -56,15 +56,14 @@ export class I18nService {
     /**
      * Message displayed when a skill is added to an agent successfully.
      */
-    skillAddedToAgentSuccessfully: () => this.i18n.t('agents-skills.skill_added_to_agent_successfully'),
+    skillAddedToAgentSuccessfully: () =>
+      this.i18n.t('agents-skills.skill_added_to_agent_successfully'),
 
     /**
      * Message displayed when a skill is removed from an agent successfully.
-  
-    /**
-     * Message displayed when a skill is removed from an agent successfully.
      */
-    skillRemovedFromAgentSuccessfully: () => this.i18n.t('agents-skills.skill_removed_from_agent_successfully'),
+    skillRemovedFromAgentSuccessfully: () =>
+      this.i18n.t('agents-skills.skill_removed_from_agent_successfully'),
   };
 
   /**
@@ -88,7 +87,8 @@ export class I18nService {
      * Message displayed when a request cannot be processed
      * due to invalid input or business rule violations.
      */
-    requestCouldNotBeProcessed: () => this.i18n.t('common.request_could_not_be_processed'),
+    requestCouldNotBeProcessed: () =>
+      this.i18n.t('common.request_could_not_be_processed'),
 
     /**
      * Message displayed when the service is temporarily
@@ -98,17 +98,18 @@ export class I18nService {
   };
 
   /**
- * Common, cross-domain localized messages.
- *
- * These messages are generic and may be reused across
- * multiple modules and error scenarios.
- */
+   * Common, cross-domain localized messages.
+   *
+   * These messages are generic and may be reused across
+   * multiple modules and error scenarios.
+   */
   readonly skills = {
     /**
      * Message displayed when a request cannot be processed
      * due to invalid input or business rule violations.
      */
-    skillAlreadyRegistered: () => this.i18n.t('skills.skill_already_registered'),
+    skillAlreadyRegistered: () =>
+      this.i18n.t('skills.skill_already_registered'),
 
     /**
      * Message displayed when the service is temporarily
@@ -140,5 +141,5 @@ export class I18nService {
    * @param i18n - The underlying i18n provider used to
    * resolve translation keys into localized strings.
    */
-  constructor(private readonly i18n: i18n) { }
+  constructor(private readonly i18n: i18n) {}
 }
