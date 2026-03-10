@@ -1,4 +1,6 @@
 {
+  "record_already_exists": "Ya existe un registro con el mismo identificador único.",
+  "record_not_found": "El registro solicitado no fue encontrado.",
   "request_could_not_be_processed": "La solicitud no pudo ser procesada.",
   "service_unavailable": "El servicio no está disponible temporalmente."
 }

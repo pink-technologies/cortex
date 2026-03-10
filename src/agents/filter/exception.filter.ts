@@ -3,9 +3,12 @@
 
 import { I18nService } from '../../i18n';
 import {
+    SkillNotFoundError,
+    SkillRequiredIdError,
+} from 'src/skills/service/error/skills.error';
+import {
     AgentNotFoundError,
     AgentRequiredIdError,
-    AgentRequiredNameError,
 } from '../service/error/agents.error';
 import {
     BadRequestException,
@@ -31,7 +34,13 @@ import {
  * This filter is intended to be used in the agents boundary
  * (e.g. agents controller or globally when agents errors may propagate).
  */
-@Catch()
+@Catch(
+    AgentNotFoundError,
+    AgentRequiredIdError,
+    HttpException,
+    SkillNotFoundError,
+    SkillRequiredIdError,
+)
 export class AgentsExceptionFilter implements ExceptionFilter {
     // MARK: - Constructor
 
@@ -55,14 +64,20 @@ export class AgentsExceptionFilter implements ExceptionFilter {
             });
         }
 
-        if (exception instanceof AgentRequiredNameError) {
-            throw new BadRequestException(i18n.agents.agentRequiredName(), {
+        if (exception instanceof AgentNotFoundError) {
+            throw new NotFoundException(i18n.agents.agentNotFound(), {
                 cause: exception,
             });
         }
 
-        if (exception instanceof AgentNotFoundError) {
-            throw new NotFoundException(i18n.agents.agentNotFound(), {
+        if (exception instanceof SkillNotFoundError) {
+            throw new NotFoundException(i18n.skills.skillNotFound(), {
+                cause: exception,
+            });
+        }
+
+        if (exception instanceof SkillRequiredIdError) {
+            throw new BadRequestException(i18n.skills.skillRequiredId(), {
                 cause: exception,
             });
         }

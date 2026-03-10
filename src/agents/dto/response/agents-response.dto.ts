@@ -4,9 +4,9 @@
 import { Agent } from 'src/infraestructure/database';
 
 /**
- * Data Transfer Object representing a skill returned to the client.
+ * Data Transfer Object representing an agent returned to the client.
  *
- * This DTO exposes a read-only, sanitized view of the skill entity
+ * This DTO exposes a read-only, sanitized view of the agent entity
  * suitable for API responses, decoupling the response shape from
  * the persistence model.
  */
@@ -17,7 +17,7 @@ export class AgentsResponseDto {
     readonly id: string;
 
     /**
-     * Human-readable name of the skill.
+     * Human-readable name of the agent.
      */
     readonly name: string;
 

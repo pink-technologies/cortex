@@ -60,9 +60,6 @@ export class I18nService {
 
     /**
      * Message displayed when a skill is removed from an agent successfully.
-  
-    /**
-     * Message displayed when a skill is removed from an agent successfully.
      */
     skillRemovedFromAgentSuccessfully: () => this.i18n.t('agents-skills.skill_removed_from_agent_successfully'),
   };
@@ -74,6 +71,16 @@ export class I18nService {
    * multiple modules and error scenarios.
    */
   readonly common = {
+    /**
+     * Message displayed when a record already exists with the same unique identifier.
+     */
+    recordAlreadyExists: () => this.i18n.t('common.record_already_exists'),
+
+    /**
+     * Message displayed when the requested record was not found.
+     */
+    recordNotFound: () => this.i18n.t('common.record_not_found'),
+
     /**
      * Message displayed when a request cannot be processed
      * due to invalid input or business rule violations.
