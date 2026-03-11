@@ -14,12 +14,6 @@ enum AgentStatus {
   DEPRECATED
 }
 
-enum AccessPolicyType {
-  ALL
-  ALLOWLIST
-  NONE
-}
-
 enum JobEventType {
   DONE
   ERROR
@@ -57,22 +51,6 @@ enum ConnectionRole {
   CLASSIFIER
 }
 
-enum SkillExecutionStatus {
-  CANCELED
-  FAILED
-  QUEUED
-  RUNNING
-  SUCCEEDED
-  TIMEOUT
-}
-
-enum SkillExecutionTriggerType {
-  CHAT
-  API
-  JOB
-  MANUAL
-}
-
 enum SkillInstallationStatus {
   DISABLED
   ENABLED
@@ -89,12 +67,6 @@ enum SkillStatus {
   ACTIVE
   DISABLED
   DRAFT
-}
-
-enum SkillSourceType {
-  GIT
-  LOCAL
-  NPM
 }
 
 model Agent {
@@ -224,6 +196,7 @@ model Model {
   modelConnections ModelConnection[]
 
   @@unique([slug])
+  @@index([modelProviderId])
   @@map("model")
 }
 
@@ -237,6 +210,7 @@ model ModelConnection {
   model       Model             @relation(fields: [modelId], references: [id], onDelete: Cascade)
   connections AgentConnection[]
 
+  @@index([modelId])
   @@map("model_connection")
 }
 
@@ -282,7 +256,7 @@ enum DatasourceAuthType {
   @@map("datasource_auth_type")
 }
 
-model DataSourceProvider {
+model DatasourceProvider {
   id                    String                 @id @default(uuid())
   slug                  String
   name                  String
@@ -306,9 +280,11 @@ model DatasourceConnection {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  provider                   DataSourceProvider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  provider                   DatasourceProvider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
   skillDatasourceConnections SkillDatasourceConnection[]
 
+  @@unique([slug])
+  @@index([providerId])
   @@map("datasource_connection")
 }
 
@@ -370,7 +346,6 @@ model SkillTool {
 model SkillInstallation {
   id               String                     @id @default(uuid())
   skillId          String
-  skillReleaseId   String
   scopeType        SkillInstallationScopeType
   scopeId          String
   installationPath String?

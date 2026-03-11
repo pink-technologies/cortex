@@ -18,11 +18,6 @@ export class SkillInstallationResponseDto {
     readonly skillId: string;
 
     /**
-     * Related skill release identifier.
-     */
-    readonly skillReleaseId: string;
-
-    /**
      * Installation scope type.
      */
     readonly scopeType: string;
@@ -77,7 +72,6 @@ export class SkillInstallationResponseDto {
         return {
             id: installation.id,
             skillId: installation.skillId,
-            skillReleaseId: installation.skillReleaseId,
             scopeType: installation.scopeType,
             scopeId: installation.scopeId,
             installationPath: installation.installationPath,
