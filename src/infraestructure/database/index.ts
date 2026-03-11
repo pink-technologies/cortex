@@ -6,6 +6,7 @@ export type {
     Agent,
     AgentSkill,
     Skill,
+    SkillInstallation,
     Prisma,
 } from '@prisma/client';
 export {
