@@ -2,12 +2,6 @@
 // https://pink-tech.io/
 
 import { I18nService } from '../../i18n';
-import { 
-  ToolAlreadyRegisteredError, 
-  ToolNotFoundError, 
-  ToolRequiredSlugError 
-} from '../services/error/tool.error';
-
 import {
   BadRequestException,
   Catch,
@@ -16,6 +10,13 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  ToolAlreadyRegisteredError,
+  ToolNotFoundError,
+  ToolRequiredError,
+  ToolRequiredNameError,
+  ToolRequiredSlugError,
+} from '../services/error/tool.error';
 
 /**
  * Tool-specific exception filter.
@@ -34,9 +35,11 @@ import {
  */
 @Catch(
   HttpException,
-  ToolAlreadyRegisteredError,  
-  ToolNotFoundError,
   ToolRequiredSlugError,
+  ToolNotFoundError,
+  ToolAlreadyRegisteredError,
+  ToolRequiredError,
+  ToolRequiredNameError,
 )
 export class ToolServiceExceptionFilter implements ExceptionFilter {
   // MARK: - Constructor
@@ -55,13 +58,6 @@ export class ToolServiceExceptionFilter implements ExceptionFilter {
   catch(exception: unknown): void {
     const i18n = this.i18n;
 
-    if (exception instanceof ToolNotFoundError) {
-      throw new NotFoundException(
-        'Tool not found', {
-        cause: exception,
-      });
-    }
-
     if (exception instanceof ToolRequiredSlugError) {
       throw new BadRequestException(
         'Tool slug is required', {
@@ -69,9 +65,30 @@ export class ToolServiceExceptionFilter implements ExceptionFilter {
       });
     }
 
+    if (exception instanceof ToolNotFoundError) {
+      throw new NotFoundException(
+        'Tool not found', {
+        cause: exception,
+      });
+    }
+
     if (exception instanceof ToolAlreadyRegisteredError) {
       throw new BadRequestException(
         'Tool already registered', {
+        cause: exception,
+      });
+    }
+
+    if (exception instanceof ToolRequiredError) {
+      throw new BadRequestException(
+        'Tool is required', {
+        cause: exception,
+      });
+    }
+
+    if (exception instanceof ToolRequiredNameError) {
+      throw new BadRequestException(
+        'Tool name is required', {
         cause: exception,
       });
     }

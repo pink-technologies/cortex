@@ -4,10 +4,10 @@
 import { ToolServiceExceptionFilter } from '../filter/exception.filter';
 import { ToolExecutorService } from '../services/executor/tool-executor.service';
 import {
-    Body,
-    Controller,    
-    HttpCode,    
-    Post,
+    Controller,
+    Get,
+    HttpCode,
+    Param,
     UseFilters,
 } from '@nestjs/common';
 
@@ -37,9 +37,9 @@ export class ToolExecutorController {
      * @param slug - The slug of the tool to execute.
      * @returns The result of the tool execution.
      */
-    @HttpCode(201)
-    @Post('execute/:slug')
-    async execute(@Body('slug') slug: string): Promise<string> {
+    @HttpCode(200)
+    @Get('execute/:slug')
+    async execute(@Param('slug') slug: string): Promise<string> {
         return this.toolExecutorService.execute(slug);
     }
 }

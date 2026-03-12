@@ -2,27 +2,15 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import { Tool } from 'src/tools/tools/tool';
-import { 
-    ToolAlreadyRegisteredError, 
-    ToolNotFoundError, 
-    ToolRequiredSlugError 
+import { Tool } from 'src/tools/interface/tool';
+import {
+    ToolAlreadyRegisteredError,
+    ToolNotFoundError,
+    ToolRequiredNameError,
+    ToolRequiredSlugError,
+    ToolRequiredError,
 } from '../error/tool.error';
 
-/**
- * Central registry for executable tools.
- *
- * Holds all tools by slug and provides lookup and listing. Tools must be registered
- * before they can be found or executed. Slugs are normalized (trimmed) for storage
- * and lookup.
- *
- * @example
- * ```ts
- * registry.register(myTool);
- * const tool = registry.findBySlug('my-tool');
- * const all = registry.retrieve();
- * ```
- */
 @Injectable()
 export class ToolRegistryService {
     // MARK: - Properties
@@ -35,24 +23,28 @@ export class ToolRegistryService {
     // MARK: - Instance methods
 
     /**
-     * Registers a tool by its slug. Slug is trimmed before storage.
+     * Registers a tool.
      * @param tool - The tool to register.
-     * @throws {@link ToolAlreadyRegisteredError} When a tool with the same slug is already registered.
+     * @throws When the tool registration fails.
      */
     register(tool: Tool): void {
+        if (!tool) throw new ToolRequiredError();
+
+        if (!tool.slug.trim()) throw new ToolRequiredSlugError();
+
+        if (!tool.name.trim()) throw new ToolRequiredNameError();
+
         if (this.tools.has(tool.slug.trim())) throw new ToolAlreadyRegisteredError();
 
         this.tools.set(tool.slug.trim(), tool);
     }
 
     /**
-     * Finds a tool by slug. Slug is trimmed before lookup.
+     * Finds a tool by slug.
      * @param slug - The slug of the tool.
-     * @returns The registered tool.
-     * @throws {@link ToolRequiredSlugError} When slug is empty or whitespace.
-     * @throws {@link ToolNotFoundError} When no tool is registered for the slug.
+     * @returns The tool.
      */
-    findBySlug(slug: string): Tool {
+    getBySlug(slug: string): Tool {
         if (!slug.trim()) throw new ToolRequiredSlugError();
 
         const tool = this.tools.get(slug.trim());
@@ -63,10 +55,13 @@ export class ToolRegistryService {
     }
 
     /**
-     * Returns all registered tools in registration order (insertion order of the map).
-     * @returns A new array of all registered tools.
+     * Retrieves the list of tools.
+     * 
+     * @returns The list of tools.
      */
-    retrieve(): Tool[] {
+    list(): Tool[] {
+        if (this.tools.size === 0) return [];
+
         return Array.from(this.tools.values());
     }
 }

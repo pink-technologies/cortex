@@ -39,6 +39,35 @@ export class ToolNotFoundError extends ToolServiceError {
 }
 
 /**
+ * Error thrown when a tool operation that requires a tool
+ * is invoked with an empty or whitespace-only tool.
+ */
+export class ToolRequiredError extends ToolServiceError {
+    // MARK: - Properties
+
+    /**
+     * A machine-readable error code identifying missing tool errors.
+     */
+    readonly code = 'TOOL_REQUIRED';
+}
+
+/**
+ * Error thrown when a tool operation that requires a tool name
+ * is invoked with an empty or whitespace-only name.
+ *
+ * This typically happens when the caller passes an empty string
+ * or only spaces to a service method that expects a name (e.g. isToolRegistered).
+ */
+export class ToolRequiredNameError extends ToolServiceError {
+    // MARK: - Properties
+
+    /**
+     * A machine-readable error code identifying missing tool name errors.
+     */
+    readonly code = 'TOOL_REQUIRED_NAME';
+}
+
+/**
  * Error thrown when a tool operation that requires a tool slug
  * is invoked with an empty or whitespace-only slug.
  *

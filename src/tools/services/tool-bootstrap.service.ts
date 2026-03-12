@@ -1,9 +1,7 @@
-// Copyright (c) 2026, PinkTech
-// https://pink-tech.io/
-
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ToolRegistryService } from "./registry/tool-registry.service";
-import { HelloWorldTool } from "../tools";
+import { HelloWorldTool } from "../implementations";
+import { UUIDGeneratorTool } from "../implementations/uuid-generator/uuid-generator.tool";
 
 /**
  * Service responsible for bootstrapping the tool registry.
@@ -20,6 +18,7 @@ export class ToolBootstrapService implements OnModuleInit {
     constructor(
         private readonly toolRegistryService: ToolRegistryService,
         private readonly helloWorldTool: HelloWorldTool,
+        private readonly uuidGeneratorTool: UUIDGeneratorTool,
     ) { }
 
     // MARK: - OnModuleInit
@@ -29,5 +28,6 @@ export class ToolBootstrapService implements OnModuleInit {
      */
     onModuleInit(): void {
         this.toolRegistryService.register(this.helloWorldTool);
+        this.toolRegistryService.register(this.uuidGeneratorTool);
     }
 }
