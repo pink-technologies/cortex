@@ -1,38 +1,50 @@
 -- CreateEnum
-CREATE TYPE "AgentStatus" AS ENUM ('ACTIVE', 'DEPRECATED');
+CREATE TYPE "AgentStatus" AS ENUM
+('ACTIVE', 'DEPRECATED');
 
 -- CreateEnum
-CREATE TYPE "AccessPolicyType" AS ENUM ('ALL', 'ALLOWLIST', 'NONE');
+CREATE TYPE "AccessPolicyType" AS ENUM
+('ALL', 'ALLOWLIST', 'NONE');
 
 -- CreateEnum
-CREATE TYPE "JobEventType" AS ENUM ('DONE', 'ERROR', 'STATUS', 'TOKEN', 'TOOL_CALL', 'TOOL_RESULT');
+CREATE TYPE "JobEventType" AS ENUM
+('DONE', 'ERROR', 'STATUS', 'TOKEN', 'TOOL_CALL', 'TOOL_RESULT');
 
 -- CreateEnum
-CREATE TYPE "JobStatus" AS ENUM ('CANCELED', 'COMPLETED', 'FAILED', 'QUEUED', 'RUNNING');
+CREATE TYPE "JobStatus" AS ENUM
+('CANCELED', 'COMPLETED', 'FAILED', 'QUEUED', 'RUNNING');
 
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM', 'TOOL');
+CREATE TYPE "Role" AS ENUM
+('USER', 'ASSISTANT', 'SYSTEM', 'TOOL');
 
 -- CreateEnum
-CREATE TYPE "SkillExecutionStatus" AS ENUM ('CANCELED', 'FAILED', 'QUEUED', 'RUNNING', 'SUCCEEDED', 'TIMEOUT');
+CREATE TYPE "SkillExecutionStatus" AS ENUM
+('CANCELED', 'FAILED', 'QUEUED', 'RUNNING', 'SUCCEEDED', 'TIMEOUT');
 
 -- CreateEnum
-CREATE TYPE "SkillExecutionTriggerType" AS ENUM ('CHAT', 'API', 'JOB', 'MANUAL');
+CREATE TYPE "SkillExecutionTriggerType" AS ENUM
+('CHAT', 'API', 'JOB', 'MANUAL');
 
 -- CreateEnum
-CREATE TYPE "SkillInstallationStatus" AS ENUM ('DISABLED', 'ENABLED');
+CREATE TYPE "SkillInstallationStatus" AS ENUM
+('DISABLED', 'ENABLED');
 
 -- CreateEnum
-CREATE TYPE "SkillInstallationScopeType" AS ENUM ('GLOBAL', 'USER', 'WORKSPACE');
+CREATE TYPE "SkillInstallationScopeType" AS ENUM
+('GLOBAL', 'USER', 'WORKSPACE');
 
 -- CreateEnum
-CREATE TYPE "SkillStatus" AS ENUM ('ARCHIVED', 'ACTIVE', 'DISABLED', 'DRAFT');
+CREATE TYPE "SkillStatus" AS ENUM
+('ARCHIVED', 'ACTIVE', 'DISABLED', 'DRAFT');
 
 -- CreateEnum
-CREATE TYPE "SkillSourceType" AS ENUM ('GIT', 'LOCAL', 'NPM');
+CREATE TYPE "SkillSourceType" AS ENUM
+('GIT', 'LOCAL', 'NPM');
 
 -- CreateTable
-CREATE TABLE "agent" (
+CREATE TABLE "agent"
+(
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "description" TEXT,
@@ -44,7 +56,8 @@ CREATE TABLE "agent" (
 );
 
 -- CreateTable
-CREATE TABLE "agent_skill" (
+CREATE TABLE "agent_skill"
+(
     "id" TEXT NOT NULL,
     "agentId" TEXT NOT NULL,
     "skillId" TEXT NOT NULL,
@@ -55,7 +68,8 @@ CREATE TABLE "agent_skill" (
 );
 
 -- CreateTable
-CREATE TABLE "chat" (
+CREATE TABLE "chat"
+(
     "id" TEXT NOT NULL,
     "title" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -65,7 +79,8 @@ CREATE TABLE "chat" (
 );
 
 -- CreateTable
-CREATE TABLE "message" (
+CREATE TABLE "message"
+(
     "id" TEXT NOT NULL,
     "chatId" TEXT NOT NULL,
     "role" "Role" NOT NULL,
@@ -77,7 +92,8 @@ CREATE TABLE "message" (
 );
 
 -- CreateTable
-CREATE TABLE "job" (
+CREATE TABLE "job"
+(
     "id" TEXT NOT NULL,
     "chatId" TEXT NOT NULL,
     "triggerMessageId" TEXT,
@@ -92,7 +108,8 @@ CREATE TABLE "job" (
 );
 
 -- CreateTable
-CREATE TABLE "job_event" (
+CREATE TABLE "job_event"
+(
     "id" TEXT NOT NULL,
     "jobId" TEXT NOT NULL,
     "type" "JobEventType" NOT NULL,
@@ -103,7 +120,8 @@ CREATE TABLE "job_event" (
 );
 
 -- CreateTable
-CREATE TABLE "skill" (
+CREATE TABLE "skill"
+(
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -116,7 +134,8 @@ CREATE TABLE "skill" (
 );
 
 -- CreateTable
-CREATE TABLE "skill_release" (
+CREATE TABLE "skill_release"
+(
     "id" TEXT NOT NULL,
     "skillId" TEXT NOT NULL,
     "version" TEXT NOT NULL,
@@ -135,7 +154,8 @@ CREATE TABLE "skill_release" (
 );
 
 -- CreateTable
-CREATE TABLE "skill_installation" (
+CREATE TABLE "skill_installation"
+(
     "id" TEXT NOT NULL,
     "skillId" TEXT NOT NULL,
     "skillReleaseId" TEXT NOT NULL,
@@ -153,7 +173,8 @@ CREATE TABLE "skill_installation" (
 );
 
 -- CreateTable
-CREATE TABLE "skill_permission" (
+CREATE TABLE "skill_permission"
+(
     "id" TEXT NOT NULL,
     "skillInstallationId" TEXT NOT NULL,
     "networkPolicy" "AccessPolicyType" NOT NULL,
@@ -170,7 +191,8 @@ CREATE TABLE "skill_permission" (
 );
 
 -- CreateTable
-CREATE TABLE "skill_execution" (
+CREATE TABLE "skill_execution"
+(
     "id" TEXT NOT NULL,
     "skillInstallationId" TEXT NOT NULL,
     "status" "SkillExecutionStatus" NOT NULL,
@@ -244,10 +266,14 @@ CREATE INDEX "skill_execution_jobId_idx" ON "skill_execution"("jobId");
 CREATE INDEX "skill_execution_correlationId_idx" ON "skill_execution"("correlationId");
 
 -- AddForeignKey
-ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "agent"("id")
+ON DELETE RESTRICT ON
+UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id")
+ON DELETE RESTRICT ON
+UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "message" ADD CONSTRAINT "message_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -274,7 +300,9 @@ ALTER TABLE "skill_release" ADD CONSTRAINT "skill_release_skillId_fkey" FOREIGN 
 ALTER TABLE "skill_installation" ADD CONSTRAINT "skill_installation_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "skill_installation" ADD CONSTRAINT "skill_installation_skillReleaseId_fkey" FOREIGN KEY ("skillReleaseId") REFERENCES "skill_release"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "skill_installation" ADD CONSTRAINT "skill_installation_skillReleaseId_fkey" FOREIGN KEY ("skillReleaseId") REFERENCES "skill_release"("id")
+ON DELETE RESTRICT ON
+UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "skill_permission" ADD CONSTRAINT "skill_permission_skillInstallationId_fkey" FOREIGN KEY ("skillInstallationId") REFERENCES "skill_installation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
