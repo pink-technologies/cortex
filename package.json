@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "db:setup": "prisma migrate dev --name init --config src/infraestructure/database/prisma.config.ts --schema src/infraestructure/database/prisma/schema.prisma && pnpm db:generate",
+    "db:setup": "prisma migrate dev --name init --config src/infraestructure/database/prisma.config.ts --schema src/infraestructure/database/prisma/schema.prisma && pnpm db:generate && ts-node -r tsconfig-paths/register src/infraestructure/database/seeders/seed.ts",
     "db:generate": "prisma generate --schema src/infraestructure/database/prisma/schema.prisma",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
