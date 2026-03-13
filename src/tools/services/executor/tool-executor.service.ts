@@ -2,7 +2,6 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import { ToolContract } from 'src/tools/contracts/tool.contract';
 import { ToolRegistryService } from '../registry/tool-registry.service';
 import { ToolRepository } from 'src/tools/repositories/tool.repository';
 import { ToolNotFoundError } from '../error/tool.error';
@@ -36,6 +35,6 @@ export class ToolExecutorService {
 
         const runtimeTool = this.toolRegistryService.getBySlug(tool.slug.trim());
 
-        return await runtimeTool.execute('PinkTech');
+        return await runtimeTool.execute();
     }
 }

@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import { ToolContract } from 'src/tools/contracts/tool.contract';
+import { Tool } from 'src/tools/interface/tool';
 import {
     ToolAlreadyRegisteredError,
     ToolNotFoundError,
@@ -18,7 +18,7 @@ export class ToolRegistryService {
     /**
      * The tools registry.
      */
-    private readonly tools: Map<string, ToolContract> = new Map();
+    private readonly tools: Map<string, Tool> = new Map();
 
     // MARK: - Instance methods
 
@@ -27,7 +27,7 @@ export class ToolRegistryService {
      * @param tool - The tool to register.
      * @throws When the tool registration fails.
      */
-    register(tool: ToolContract): void {
+    register(tool: Tool): void {
         if (!tool) throw new ToolRequiredError();
 
         if (!tool.slug.trim()) throw new ToolRequiredSlugError();
@@ -44,7 +44,7 @@ export class ToolRegistryService {
      * @param slug - The slug of the tool.
      * @returns The tool.
      */
-    getBySlug(slug: string): ToolContract {
+    getBySlug(slug: string): Tool {
         if (!slug.trim()) throw new ToolRequiredSlugError();
 
         const tool = this.tools.get(slug.trim());
@@ -59,7 +59,7 @@ export class ToolRegistryService {
      * 
      * @returns The list of tools.
      */
-    list(): ToolContract[] {
+    list(): Tool[] {
         if (this.tools.size === 0) return [];
 
         return Array.from(this.tools.values());
