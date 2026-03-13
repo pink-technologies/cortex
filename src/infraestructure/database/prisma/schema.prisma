@@ -69,6 +69,13 @@ enum SkillStatus {
   DRAFT
 }
 
+enum ToolJobStatus {
+  COMPLETED
+  FAILED
+  QUEUED
+  PROCESSING
+}
+
 model Agent {
   id          String            @id @default(uuid())
   createdAt   DateTime          @default(now())
@@ -311,9 +318,23 @@ model Tool {
   updatedAt    DateTime      @updatedAt
   toolVersions ToolVersion[]
   skillTools   SkillTool[]
+  toolJob      ToolJob?
 
   @@unique([slug])
   @@map("tool")
+}
+
+model ToolJob {
+  id        String        @id @default(uuid())
+  toolId    String
+  status    ToolJobStatus @default(QUEUED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId])
+  @@map("tool_job")
 }
 
 model ToolVersion {

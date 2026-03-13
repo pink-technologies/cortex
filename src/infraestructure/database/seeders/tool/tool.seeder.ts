@@ -34,7 +34,12 @@ export class ToolSeeder implements BaseSeeder {
                 slug: 'hello-world-tool',
                 name: 'Hello World Tool',
                 description: 'This tool is used to say hello to the world',
-            }
+            },
+            {
+                slug: 'uuid-generator-tool',
+                name: 'UUID Generator Tool',
+                description: 'This tool is used to generate a UUID',
+            },
         ];
 
         await this.database.tool.createMany({
