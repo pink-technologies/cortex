@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Skill } from 'src/skills/types/skill.type';
-import { SkillInstallationResponseDto } from '../skill-installation/skill-instalation-response.dto';
+import type { Skill } from '@/skills/types/skill.type';
+import { SkillInstallationDto } from '../skill-installation/skill-instalation.dto';
 
 /**
  * Data Transfer Object representing a skill returned to the client.
@@ -11,7 +11,7 @@ import { SkillInstallationResponseDto } from '../skill-installation/skill-instal
  * suitable for API responses, decoupling the response shape from
  * the persistence model.
  */
-export class SkillResponseDto {
+export class SkillDto {
   /**
    * Unique identifier of the skill.
    */
@@ -50,12 +50,12 @@ export class SkillResponseDto {
   /**
    * Installations associated to this skill.
    */
-  readonly installations: SkillInstallationResponseDto[];
+  readonly installations: SkillInstallationDto[];
 
   // Static methods
 
   /**
-   * Creates a {@link SkillResponseDto} from a domain-level {@link Skill}.
+   * Creates a {@link SkillDto} from a domain-level {@link SkillWithInstallations}.
    *
    * This method acts as a mapping boundary between the domain
    * entity and the API response layer.
@@ -63,7 +63,7 @@ export class SkillResponseDto {
    * @param skill - Skill entity including installations.
    * @returns A response DTO suitable for API responses.
    */
-  static from(skill: Skill): SkillResponseDto {
+  static from(skill: Skill): SkillDto {
     return {
       id: skill.id,
       slug: skill.slug,
@@ -72,7 +72,7 @@ export class SkillResponseDto {
       status: skill.status,
       createdAt: skill.createdAt,
       updatedAt: skill.updatedAt,
-      installations: skill.installations.map(SkillInstallationResponseDto.from),
+      installations: skill.installations.map(SkillInstallationDto.from),
     };
   }
 }

@@ -26,12 +26,53 @@ export class I18nService {
   // MARK: - Helpers
 
   /**
+   * Agents, cross-domain localized messages.
+   *
+   * These messages are specific to the agents domain.
+   */
+  readonly agents = {
+    /**
+     * Message displayed when a agent is required.
+     */
+    requiredName: () => this.i18n.t('agents.agent_required_name'),
+
+    /**
+     * Message displayed when a agent is not found. 
+     */
+    notFound: () => this.i18n.t('agents.agent_not_found'),
+
+    /**
+     * Message displayed when a agent ID is required.
+     */
+    requiredId: () => this.i18n.t('agents.agent_required_id'),
+  };
+
+  /**
+   * Agents skills, cross-domain localized messages.
+   *
+   * These messages are specific to the agents skills domain.
+   */
+  readonly agentsSkills = {
+
+  };
+
+  /**
    * Common, cross-domain localized messages.
    *
    * These messages are generic and may be reused across
    * multiple modules and error scenarios.
    */
   readonly common = {
+    /**
+     * Message displayed when a record already exists with the same unique identifier.
+     */
+    recordAlreadyExists: () => this.i18n.t('common.record_already_exists'),
+
+    /**
+     * Message displayed when the requested record was not found.
+     */
+    recordNotFound: () => this.i18n.t('common.record_not_found'),
+
     /**
      * Message displayed when a request cannot be processed
      * due to invalid input or business rule violations.
@@ -63,26 +104,11 @@ export class I18nService {
      * unavailable due to internal errors.
      */
     skillNotRegistered: () => this.i18n.t('skills.skill_not_registered'),
-
-    /**
-     * Message displayed when a skill ID is required.
-     */
-    skillRequiredId: () => this.i18n.t('skills.skill_required_id'),
-
-    /**
-     * Message displayed when a skill name is required.
-     */
-    skillRequiredName: () => this.i18n.t('skills.skill_required_name'),
-
+    
     /**
      * Message displayed when a skill is not found.
      */
     skillNotFound: () => this.i18n.t('skills.skill_not_found'),
-
-    /**
-     * Message displayed when an unexpected error occurs while processing a skill request.
-     */
-    skillServiceError: () => this.i18n.t('skills.skill_service_error'),
   };
 
   // MARK: - Constructor

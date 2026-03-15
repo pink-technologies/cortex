@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { SkillResponseDto } from '../dtos/response/skill/skill-response.dto';
+import { SkillDto } from '../dtos/response/skill/skill.dto';
 import { SkillServiceExceptionFilter } from '../filter/exception.filter';
 import { SkillsService } from '../service/skills.service';
 import type { SkillsQuery } from '../types/skills-query.type';
@@ -52,8 +52,8 @@ export class SkillsController {
      * - The requested skill not being found
      */
     @HttpCode(200)
-    @Get('id/:id')
-    async findById(@Param('id') id: string): Promise<SkillResponseDto> {
+    @Get(':id')
+    async findById(@Param('id') id: string): Promise<SkillDto> {
         return this.skillsService.findById(id);
     }
 
@@ -70,9 +70,7 @@ export class SkillsController {
      */
     @HttpCode(200)
     @Get()
-    async retrieve(
-        @Query() query: SkillsQuery,
-    ): Promise<SkillResponseDto[]> {
+    async retrieve(@Query() query: SkillsQuery,): Promise<SkillDto[]> {
         return this.skillsService.retrieve(query);
     }
 }

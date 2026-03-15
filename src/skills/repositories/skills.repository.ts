@@ -2,19 +2,9 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
+import { Database } from '@/infraestructure/database';
+import type { Skill } from '../types/skill.type';
 import type { SkillsQuery } from '../types/skills-query.type';
-import {
-    Database
-} from 'src/infraestructure/database';
-import { Skill } from '../types/skill.type';
-
-/**
- * Default maximum number of records returned per page.
- *
- * This limit protects the database from large queries and ensures
- * consistent pagination behavior across the application.
- */
-const PAGE_SIZE = 50;
 
 /**
  * Repository responsible for querying {@link Skill} entities.
@@ -50,6 +40,13 @@ const PAGE_SIZE = 50;
  */
 @Injectable()
 export class SkillsRepository {
+    // MARK: - Properties
+
+    /**
+     * Default maximum number of records returned per page.
+     */
+    private readonly PAGE_SIZE = 50;
+    
     // MARK: - Constructor
 
     /**
@@ -93,20 +90,21 @@ export class SkillsRepository {
      */
     async retrieve(params: SkillsQuery): Promise<Skill[]> {
         const page = Math.max(1, params.page ?? 1);
-        const size = Math.max(1, Math.min(params.size ?? PAGE_SIZE));
+        const size = Math.max(1, Math.min(params.size ?? this.PAGE_SIZE));
         const skip = (page - 1) * size;
-        const search = params.q?.trim();
+        const searchQuery = params.q?.trim();
 
         return this.database.skill.findMany({
-            where: search ? {
-                name: { contains: search, mode: 'insensitive' },
-            } : {},
             orderBy: { name: 'asc' },
             skip,
             take: size,
-            include: {
-                installations: true,
-            },
+            include: { installations: true },
+            where: searchQuery ? {
+                name: { 
+                    contains: searchQuery, 
+                    mode: 'insensitive' 
+                },
+            } : {},
         });
     }
 }

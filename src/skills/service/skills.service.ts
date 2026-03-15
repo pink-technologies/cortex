@@ -4,11 +4,8 @@
 import { Injectable } from '@nestjs/common';
 import { SkillsRepository } from '../repositories/skills.repository';
 import type { SkillsQuery } from '../types/skills-query.type';
-import { SkillResponseDto } from '../dtos/response/skill/skill-response.dto';
-import {
-  SkillNotFoundError,
-  SkillRequiredIdError
-} from './error/skills.error';
+import { SkillDto } from '../dtos/response/skill/skill.dto';
+import { SkillNotFoundError } from './error/skills.error';
 
 /**
  * Service responsible for skills read use-cases.
@@ -43,16 +40,12 @@ export class SkillsService {
    * @throws SkillRequiredIdError when the id is empty or not provided.
    * @throws SkillNotFoundError when the skill cannot be found.
    */
-  async findById(id: string): Promise<SkillResponseDto> {
-    const normalizedId = id.trim();
-
-    if (!normalizedId) throw new SkillRequiredIdError();
-
-    const skill = await this.skillsRepository.findById(normalizedId);
+  async findById(id: string): Promise<SkillDto> {
+    const skill = await this.skillsRepository.findById(id);
 
     if (!skill) throw new SkillNotFoundError();
 
-    return SkillResponseDto.from(skill);
+    return SkillDto.from(skill);
   }
 
   /**
@@ -62,13 +55,13 @@ export class SkillsService {
    * @param query - name, page
    * @returns Array of skills (50 max per page).
    */
-  async retrieve(query: SkillsQuery): Promise<SkillResponseDto[]> {
+  async retrieve(query: SkillsQuery): Promise<SkillDto[]> {
     const skills = await this.skillsRepository.retrieve({
       q: query.q,
       page: query.page,
       size: query.size,
     });
 
-    return skills.map(SkillResponseDto.from);
+    return skills.map(SkillDto.from);
   }
 }

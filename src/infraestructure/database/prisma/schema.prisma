@@ -9,10 +9,9 @@ datasource db {
   provider = "postgresql"
 }
 
-enum AccessPolicyType {
-  ALL
-  ALLOWLIST
-  NONE
+enum AgentStatus {
+  ACTIVE
+  DEPRECATED
 }
 
 enum JobEventType {
@@ -39,20 +38,17 @@ enum Role {
   TOOL
 }
 
-enum SkillExecutionStatus {
-  CANCELED
-  FAILED
-  QUEUED
-  RUNNING
-  SUCCEEDED
-  TIMEOUT
+enum ModelProviderType {
+  OPENAI
+  AZURE
+  GEMINI
+  CLAUDE
 }
 
-enum SkillExecutionTriggerType {
-  CHAT
-  API
-  JOB
-  MANUAL
+enum ConnectionRole {
+  PRIMARY
+  FALLBACK
+  CLASSIFIER
 }
 
 enum SkillInstallationStatus {
@@ -73,27 +69,65 @@ enum SkillStatus {
   DRAFT
 }
 
-enum SkillSourceType {
-  GIT
-  LOCAL
-  NPM
+model Agent {
+  id          String            @id @default(uuid())
+  createdAt   DateTime          @default(now())
+  description String?
+  name        String
+  status      AgentStatus       @default(ACTIVE)
+  updatedAt   DateTime          @updatedAt
+  agentSkills AgentSkill[]
+  connections AgentConnection[]
+
+  @@map("agent")
+}
+
+model AgentConnection {
+  id                String         @id @default(uuid())
+  agentId           String
+  modelConnectionId String
+  role              ConnectionRole @default(PRIMARY)
+  isDefault         Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  agent           Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  modelConnection ModelConnection @relation(fields: [modelConnectionId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, modelConnectionId])
+  @@index([agentId])
+  @@index([modelConnectionId])
+  @@map("agent_model_connection")
+}
+
+model AgentSkill {
+  id        String   @id @default(uuid())
+  agentId   String
+  skillId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id])
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@unique([agentId, skillId])
+  @@map("agent_skill")
 }
 
 model Chat {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   title     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  messages        Message[]
-  jobs            Job[]
-  skillExecutions SkillExecution[]
+  messages Message[]
+  jobs     Job[]
 
   @@map("chat")
 }
 
 model Message {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   chatId    String
   role      Role
   content   String
@@ -112,7 +146,7 @@ model Message {
 }
 
 model Job {
-  id               String    @id @default(cuid())
+  id               String    @id @default(uuid())
   chatId           String
   triggerMessageId String?
   status           JobStatus @default(QUEUED)
@@ -128,9 +162,8 @@ model Job {
   triggerMessage Message? @relation("TriggerMessage", fields: [triggerMessageId], references: [id])
   resultMessage  Message? @relation("ResultMessage", fields: [resultMessageId], references: [id])
 
-  messages        Message[]        @relation("JobMessages")
-  events          JobEvent[]
-  skillExecutions SkillExecution[]
+  messages Message[]  @relation("JobMessages")
+  events   JobEvent[]
 
   @@index([chatId])
   @@index([status])
@@ -138,7 +171,7 @@ model Job {
 }
 
 model JobEvent {
-  id        String       @id @default(cuid())
+  id        String       @id @default(uuid())
   jobId     String
   type      JobEventType
   payload   Json
@@ -150,8 +183,54 @@ model JobEvent {
   @@map("job_event")
 }
 
+model Model {
+  id              String   @id @default(uuid())
+  slug            String
+  name            String
+  description     String?
+  modelProviderId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  modelProvider    ModelProvider     @relation(fields: [modelProviderId], references: [id], onDelete: Cascade)
+  modelConnections ModelConnection[]
+
+  @@unique([slug])
+  @@index([modelProviderId])
+  @@map("model")
+}
+
+model ModelConnection {
+  id        String   @id @default(uuid())
+  modelId   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  model       Model             @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  connections AgentConnection[]
+
+  @@index([modelId])
+  @@map("model_connection")
+}
+
+model ModelProvider {
+  id          String            @id @default(uuid())
+  slug        String
+  name        String
+  description String?
+  type        ModelProviderType
+  config      Json
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  models      Model[]
+
+  @@unique([slug])
+  @@map("model_provider")
+}
+
 model Skill {
-  id          String      @id @default(cuid())
+  id          String      @id @default(uuid())
   slug        String      @unique
   name        String
   description String?
@@ -159,105 +238,127 @@ model Skill {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  releases      SkillRelease[]
-  installations SkillInstallation[]
+  installations              SkillInstallation[]
+  agentSkills                AgentSkill[]
+  skillDatasourceConnections SkillDatasourceConnection[]
+  skillTools                 SkillTool[]
 
   @@map("skill")
 }
 
-model SkillRelease {
-  id             String          @id @default(cuid())
-  skillId        String
-  version        String
-  sourceType     SkillSourceType
-  packageName    String?
-  packageVersion String?
-  repositoryUrl  String?
-  commitSha      String?
-  entrypoint     String?
-  checksum       String?
-  manifest       Json?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+enum DatasourceAuthType {
+  NONE
+  API_KEY
+  EMAIL_PASSWORD
+  USERNAME_PASSWORD
+  TOKEN
 
-  skill         Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  installations SkillInstallation[]
+  @@map("datasource_auth_type")
+}
 
-  @@unique([skillId, version])
-  @@index([skillId])
-  @@map("skill_release")
+model DatasourceProvider {
+  id                    String                 @id @default(uuid())
+  slug                  String
+  name                  String
+  description           String?
+  authType              DatasourceAuthType     @default(NONE)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  datasourceConnections DatasourceConnection[]
+
+  @@unique([slug])
+  @@map("datasource_provider")
+}
+
+model DatasourceConnection {
+  id          String   @id @default(uuid())
+  slug        String
+  name        String
+  description String?
+  providerId  String
+  config      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  provider                   DatasourceProvider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  skillDatasourceConnections SkillDatasourceConnection[]
+
+  @@unique([slug])
+  @@index([providerId])
+  @@map("datasource_connection")
+}
+
+model SkillDatasourceConnection {
+  id           String   @id @default(uuid())
+  skillId      String
+  connectionId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  skill      Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  connection DatasourceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([skillId, connectionId])
+  @@map("skill_connection")
+}
+
+model Tool {
+  id           String        @id @default(uuid())
+  slug         String
+  name         String
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  toolVersions ToolVersion[]
+  skillTools   SkillTool[]
+
+  @@unique([slug])
+  @@map("tool")
+}
+
+model ToolVersion {
+  id        String   @id @default(uuid())
+  toolId    String
+  version   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, version])
+  @@map("tool_version")
+}
+
+model SkillTool {
+  id        String   @id @default(uuid())
+  skillId   String
+  toolId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  tool  Tool  @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([skillId, toolId])
+  @@map("skill_tool")
 }
 
 model SkillInstallation {
-  id             String                @id @default(cuid())
-  skillId        String
-  skillReleaseId String
-  scopeType      SkillInstallationScopeType
-  scopeId        String
+  id               String                     @id @default(uuid())
+  skillId          String
+  scopeType        SkillInstallationScopeType
+  scopeId          String
   installationPath String?
-  status         SkillInstallationStatus    @default(ENABLED)
-  config         Json?
-  installedBy    String?
-  installedAt    DateTime              @default(now())
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  status           SkillInstallationStatus    @default(ENABLED)
+  config           Json?
+  installedBy      String?
+  installedAt      DateTime                   @default(now())
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
 
-  skill            Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  skillRelease     SkillRelease      @relation(fields: [skillReleaseId], references: [id], onDelete: Restrict)
-  permission       SkillPermission?
-  executions       SkillExecution[]
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   @@unique([scopeType, scopeId, skillId])
-  @@index([skillReleaseId])
   @@index([scopeType, scopeId])
   @@map("skill_installation")
-}
-
-model SkillPermission {
-  id               String           @id @default(cuid())
-  skillInstallationId String        @unique
-  networkPolicy    AccessPolicyType
-  networkAllowlist Json?
-  shellPolicy      AccessPolicyType
-  fsReadPolicy     AccessPolicyType
-  fsReadAllowlist  Json?
-  fsWritePolicy    AccessPolicyType
-  fsWriteAllowlist Json?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-
-  skillInstallation SkillInstallation @relation(fields: [skillInstallationId], references: [id], onDelete: Cascade)
-
-  @@map("skill_permission")
-}
-
-model SkillExecution {
-  id                  String                    @id @default(cuid())
-  skillInstallationId String
-  status              SkillExecutionStatus
-  triggerType         SkillExecutionTriggerType
-  triggeredBy         String?
-  correlationId       String?
-  inputJson           Json?
-  outputJson          Json?
-  errorText           String?
-  exitCode            Int?
-  chatId              String?
-  jobId               String?
-  startedAt           DateTime                  @default(now())
-  endedAt             DateTime?
-  durationMs          Int?
-  createdAt           DateTime                  @default(now())
-  updatedAt           DateTime                  @updatedAt
-
-  skillInstallation SkillInstallation @relation(fields: [skillInstallationId], references: [id], onDelete: Cascade)
-  chat              Chat?             @relation(fields: [chatId], references: [id], onDelete: SetNull)
-  job               Job?              @relation(fields: [jobId], references: [id], onDelete: SetNull)
-
-  @@index([skillInstallationId, startedAt(sort: Desc)])
-  @@index([status, startedAt(sort: Desc)])
-  @@index([chatId])
-  @@index([jobId])
-  @@index([correlationId])
-  @@map("skill_execution")
 }
