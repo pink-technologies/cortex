@@ -6,7 +6,7 @@ import { SkillInstallation } from 'src/infraestructure/database';
 /**
  * Data Transfer Object representing a skill installation returned to the client.
  */
-export class SkillInstallationResponseDto {
+export class SkillInstallationDto {
     /**
      * Unique identifier of the skill installation.
      */
@@ -63,12 +63,12 @@ export class SkillInstallationResponseDto {
     readonly updatedAt: Date;
 
     /**
-     * Creates a {@link SkillInstallationResponseDto} from a {@link SkillInstallation}.
+     * Creates a {@link SkillInstallationDto} from a {@link SkillInstallation}.
      *
      * @param installation - Skill installation entity from persistence.
      * @returns Response DTO ready for transport.
      */
-    static from(installation: SkillInstallation): SkillInstallationResponseDto {
+    static from(installation: SkillInstallation): SkillInstallationDto {
         return {
             id: installation.id,
             skillId: installation.skillId,

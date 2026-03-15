@@ -1,6 +1,9 @@
+// Copyright (c) 2026, PinkTech
+// https://pink-tech.io/
+
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ToolRegistryService } from "./registry/tool-registry.service";
-import { HelloWorldTool } from "../implementations";
+import { HelloWorldTool } from "../tools";
 
 /**
  * Service responsible for bootstrapping the tool registry.

@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { DatabaseModule } from "src/infraestructure/database";
-import { HelloWorldTool } from "./implementations";
+import { DatabaseModule } from '@/infraestructure/database';
+import { HelloWorldTool } from "./tools";
 import { Module } from "@nestjs/common";
 import { ToolRegistryService } from "./services/registry/tool-registry.service";
 import { ToolExecutorController } from "./controller/tool-executor.controller";
@@ -13,11 +13,7 @@ import { ToolBootstrapService } from "./services/tool-bootstrap.service";
 @Module({
     controllers: [ToolExecutorController],
     imports: [DatabaseModule],
-    exports: [
-        ToolRegistryService,
-        ToolExecutorService,
-        ToolRepository,
-    ],
+    exports: [ToolExecutorService],
     providers: [
         HelloWorldTool,
         ToolBootstrapService,

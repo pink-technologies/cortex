@@ -2,10 +2,7 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import {
-    Database,
-    type Agent,
-} from 'src/infraestructure/database';
+import { Database, type Agent } from '@/infraestructure/database';
 
 /**
  * Repository responsible for querying {@link Agent} entities.
@@ -53,6 +50,12 @@ export class AgentsRepository {
 
     // MARK: - Instance methods
 
+    /**
+     * Creates a new agent with the given name and optional description.
+     * @param name - Display name of the agent.
+     * @param description - Optional description; `null` or omitted is stored as `null`.
+     * @returns The created {@link Agent} entity.
+     */
     async create(name: string, description?: string | null): Promise<Agent> {
         return this.database.agent.create({
             data: {
@@ -106,7 +109,7 @@ export class AgentsRepository {
             where: { id: id },
             data: {
                 name: name,
-                ...(description !== undefined && { description: description ?? null }),
+                description: description,
             },
         });
     }

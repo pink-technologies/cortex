@@ -2,13 +2,12 @@ export { Database, type DatabaseTransaction } from './database';
 export { DatabaseEntityNotFoundError } from './error/database-error';
 export { DatabaseExceptionFilter } from './filter/database-exception.filter';
 export { DatabaseModule } from './database.module';
+export { Prisma } from '@prisma/client';
 export type {
     Agent,
     AgentSkill,
+    AgentStatus,
     Skill,
     SkillInstallation,
-    Prisma,
-} from '@prisma/client';
-export {
-    AgentStatus,
+    Tool,
 } from '@prisma/client';

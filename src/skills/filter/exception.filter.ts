@@ -2,12 +2,7 @@
 // https://pink-tech.io/
 
 import { I18nService } from '../../i18n';
-import {
-  SkillNotFoundError,
-  SkillRequiredIdError,
-  SkillRequiredNameError,
-} from '../service/error/skills.error';
-
+import { SkillNotFoundError } from '../service/error/skills.error';
 import {
   BadRequestException,
   Catch,
@@ -35,8 +30,6 @@ import {
 @Catch(
   HttpException,
   SkillNotFoundError,
-  SkillRequiredIdError,
-  SkillRequiredNameError,
 )
 export class SkillServiceExceptionFilter implements ExceptionFilter {
   // MARK: - Constructor
@@ -54,18 +47,6 @@ export class SkillServiceExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown): void {
     const i18n = this.i18n;
-
-    if (exception instanceof SkillRequiredIdError) {
-      throw new BadRequestException(i18n.skills.skillRequiredId(), {
-        cause: exception,
-      });
-    }
-
-    if (exception instanceof SkillRequiredNameError) {
-      throw new BadRequestException(i18n.skills.skillRequiredName(), {
-        cause: exception,
-      });
-    }
 
     if (exception instanceof SkillNotFoundError) {
       throw new NotFoundException(i18n.skills.skillNotFound(), {

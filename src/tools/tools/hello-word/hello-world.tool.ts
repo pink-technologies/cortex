@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { Injectable } from "@nestjs/common";
-import { ToolContract } from "src/tools/contracts/tool.contract";
+import { Tool } from "src/tools/tools/tool";
 
 /**
  * This tool is used to say hello to the world
@@ -12,7 +12,7 @@ import { ToolContract } from "src/tools/contracts/tool.contract";
  * @returns The greeting
  */
 @Injectable()
-export class HelloWorldTool implements ToolContract {
+export class HelloWorldTool implements Tool {
     /**
      * The slug of the tool.
      */

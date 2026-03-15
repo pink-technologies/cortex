@@ -1,9 +1,9 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AgentsService } from '../service/agents.service';
+import { AgentsService } from '../service/agents/agents.service';
 import { AgentsExceptionFilter } from '../filter/exception.filter';
-import { AgentsResponseDto } from '../dto/response/agents-response.dto';
+import { AgentDto } from '../dto/response/agent/agent.dto';
 import { CreateAgentParametersDto } from '../dto/parameters/create/agents/create-agents-parameters';
 import { UpdateAgentParametersDto } from '../dto/parameters/update/update-agents-parameters.dto';
 import {
@@ -46,7 +46,7 @@ export class AgentsController {
      */
     @HttpCode(201)
     @Post()
-    async create(@Body() parameters: CreateAgentParametersDto): Promise<AgentsResponseDto> {
+    async create(@Body() parameters: CreateAgentParametersDto): Promise<AgentDto> {
         return this.agentsService.create(parameters);
     }
 
@@ -57,8 +57,8 @@ export class AgentsController {
      * @returns The agent as a response DTO.
      */
     @HttpCode(200)
-    @Get('id/:id')
-    async findById(@Param('id') id: string): Promise<AgentsResponseDto> {
+    @Get(':id')
+    async findById(@Param('id') id: string): Promise<AgentDto> {
         return this.agentsService.findById(id);
     }
 
@@ -69,7 +69,7 @@ export class AgentsController {
      */
     @HttpCode(200)
     @Get()
-    async retrieve(): Promise<AgentsResponseDto[]> {
+    async retrieve(): Promise<AgentDto[]> {
         return this.agentsService.retrieve();
     }
 
@@ -81,8 +81,8 @@ export class AgentsController {
      * @returns The updated agent as a response DTO.
      */
     @HttpCode(200)
-    @Put('id/:id')
-    async update(@Param('id') id: string, @Body() parameters: UpdateAgentParametersDto): Promise<AgentsResponseDto> {
+    @Put(':id')
+    async update(@Param('id') id: string, @Body() parameters: UpdateAgentParametersDto): Promise<AgentDto> {
         return this.agentsService.update(id, parameters);
     }
 }

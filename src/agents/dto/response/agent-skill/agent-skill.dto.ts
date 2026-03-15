@@ -10,7 +10,7 @@ import { AgentSkill } from 'src/infraestructure/database';
  * suitable for API responses, decoupling the response shape from
  * the persistence model.
  */
-export class AgentsSkillsResponseDto {
+export class AgentSkillDto {
     /**
      * Unique identifier of the agent.
      */
@@ -29,12 +29,12 @@ export class AgentsSkillsResponseDto {
     // Static methods
 
     /**
-     * Creates a {@link AgentsSkillsResponseDto} from a domain-level {@link AgentSkill}.
+     * Creates a {@link AgentSkillDto} from a domain-level {@link AgentSkill}.
      *
      * @param agentSkill - The domain agent skill entity from the database layer.
      * @returns A response DTO suitable for API responses.
      */
-    static from(agentSkill: AgentSkill): AgentsSkillsResponseDto {
+    static from(agentSkill: AgentSkill): AgentSkillDto {
         return {
             id: agentSkill.id,
             agentId: agentSkill.agentId,

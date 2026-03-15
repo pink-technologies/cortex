@@ -2,14 +2,10 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import {
-    Database,
-    type Agent,
-    AgentSkill,
-} from 'src/infraestructure/database';
+import { Database, type Agent, AgentSkill } from '@/infraestructure/database';
 
 /**
- * Repository responsible for querying {@link Agent} entities.
+ * Repository responsible for querying {@link AgentSkill} entities.
  *
  * ## Responsibilities
  * - Encapsulates all database access patterns for Skill entities
@@ -69,19 +65,7 @@ export class AgentsSkillsRepository {
             },
         });
     }
-
-    /**
-     * Retrieves all skills for an agent.
-     *
-     * @param agentId - The unique identifier of the agent.
-     * @returns The {@link AgentSkill} entities.
-     */
-    async retrieveByAgentId(agentId: string): Promise<AgentSkill[]> {
-        return this.database.agentSkill.findMany({
-            where: { agentId: agentId }
-        });
-    }
-
+    
     /**
      * Removes a skill from an agent.
      *

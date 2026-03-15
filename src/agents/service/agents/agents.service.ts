@@ -2,11 +2,11 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import { AgentsRepository } from '../repositories/agents.repository';
-import { AgentsResponseDto } from '../dto/response/agents-response.dto';
-import { CreateAgentParametersDto } from '../dto/parameters/create/agents/create-agents-parameters';
-import { AgentNotFoundError, AgentRequiredIdError } from './error/agents.error';
-import { UpdateAgentParametersDto } from '../dto/parameters/update/update-agents-parameters.dto';
+import { AgentsRepository } from '../../repositories/agents/agents.repository';
+import { AgentDto } from '../../dto/response/agent/agent.dto';
+import { AgentNotFoundError, AgentRequiredIdError } from '../error/agents.error';
+import { CreateAgentParametersDto } from '../../dto/parameters/create/agents/create-agents-parameters';
+import { UpdateAgentParametersDto } from '../../dto/parameters/update/update-agents-parameters.dto';
 
 /**
  * Service responsible for agents read use-cases.
@@ -26,9 +26,7 @@ export class AgentsService {
      * @param agentsRepository - The repository responsible for agent persistence
      * and lookup operations.
      */
-    constructor(
-        private readonly agentsRepository: AgentsRepository,
-    ) { }
+    constructor(private readonly agentsRepository: AgentsRepository) {}
 
     // MARK: - Instance methods
 
@@ -38,10 +36,10 @@ export class AgentsService {
      * @param parameters - The parameters for the agent creation.
      * @returns The created agent as a response DTO.
      */
-    async create(parameters: CreateAgentParametersDto): Promise<AgentsResponseDto> {
+    async create(parameters: CreateAgentParametersDto): Promise<AgentDto> {
         const agent = await this.agentsRepository.create(parameters.name, parameters.description);
 
-        return AgentsResponseDto.from(agent);
+        return AgentDto.from(agent);
     }
 
     /**
@@ -52,14 +50,14 @@ export class AgentsService {
      * @throws AgentRequiredIdError when the id is empty or not provided.
      * @throws AgentNotFoundError when the agent cannot be found.
      */
-    async findById(id: string): Promise<AgentsResponseDto> {
+    async findById(id: string): Promise<AgentDto> {
         if (!id) throw new AgentRequiredIdError;
 
         const agent = await this.agentsRepository.findById(id);
 
         if (!agent) throw new AgentNotFoundError;
 
-        return AgentsResponseDto.from(agent);
+        return AgentDto.from(agent);
     }
 
     /**
@@ -67,10 +65,10 @@ export class AgentsService {
      *
      * @returns Array of agents.
      */
-    async retrieve(): Promise<AgentsResponseDto[]> {
+    async retrieve(): Promise<AgentDto[]> {
         const agents = await this.agentsRepository.retrieve();
 
-        return agents.map(AgentsResponseDto.from);
+        return agents.map(AgentDto.from);
     }
 
     /**
@@ -82,7 +80,7 @@ export class AgentsService {
      * @throws AgentRequiredIdError when the id is empty or not provided.
      * @throws AgentNotFoundError when the agent cannot be found.
      */
-    async update(id: string, parameters: UpdateAgentParametersDto): Promise<AgentsResponseDto> {
+    async update(id: string, parameters: UpdateAgentParametersDto): Promise<AgentDto> {
         if (!id) throw new AgentRequiredIdError;
 
         const agent = await this.agentsRepository.findById(id);
@@ -91,6 +89,6 @@ export class AgentsService {
 
         const updatedAgent = await this.agentsRepository.update(id, parameters.name, parameters.description);
 
-        return AgentsResponseDto.from(updatedAgent);
+        return AgentDto.from(updatedAgent);
     }
 }

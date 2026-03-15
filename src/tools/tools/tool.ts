@@ -5,7 +5,7 @@
  * Interface for a tool contract.
  * A tool contract is a contract that defines the behavior of a tool.
  */
-export interface ToolContract {
+export interface Tool {
     /**
      * The slug of the tool.
      */
@@ -18,7 +18,8 @@ export interface ToolContract {
 
     /**
      * Executes the tool.
-     * @param parameters - The parameters to the tool.
+     * @param name - Input passed to the tool (e.g. tool name or serialized parameters).
+     * @returns The tool result as a string.
      * @throws When the tool execution fails.
      */
     execute(name: string): Promise<string>;

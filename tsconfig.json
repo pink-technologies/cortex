@@ -22,6 +22,7 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
+      "@/*": ["src/*"],
       "@integrations/*": ["src/integrations/*"],
       "@modules/*": ["src/modules/*"]
     }

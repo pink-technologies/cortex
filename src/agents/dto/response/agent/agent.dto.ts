@@ -10,7 +10,7 @@ import { Agent } from 'src/infraestructure/database';
  * suitable for API responses, decoupling the response shape from
  * the persistence model.
  */
-export class AgentsResponseDto {
+export class AgentDto {
     /**
      * Unique identifier of the agent.
      */
@@ -52,7 +52,7 @@ export class AgentsResponseDto {
      * @param agent - The domain agent entity from the database layer.
      * @returns A response DTO suitable for API responses.
      */
-    static from(agent: Agent): AgentsResponseDto {
+    static from(agent: Agent): AgentDto {
         return {
             id: agent.id,
             name: agent.name,
