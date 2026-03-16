@@ -1,13 +1,6 @@
 -- CreateEnum
-<<<<<<<< HEAD:src/infraestructure/database/prisma/migrations/20260310201232_init/migration.sql
 CREATE TYPE "AgentStatus" AS ENUM
 ('ACTIVE', 'DEPRECATED');
-========
-CREATE TYPE "AgentStatus" AS ENUM ('ACTIVE', 'DEPRECATED');
-
--- CreateEnum
-CREATE TYPE "AccessPolicyType" AS ENUM ('ALL', 'ALLOWLIST', 'NONE');
->>>>>>>> 459c7e5 (feat: Add setup initial for Agents   Module):src/infraestructure/database/prisma/migrations/20260309202020_init/migration.sql
 
 -- CreateEnum
 CREATE TYPE "AccessPolicyType" AS ENUM
@@ -50,12 +43,8 @@ CREATE TYPE "SkillSourceType" AS ENUM
 ('GIT', 'LOCAL', 'NPM');
 
 -- CreateTable
-<<<<<<<< HEAD:src/infraestructure/database/prisma/migrations/20260310201232_init/migration.sql
 CREATE TABLE "agent"
 (
-========
-CREATE TABLE "agent" (
->>>>>>>> 459c7e5 (feat: Add setup initial for Agents   Module):src/infraestructure/database/prisma/migrations/20260309202020_init/migration.sql
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "description" TEXT,
@@ -67,12 +56,8 @@ CREATE TABLE "agent" (
 );
 
 -- CreateTable
-<<<<<<<< HEAD:src/infraestructure/database/prisma/migrations/20260310201232_init/migration.sql
 CREATE TABLE "agent_skill"
 (
-========
-CREATE TABLE "agent_skill" (
->>>>>>>> 459c7e5 (feat: Add setup initial for Agents   Module):src/infraestructure/database/prisma/migrations/20260309202020_init/migration.sql
     "id" TEXT NOT NULL,
     "agentId" TEXT NOT NULL,
     "skillId" TEXT NOT NULL,
@@ -83,12 +68,8 @@ CREATE TABLE "agent_skill" (
 );
 
 -- CreateTable
-<<<<<<<< HEAD:src/infraestructure/database/prisma/migrations/20260310201232_init/migration.sql
 CREATE TABLE "chat"
 (
-========
-CREATE TABLE "chat" (
->>>>>>>> 459c7e5 (feat: Add setup initial for Agents   Module):src/infraestructure/database/prisma/migrations/20260309202020_init/migration.sql
     "id" TEXT NOT NULL,
     "title" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -285,7 +266,6 @@ CREATE INDEX "skill_execution_jobId_idx" ON "skill_execution"("jobId");
 CREATE INDEX "skill_execution_correlationId_idx" ON "skill_execution"("correlationId");
 
 -- AddForeignKey
-<<<<<<<< HEAD:src/infraestructure/database/prisma/migrations/20260310201232_init/migration.sql
 ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "agent"("id")
 ON DELETE RESTRICT ON
 UPDATE CASCADE;
@@ -294,12 +274,6 @@ UPDATE CASCADE;
 ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id")
 ON DELETE RESTRICT ON
 UPDATE CASCADE;
-========
-ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "agent_skill" ADD CONSTRAINT "agent_skill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "skill"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
->>>>>>>> 459c7e5 (feat: Add setup initial for Agents   Module):src/infraestructure/database/prisma/migrations/20260309202020_init/migration.sql
 
 -- AddForeignKey
 ALTER TABLE "message" ADD CONSTRAINT "message_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
