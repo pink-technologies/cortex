@@ -104,7 +104,11 @@ export class AgentsRepository {
      * @param description - The new description (omit to leave existing value unchanged).
      * @returns The updated {@link Agent} entity.
      */
-    async update(id: string, name: string, description?: string | null): Promise<Agent> {
+    async update(
+        id: string,
+        name: string,
+        description?: string | null,
+    ): Promise<Agent> {
         return this.database.agent.update({
             where: { id: id },
             data: {

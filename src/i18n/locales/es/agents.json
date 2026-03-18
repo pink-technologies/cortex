@@ -1,5 +1,7 @@
 {
     "agent_required_id": "El ID del agente es obligatorio.",
     "agent_required_name": "El nombre del agente es obligatorio.",
-    "agent_not_found": "El agente no existe."
+    "agent_not_found": "El agente no existe.",
+    "chat_required_id": "El ID del chat es obligatorio.",
+    "chat_not_found": "El chat no existe."
 }

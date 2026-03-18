@@ -9,6 +9,8 @@ import {
 import {
     AgentNotFoundError,
     AgentRequiredIdError,
+    ChatNotFoundError,
+    ChatRequiredIdError,
 } from '../service/error/agents.error';
 import {
     BadRequestException,
@@ -37,6 +39,8 @@ import {
 @Catch(
     AgentNotFoundError,
     AgentRequiredIdError,
+    ChatNotFoundError,
+    ChatRequiredIdError,
     HttpException,
     SkillNotFoundError,
     SkillRequiredIdError,
@@ -66,6 +70,18 @@ export class AgentsExceptionFilter implements ExceptionFilter {
 
         if (exception instanceof AgentNotFoundError) {
             throw new NotFoundException(i18n.agents.agentNotFound(), {
+                cause: exception,
+            });
+        }
+
+        if (exception instanceof ChatRequiredIdError) {
+            throw new BadRequestException(i18n.agents.chatRequiredId(), {
+                cause: exception,
+            });
+        }
+
+        if (exception instanceof ChatNotFoundError) {
+            throw new NotFoundException(i18n.agents.chatNotFound(), {
                 cause: exception,
             });
         }

@@ -44,17 +44,19 @@ export class I18nService {
     /**
      * Message displayed when a agent ID is required.
      */
-    requiredId: () => this.i18n.t('agents.agent_required_id'),
+    agentRequiredId: () => this.i18n.t('agents.agent_required_id'),
+
+    /**
+     * Message displayed when a chat ID is required.
+     */
+    chatRequiredId: () => this.i18n.t('agents.chat_required_id'),
+
+    /**
+     * Message displayed when a chat is not found.
+     */
+    chatNotFound: () => this.i18n.t('agents.chat_not_found'),
   };
 
-  /**
-   * Agents skills, cross-domain localized messages.
-   *
-   * These messages are specific to the agents skills domain.
-   */
-  readonly agentsSkills = {
-
-  };
 
   /**
    * Common, cross-domain localized messages.
@@ -87,11 +89,30 @@ export class I18nService {
   };
 
   /**
- * Common, cross-domain localized messages.
- *
- * These messages are generic and may be reused across
- * multiple modules and error scenarios.
- */
+   * Jobs, cross-domain localized messages.
+   *
+   * These messages are specific to the jobs domain.
+   */
+  readonly jobs = {
+    /**
+     * Message displayed when a job is not found.
+     */
+    jobNotFound: () => this.i18n.t('jobs.job_not_found'),
+
+    /**
+     * Message displayed when a job ID is not found.
+     */
+    jobIdNotFound: () => this.i18n.t('jobs.job_id_not_found'),
+
+    /**
+     * Message displayed when a job status update fails.
+     */
+    jobStatusUpdateFailed: () => this.i18n.t('jobs.job_status_update_failed'),
+  };
+
+  /**
+   * Skills, cross-domain localized messages.
+   */
   readonly skills = {
     /**
      * Message displayed when a request cannot be processed
@@ -104,7 +125,7 @@ export class I18nService {
      * unavailable due to internal errors.
      */
     skillNotRegistered: () => this.i18n.t('skills.skill_not_registered'),
-    
+
     /**
      * Message displayed when a skill is not found.
      */
