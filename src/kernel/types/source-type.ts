@@ -8,4 +8,7 @@
  * - **`webhook`** — Event from an external system (GitHub, Stripe, …); describe it with
  *   `externalProvider`, `eventType`, and any extra payload fields.
  */
-export type SourceType = 'chat' | 'webhook';
+export enum SourceType {
+    CHAT = 'chat',
+    WEBHOOK = 'webhook',
+}

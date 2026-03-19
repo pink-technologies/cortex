@@ -2,12 +2,12 @@
 // https://pink-tech.io/
 
 import { AgentsRepository } from '@/agents/repositories';
-import { AgentRunService } from '@/agents/service/agent-run/agent-run.service';
-import { OrchestratorService } from '@/agents/service/orchestrator/agents-orchestrator.service';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { KernelOriginAdapterRegistry } from '../adapters/kernel-origin-adapter.registry';
+import { OrchestratorService } from '@/agents/service';
+import { KernelNoAgentsError } from './error/kernel.error';
 import type {
     AgentHandleResult,
-    AgentWebhookResponse,
     KernelContext,
     KernelInput,
 } from '../dto';
@@ -16,9 +16,9 @@ import type {
  * Service responsible for handling kernel ingress requests.
  *
  * Responsibilities:
- * - resolve the agent ID based on the context.
- * - run the agent on the chat if the context is a chat.
- * - handle the webhook ingress if the context is a webhook.
+ * - resolve the agent ID (from intent or default)
+ * - select the origin adapter via {@link KernelOriginAdapterRegistry}
+ * - delegate execution to the adapter (chat, webhook, etc.)
  */
 @Injectable()
 export class KernelService {
@@ -26,29 +26,24 @@ export class KernelService {
 
     /**
      * Creates a new {@link KernelService}.
-     * 
+     *
      * @param agentsRepository - The agents repository.
-     * @param agentRun - The agent run service.
      * @param orchestrator - The orchestrator service.
+     * @param originAdapterRegistry - The registry of origin adapters (chat, webhook, etc.).
      */
     constructor(
         private readonly agentsRepository: AgentsRepository,
-        private readonly agentRun: AgentRunService,
         private readonly orchestrator: OrchestratorService,
-    ) {}
+        private readonly originAdapterRegistry: KernelOriginAdapterRegistry,
+    ) { }
 
     // MARK: - Instance methods
 
     /**
      * Processes a kernel input.
      *
-     * This method performs the full kernel pipeline:
-     * - normalizes the input
-     * - validates source-specific invariants
-     * - gathers kernel state
-     * - decides which agent and strategy to use
-     * - executes the decision
-     * - evaluates the outcome
+     * Resolves the agent ID, selects the origin adapter from the registry by
+     * {@link KernelContext.origin}, and delegates to the adapter.
      *
      * @param input - The input to process.
      * @returns The result of the resolved execution path.
@@ -66,33 +61,12 @@ export class KernelService {
 
         const agentId = await this.resolveAgentId(context);
 
-        if (context.origin === 'chat') {
-            const run = await this.agentRun.run(agentId, context.chatId ?? '');
+        const adapter = this.originAdapterRegistry.get(context.origin);
 
-            return { agentId, run, source: context.origin };
-        }
-
-        if (context.origin === 'webhook') {
-            return {
-                source: context.origin,
-                agentId,
-                external: this.handleWebhookIngress(agentId, payload, context),
-            };
-        }
-
-        throw new BadRequestException(`Unsupported kernel ingress source: ${context.origin}`);
+        return await adapter.handle(input, agentId);
     }
 
     // MARK: - Private methods
-
-    private handleWebhookIngress(
-        _agentId: string,
-        _payload: string,
-        _context: KernelContext,
-    ): AgentWebhookResponse {
-        // TODO: Implement webhook ingress handling.
-        return { message: 'ok' };
-    }
 
     private async resolveAgentId(context: KernelContext): Promise<string> {
         if (context.intent?.trim()) {
@@ -103,6 +77,9 @@ export class KernelService {
 
         const agents = await this.agentsRepository.retrieve();
 
-        return agents[0].id;
+        const first = agents[0];
+        if (!first) throw new KernelNoAgentsError();
+
+        return first.id;
     }
 }

@@ -12,6 +12,16 @@ export interface AgentWebhookResponse {
    * Fixed acknowledgement for now (e.g. `"ok"`). 
    */
   message: string;
+
+  /**
+   * The provider that originated the input.
+   */
+  provider?: string;
+
+  /**
+   * The event type that originated the input.
+   */
+  eventType?: string;
 }
 
 /** Chat ingress: agent run bound to the conversation. */
@@ -43,6 +53,10 @@ export interface AgentHandleWebhookResult {
    * The agent ID.
    */
   agentId: string;
+
+  /**
+   * The external response.
+   */
   external: AgentWebhookResponse;
 }
 
