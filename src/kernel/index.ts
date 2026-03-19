@@ -9,6 +9,6 @@ export type {
   AgentHandleResult,
   AgentHandleWebhookResult,
   AgentWebhookResponse,
-  ContextPayload,
-  KernelHandleParameters,
+  KernelContext,
+  KernelInput,
 } from './dto';
