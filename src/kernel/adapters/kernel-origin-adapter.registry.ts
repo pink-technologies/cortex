@@ -31,7 +31,8 @@ export class KernelOriginAdapterRegistry {
         @Inject(KERNEL_ORIGIN_ADAPTER)
         adapters: KernelOriginAdapter[],
     ) {
-        this.byOrigin = new Map(adapters.map((adapter) => [adapter.origin, adapter]));
+        const list = Array.isArray(adapters) ? adapters : adapters ? [adapters] : [];
+        this.byOrigin = new Map(list.map((adapter) => [adapter.origin, adapter]));
     }
 
     /**

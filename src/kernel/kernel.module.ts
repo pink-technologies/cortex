@@ -3,6 +3,7 @@
 
 import { Module, type Provider } from '@nestjs/common';
 import { AgentsModule } from '@/agents/agents.module';
+import { KernelController } from './controllers/kernel.controller';
 import { KernelService } from './service/kernel.service';
 import { KERNEL_ORIGIN_ADAPTER } from './adapters/kernel-origin-adapter.interface';
 import { WebhookProviderHandlerRegistry } from './adapters/webhook/providers/webhook-provider-handler.registry';
@@ -15,6 +16,7 @@ import {
 
 @Module({
   imports: [AgentsModule],
+  controllers: [KernelController],
   providers: [
     KernelService,
     KernelOriginAdapterRegistry,

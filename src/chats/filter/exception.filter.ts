@@ -4,6 +4,10 @@
 import { I18nService } from '../../i18n';
 import { ChatNotFoundError } from '../service/error/chat.error';
 import {
+    StorageReadError,
+    StorageWriteError
+} from '@/infraestructure/storage';
+import {
     Catch,
     ExceptionFilter,
     HttpException,
@@ -29,8 +33,10 @@ import {
 @Catch(
     ChatNotFoundError,
     HttpException,
+    StorageReadError,
+    StorageWriteError,
 )
-export class ChatsExceptionFilter implements ExceptionFilter {
+export class ChatExceptionFilter implements ExceptionFilter {
     // MARK: - Constructor
 
     /**
@@ -49,6 +55,18 @@ export class ChatsExceptionFilter implements ExceptionFilter {
 
         if (exception instanceof ChatNotFoundError) {
             throw new NotFoundException(i18n.chats.chatNotFound(), {
+                cause: exception,
+            });
+        }
+
+        if (exception instanceof StorageReadError) {
+            throw new InternalServerErrorException(i18n.storage.storageReadFailed(), {
+                cause: exception,
+            });
+        }
+
+        if (exception instanceof StorageWriteError) {
+            throw new InternalServerErrorException(i18n.storage.storageWriteFailed(), {
                 cause: exception,
             });
         }

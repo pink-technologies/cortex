@@ -3,7 +3,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { Chat } from '@prisma/client';
-import { Database } from 'src/infraestructure/database';
+import { Database } from '@/infraestructure/database';
 
 /**
  * Repository responsible for querying {@link Chat} entities.
@@ -18,18 +18,29 @@ export class ChatRepository {
    * @param database - The database client used to perform chat operations.
    * Injected at runtime to support inversion of control and enable testability.
    */
-  constructor(private readonly database: Database) {}
+  constructor(private readonly database: Database) { }
 
   // MARK: - Instance methods
 
   /**
-   * Creates a new chat.
+   * Creates a new chat with its first message.
    *
    * @param title - The title of the chat.
+   * @param content - The content of the first message.
    * @returns The created chat.
    */
-  async create(title: string): Promise<Chat> {
-    return await this.database.chat.create({ data: { title } });
+  async create(title: string, content: string): Promise<Chat> {
+    return await this.database.chat.create({
+      data: {
+        title,
+        messages: {
+          create: {
+            content,
+            role: 'USER',
+          },
+        },
+      },
+    });
   }
 
   /**

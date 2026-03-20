@@ -10,7 +10,7 @@ import type { Prisma } from '@/infraestructure/database';
  * TypeScript knows `skill.installations` is present (e.g. in the repository
  * return type and in DTOs that map installations).
  */
-export type SkillWithInstallations = Prisma.SkillGetPayload<{
+export type Skill = Prisma.SkillGetPayload<{
     include: {
         installations: true;
     };

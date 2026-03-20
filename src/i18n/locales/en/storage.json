@@ -1,0 +1,6 @@
+{
+  "storage_delete_failed": "Unable to remove from cache. Please try again.",
+  "storage_read_failed": "Unable to read from cache. Please try again.",
+  "storage_write_failed": "Unable to save to cache. Please try again.",
+  "storage_initialization_failed": "Cache service is unavailable. Please try again later."
+}

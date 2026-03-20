@@ -1,0 +1,6 @@
+{
+  "storage_delete_failed": "No se pudo eliminar del caché. Intenta de nuevo.",
+  "storage_read_failed": "No se pudo leer del caché. Intenta de nuevo.",
+  "storage_initialization_failed": "El servicio de caché no está disponible. Intenta más tarde.",
+  "storage_write_failed": "No se pudo guardar en el caché. Intenta de nuevo."
+}

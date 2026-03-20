@@ -29,7 +29,7 @@ export class ChatService {
    * @returns The created chat as a response DTO.
    */
   async create(parameters: CreateChatParametersDto): Promise<ChatDto> {
-    const chat = await this.chatRepository.create(parameters.title);
+    const chat = await this.chatRepository.create(parameters.title, parameters.message.content);
 
     return ChatDto.from(chat);
   }

@@ -11,4 +11,5 @@ export type {
     Skill,
     SkillInstallation,
     Tool,
+    Message,
 } from '@prisma/client';
