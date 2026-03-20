@@ -2,6 +2,6 @@
     "agent_required_id": "Agent ID is required.",
     "agent_required_name": "Agent name is required.",
     "agent_not_found": "Agent not found.",
-    "chat_required_id": "Chat ID is required.",
-    "chat_not_found": "Chat not found."
+    "intent_not_found": "Intent not found.",
+    "agent_intent_not_found": "Agent intent not found."
 }

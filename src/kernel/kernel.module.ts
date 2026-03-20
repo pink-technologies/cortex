@@ -4,14 +4,14 @@
 import { Module, type Provider } from '@nestjs/common';
 import { AgentsModule } from '@/agents/agents.module';
 import { KernelService } from './service/kernel.service';
+import { KERNEL_ORIGIN_ADAPTER } from './adapters/kernel-origin-adapter.interface';
+import { WebhookProviderHandlerRegistry } from './adapters/webhook/providers/webhook-provider-handler.registry';
 import {
   KernelOriginAdapterRegistry,
   type KernelOriginAdapter,
   WebhookKernelOriginAdapter,
   ChatKernelOriginAdapter,
 } from './adapters';
-import { KERNEL_ORIGIN_ADAPTER } from './adapters/kernel-origin-adapter.interface';
-import { WebhookProviderHandlerRegistry } from './adapters/webhook/providers/webhook-provider-handler.registry';
 
 @Module({
   imports: [AgentsModule],

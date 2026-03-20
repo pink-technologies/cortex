@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { WebhookProviderNotFoundError } from '@/kernel/service/error/kernel.error';
 import {
     WEBHOOK_PROVIDER_HANDLER,
@@ -23,13 +23,17 @@ export class WebhookProviderHandlerRegistry {
     /**
      * Creates a new {@link WebhookProviderHandlerRegistry}.
      *
-     * @param handlers - The webhook provider handlers to register.
+     * @param handlers - Handlers registered with {@link WEBHOOK_PROVIDER_HANDLER}
+     * (`multi: true`); omitted when none are registered yet.
      */
     constructor(
+        @Optional()
         @Inject(WEBHOOK_PROVIDER_HANDLER)
-        handlers: WebhookProviderHandler[],
+        handlers: WebhookProviderHandler[] | undefined,
     ) {
-        this.byName = new Map(handlers.map((handler) => [handler.name, handler]));
+        this.byName = new Map(
+            (handlers ?? []).map((handler) => [handler.name, handler]),
+        );
     }
 
     /**

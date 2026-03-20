@@ -8,7 +8,8 @@ import {
   AgentsIntentRepository,
 } from '@/agents/repositories/index';
 import {
-  AgentIntentNotFoundError, AgentNotFoundError,
+  AgentIntentNotFoundError,
+  AgentNotFoundError,
 } from '../error/agents.error';
 
 /**
@@ -40,14 +41,11 @@ export class OrchestratorService {
    *
    * @param intentSlug - The intent slug (e.g. "summarize", "answer_question").
    * @returns The agent as {@link AgentDto}.
-   * @throws IntentNotFoundError when the intent (slug) is not found.
-   * @throws AgentIntentNotFoundError when the agent intent is not found.
+   * @throws AgentIntentNotFoundError when the slug is unknown or no agent is linked to that intent.
    * @throws AgentNotFoundError when the agent is not found.
    */
   async resolveAgentByIntent(slug: string): Promise<AgentDto> {
-    const agentIntent = await this.agentsIntentRepository.findByIntent(
-      slug.trim(),
-    );
+    const agentIntent = await this.agentsIntentRepository.findByIntent(slug.trim());
 
     if (!agentIntent) throw new AgentIntentNotFoundError();
 

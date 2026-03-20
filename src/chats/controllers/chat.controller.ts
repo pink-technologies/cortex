@@ -1,14 +1,19 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Post, UseFilters } from "@nestjs/common";
 import { ChatService } from "src/chats/service/chats.service";
-import { ChatDto } from "@/chats/dto";
+import { ChatDto, CreateChatParametersDto } from "@/chats/dto";
+import { ChatsExceptionFilter } from "../filter/exception.filter";
 
 /**
- * Controller for chat operations.
+ * HTTP controller responsible for handling chat-related read requests.
+ *
+ * This controller acts as the transport-layer entry point for chat
+ * operations and delegates all business logic to the {@link ChatService}.
  */
 @Controller('/v1/chats')
+@UseFilters(ChatsExceptionFilter)
 export class ChatController {
     // - MARK: - constructor
 
@@ -28,7 +33,19 @@ export class ChatController {
      * @returns The created chat as a response DTO.
      */
     @Post()
-    async create(@Body('title') title?: string): Promise<ChatDto> {
-        return this.chatService.create(title ?? '');
+    async create(@Body() parameters: CreateChatParametersDto): Promise<ChatDto> {
+        return this.chatService.create(parameters);
+    }
+
+    /**
+     * Finds a chat by its ID.
+     *
+     * @param id - The ID of the chat.
+     * @returns The found chat as a response DTO.
+     */
+    @Get(':id')
+    @HttpCode(200)
+    async findById(@Param('id') id: string): Promise<ChatDto> {
+        return this.chatService.findById(id);
     }
 }
