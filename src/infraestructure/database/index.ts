@@ -5,6 +5,7 @@ export { DatabaseModule } from './database.module';
 export { Prisma } from '@prisma/client';
 export type {
     Agent,
+    Chat,
     AgentSkill,
     AgentStatus,
     Skill,

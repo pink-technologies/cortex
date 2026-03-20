@@ -1,24 +1,40 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { ChatsModule } from '@/chats/chats.module';
 import { Module } from '@nestjs/common';
-import { DatabaseModule } from 'src/infraestructure/database';
+import { DatabaseModule } from '@/infraestructure/database/index';
 import { SkillsModule } from 'src/skills';
 import { AgentsController, AgentsSkillsController } from './controller/index';
-import { AgentsRepository } from './repositories/agents/agents.repository';
-import { AgentsSkillsRepository } from './repositories/agents-skills/agents-skills.repository';
-import { AgentsService } from './service/agents.service';
-import { AgentsSkillsService } from './service/agents-skills/agents-skills.service';
+import {
+  AgentsRepository,
+  AgentsIntentRepository,
+  AgentsSkillsRepository,
+} from './repositories/index';
+import {
+  AgentsService,
+  AgentsSkillsService,
+  AgentRunService,
+  OrchestratorService,
+} from './service/index';
 
 @Module({
-    controllers: [AgentsController, AgentsSkillsController],
-    imports: [DatabaseModule, SkillsModule],
-    exports: [AgentsRepository, AgentsService],
-    providers: [
-        AgentsRepository,
-        AgentsService,
-        AgentsSkillsRepository,
-        AgentsSkillsService,
-    ],
+  controllers: [AgentsController, AgentsSkillsController],
+  imports: [DatabaseModule, SkillsModule, ChatsModule],
+  exports: [
+    AgentsRepository,
+    AgentsService,
+    OrchestratorService,
+    AgentRunService,
+  ],
+  providers: [
+    AgentsIntentRepository,
+    AgentsRepository,
+    AgentsSkillsRepository,
+    OrchestratorService,
+    AgentsService,
+    AgentsSkillsService,
+    AgentRunService,
+  ],
 })
 export class AgentsModule { }

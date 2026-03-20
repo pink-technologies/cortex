@@ -11,7 +11,7 @@ import { I18nService as i18n } from 'nestjs-i18n';
  * to localized messages used throughout the application.
  *
  * It acts as an abstraction over the underlying i18n library,
- * ensuring that:
+ * ensuring that: - cross-domain localized messages are grouped together,
  * - translation keys are centralized and discoverable,
  * - message usage is consistent across modules,
  * - refactors are safer and less error-prone,
@@ -37,23 +37,37 @@ export class I18nService {
     requiredName: () => this.i18n.t('agents.agent_required_name'),
 
     /**
-     * Message displayed when a agent is not found. 
+     * Message displayed when an agent is not found.
      */
-    notFound: () => this.i18n.t('agents.agent_not_found'),
+    agentNotFound: () => this.i18n.t('agents.agent_not_found'),
+
+    /**
+     * Message displayed when an intent (slug) is not found.
+     */
+    intentNotFound: () => this.i18n.t('agents.intent_not_found'),
+
+    /**
+     * Message displayed when an agent intent is not found.
+     */
+    agentIntentNotFound: () => this.i18n.t('agents.agent_intent_not_found'),
 
     /**
      * Message displayed when a agent ID is required.
      */
-    requiredId: () => this.i18n.t('agents.agent_required_id'),
+    agentRequiredId: () => this.i18n.t('agents.agent_required_id'),
+
   };
 
   /**
-   * Agents skills, cross-domain localized messages.
+   * Chats, cross-domain localized messages.
    *
-   * These messages are specific to the agents skills domain.
+   * These messages are specific to the chats domain.
    */
-  readonly agentsSkills = {
-
+  readonly chats = {
+    /**
+     * Message displayed when a chat is not found.
+     */
+    chatNotFound: () => this.i18n.t('chats.chat_not_found'),
   };
 
   /**
@@ -87,11 +101,30 @@ export class I18nService {
   };
 
   /**
- * Common, cross-domain localized messages.
- *
- * These messages are generic and may be reused across
- * multiple modules and error scenarios.
- */
+   * Jobs, cross-domain localized messages.
+   *
+   * These messages are specific to the jobs domain.
+   */
+  readonly jobs = {
+    /**
+     * Message displayed when a job is not found.
+     */
+    jobNotFound: () => this.i18n.t('jobs.job_not_found'),
+
+    /**
+     * Message displayed when a job ID is not found.
+     */
+    jobIdNotFound: () => this.i18n.t('jobs.job_id_not_found'),
+
+    /**
+     * Message displayed when a job status update fails.
+     */
+    jobStatusUpdateFailed: () => this.i18n.t('jobs.job_status_update_failed'),
+  };
+
+  /**
+   * Skills, cross-domain localized messages.
+   */
   readonly skills = {
     /**
      * Message displayed when a request cannot be processed
@@ -104,7 +137,7 @@ export class I18nService {
      * unavailable due to internal errors.
      */
     skillNotRegistered: () => this.i18n.t('skills.skill_not_registered'),
-    
+
     /**
      * Message displayed when a skill is not found.
      */

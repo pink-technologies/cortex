@@ -16,13 +16,13 @@
  * - prevent lower-level errors from leaking beyond the service layer.
  */
 export abstract class AgentServiceError extends Error {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * A machine-readable error code identifying the type of
-     * agent service error.
-     */
-    abstract readonly code: string;
+  /**
+   * A machine-readable error code identifying the type of
+   * agent service error.
+   */
+  abstract readonly code: string;
 }
 
 /**
@@ -33,12 +33,12 @@ export abstract class AgentServiceError extends Error {
  * using its unique identifier or name.
  */
 export class AgentNotFoundError extends AgentServiceError {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * A machine-readable error code identifying agent-not-found errors.
-     */
-    readonly code = 'AGENT_NOT_FOUND';
+  /**
+   * A machine-readable error code identifying agent-not-found errors.
+   */
+  readonly code = 'AGENT_NOT_FOUND';
 }
 
 /**
@@ -49,10 +49,41 @@ export class AgentNotFoundError extends AgentServiceError {
  * or undefined to a service method that expects an ID.
  */
 export class AgentRequiredIdError extends AgentServiceError {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * A machine-readable error code identifying missing agent ID errors.
-     */
-    readonly code = 'AGENT_REQUIRED_ID';
+  /**
+   * A machine-readable error code identifying missing agent ID errors.
+   */
+  readonly code = 'AGENT_REQUIRED_ID';
+}
+
+/**
+ * Error thrown when an intent (by slug) does not exist in the system.
+ *
+ * This typically occurs when the requested intent slug has no matching
+ * {@link Intent} record in the database.
+ */
+export class IntentNotFoundError extends AgentServiceError {
+  // MARK: - Properties
+
+  /**
+   * A machine-readable error code identifying intent not found errors.
+   */
+  readonly code = 'INTENT_NOT_FOUND';
+}
+
+/**
+ * Error thrown when an attempt is made to find or act on an agent
+ * intent that does not exist in the system.
+ *
+ * This typically occurs when a requested agent intent cannot be found
+ * using its unique identifier or name.
+ */
+export class AgentIntentNotFoundError extends AgentServiceError {
+  // MARK: - Properties
+
+  /**
+   * A machine-readable error code identifying agent intent not found errors.
+   */
+  readonly code = 'AGENT_INTENT_NOT_FOUND';
 }

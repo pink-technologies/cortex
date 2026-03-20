@@ -13,6 +13,7 @@ import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
 import { SkillsModule } from './skills';
 import { ToolsModule } from './tools/tools.module';
+import { KernelModule } from './kernel';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ToolsModule } from './tools/tools.module';
     CortexI18nModule,
     SkillsModule,
     ToolsModule,
+    KernelModule,
   ],
   controllers: [],
   providers: [
