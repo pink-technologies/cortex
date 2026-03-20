@@ -7,7 +7,7 @@ import { AddMessageParametersDto, MessageDto } from '@/chats/dto';
 import { MessagesRepository } from '@/chats/repositories';
 import { ChatNotFoundError } from '../error/chat.error';
 import { key } from '@/chats/storage-key/chat-messages-storage-key';
-import { STORAGE } from '@/infraestructure/storage';
+import { STORAGE, type Storage } from '@/infraestructure/storage';
 
 /**
  * Domain service for message read and write operations.
@@ -66,7 +66,7 @@ export class MessagesService {
         const messageDto = MessageDto.from(message);
 
         const chatMessagesStorageKey = this.chatMessagesStorageKey(chatId);
-        const cached = await this.storage.read(chatMessagesStorageKey);
+        const cached = await this.storage.read<MessageDto[]>(chatMessagesStorageKey);
         const updated = cached ? [...cached, messageDto] : [messageDto];
 
         await this.storage.write(updated, chatMessagesStorageKey);
@@ -90,7 +90,7 @@ export class MessagesService {
         if (!chat) throw new ChatNotFoundError();
 
         const chatMessagesStorageKey = this.chatMessagesStorageKey(chatId);
-        const cached = await this.storage.read(chatMessagesStorageKey);
+        const cached = await this.storage.read<MessageDto[]>(chatMessagesStorageKey);
 
         if (cached) return cached;
 

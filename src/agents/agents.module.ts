@@ -5,7 +5,7 @@ import { ChatsModule } from '@/chats/chats.module';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@/infraestructure/database/index';
 import { SkillsModule } from 'src/skills';
-import { AgentsController, AgentsSkillsController } from './controller/index';
+import { AgentsController } from './controller/index';
 import {
   AgentsRepository,
   AgentsIntentRepository,
@@ -19,7 +19,7 @@ import {
 } from './service/index';
 
 @Module({
-  controllers: [AgentsController, AgentsSkillsController],
+  controllers: [AgentsController],
   imports: [DatabaseModule, SkillsModule, ChatsModule],
   exports: [
     AgentsRepository,
