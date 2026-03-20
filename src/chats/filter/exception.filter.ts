@@ -60,13 +60,13 @@ export class ChatExceptionFilter implements ExceptionFilter {
         }
 
         if (exception instanceof StorageReadError) {
-            throw new NotFoundException(i18n.storage.storageReadFailed(), {
+            throw new InternalServerErrorException(i18n.storage.storageReadFailed(), {
                 cause: exception,
             });
         }
 
         if (exception instanceof StorageWriteError) {
-            throw new NotFoundException(i18n.storage.storageWriteFailed(), {
+            throw new InternalServerErrorException(i18n.storage.storageWriteFailed(), {
                 cause: exception,
             });
         }

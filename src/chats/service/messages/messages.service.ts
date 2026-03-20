@@ -1,13 +1,13 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ChatRepository } from '@/chats/index';
 import { AddMessageParametersDto, MessageDto } from '@/chats/dto';
 import { MessagesRepository } from '@/chats/repositories';
 import { ChatNotFoundError } from '../error/chat.error';
-import { RedisStorageService } from '@/infraestructure/storage/redis/redis-storage.service';
 import { key } from '@/chats/storage-key/chat-messages-storage-key';
+import { STORAGE } from '@/infraestructure/storage';
 
 /**
  * Domain service for message read and write operations.
@@ -35,12 +35,12 @@ export class MessagesService {
      *
      * @param chatRepository - Repository for validating chat existence.
      * @param messagesRepository - Repository for persisting and querying messages.
-     * @param redisStorageService - Redis cache service for messages per chat.
+     * @param storage - Storage service for messages per chat.
      */
     constructor(
         private readonly chatRepository: ChatRepository,
         private readonly messagesRepository: MessagesRepository,
-        private readonly redisStorageService: RedisStorageService,
+        @Inject(STORAGE) private readonly storage: Storage,
     ) { }
 
     // MARK: - Instance methods
@@ -66,10 +66,10 @@ export class MessagesService {
         const messageDto = MessageDto.from(message);
 
         const chatMessagesStorageKey = this.chatMessagesStorageKey(chatId);
-        const cached = await this.redisStorageService.read<MessageDto[]>(chatMessagesStorageKey);
+        const cached = await this.storage.read(chatMessagesStorageKey);
         const updated = cached ? [...cached, messageDto] : [messageDto];
 
-        await this.redisStorageService.write(updated, chatMessagesStorageKey);
+        await this.storage.write(updated, chatMessagesStorageKey);
 
         return messageDto;
     }
@@ -90,14 +90,14 @@ export class MessagesService {
         if (!chat) throw new ChatNotFoundError();
 
         const chatMessagesStorageKey = this.chatMessagesStorageKey(chatId);
-        const cached = await this.redisStorageService.read<MessageDto[]>(chatMessagesStorageKey);
+        const cached = await this.storage.read(chatMessagesStorageKey);
 
         if (cached) return cached;
 
         const messages = await this.messagesRepository.findByChatId(chatId);
         const messageDtos = messages.map(MessageDto.from);
 
-        await this.redisStorageService.write(messageDtos, chatMessagesStorageKey);
+        await this.storage.write(messageDtos, chatMessagesStorageKey);
 
         return messageDtos;
     }

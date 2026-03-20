@@ -40,12 +40,15 @@ export class MessagesRepository {
     }
 
     /**
-     * Finds messages by chat ID.
+     * Finds messages by chat ID, ordered by creation ascending.
      *
      * @param chatId - The ID of the chat.
-     * @returns The found messages.
+     * @returns The found messages, ordered by {@link Message.createdAt}.
      */
     async findByChatId(chatId: string): Promise<Message[]> {
-        return this.database.message.findMany({ where: { chatId } });
+        return this.database.message.findMany({
+            where: { chatId },
+            orderBy: { createdAt: 'asc' },
+        });
     }
 }
