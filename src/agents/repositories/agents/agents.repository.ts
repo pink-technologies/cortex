@@ -97,6 +97,17 @@ export class AgentsRepository {
     }
 
     /**
+     * Retrieves the first agent ordered by name.
+     *
+     * @returns The first agent, or null when no agents exist.
+     */
+    async retrieveFirst(): Promise<Agent | null> {
+        return this.database.agent.findFirst({
+            orderBy: { name: 'asc' },
+        });
+    }
+
+    /**
      * Updates an agent by its unique identifier.
      *
      * @param id - The unique agent identifier.

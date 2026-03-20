@@ -1,0 +1,5 @@
+{
+  "job_not_found": "Trabajo no encontrado.",
+  "job_id_not_found": "ID de trabajo no encontrado.",
+  "job_status_update_failed": "No se pudo actualizar el estado del trabajo."
+}

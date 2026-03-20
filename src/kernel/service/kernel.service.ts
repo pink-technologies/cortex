@@ -75,9 +75,7 @@ export class KernelService {
             return agent.id;
         }
 
-        const agents = await this.agentsRepository.retrieve();
-
-        const first = agents[0];
+        const first = await this.agentsRepository.retrieveFirst();
         if (!first) throw new KernelNoAgentsError();
 
         return first.id;
