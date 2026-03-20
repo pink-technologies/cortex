@@ -87,19 +87,3 @@ export class AgentIntentNotFoundError extends AgentServiceError {
    */
   readonly code = 'AGENT_INTENT_NOT_FOUND';
 }
-
-/**
- * Error thrown when {@link AgentRunService.run} is called without a chat id
- * (empty or whitespace).
- */
-export class ChatRequiredIdError extends AgentServiceError {
-  readonly code = 'CHAT_REQUIRED_ID';
-}
-
-/**
- * Error thrown when an attempt is made to run an agent in a chat
- * that does not exist in the system.
- */
-export class ChatNotFoundError extends AgentServiceError {
-  readonly code = 'CHAT_NOT_FOUND';
-}

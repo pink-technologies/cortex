@@ -57,7 +57,7 @@ export class KernelService {
         -> execute
         -> post-process result
         */
-        const { payload, context } = input;
+        const { context } = input;
 
         const agentId = await this.resolveAgentId(context);
 
@@ -78,6 +78,7 @@ export class KernelService {
         const agents = await this.agentsRepository.retrieve();
 
         const first = agents[0];
+
         if (!first) throw new KernelNoAgentsError();
 
         return first.id;

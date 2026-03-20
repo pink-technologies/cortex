@@ -3,9 +3,10 @@
 
 import { AgentsRepository } from '@/agents/repositories';
 import { Injectable } from '@nestjs/common';
-import { AgentNotFoundError, ChatNotFoundError } from '../error/agents.error';
+import { AgentNotFoundError } from '../error/agents.error';
 import { ChatRepository } from '@/chats/repositories/chat.repository';
 import { AgentRunResponseDto } from '@/agents/dto/response/agent-run/agent-run.response.dto';
+import { ChatNotFoundError } from '@/chats/service/error/chat.error';
 
 /**
  * Service responsible for running agents on chats.

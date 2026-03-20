@@ -2,15 +2,13 @@
 // https://pink-tech.io/
 
 import { I18nService } from '../../i18n';
+import { ChatNotFoundError } from '@/chats/service/error/chat.error';
+import { SkillNotFoundError } from '@/skills/service/error/skills.error';
 import {
-    SkillNotFoundError,
-    SkillRequiredIdError,
-} from 'src/skills/service/error/skills.error';
-import {
+    AgentIntentNotFoundError,
     AgentNotFoundError,
     AgentRequiredIdError,
-    ChatNotFoundError,
-    ChatRequiredIdError,
+    IntentNotFoundError,
 } from '../service/error/agents.error';
 import {
     BadRequestException,
@@ -37,13 +35,13 @@ import {
  * (e.g. agents controller or globally when agents errors may propagate).
  */
 @Catch(
+    AgentIntentNotFoundError,
     AgentNotFoundError,
     AgentRequiredIdError,
     ChatNotFoundError,
-    ChatRequiredIdError,
     HttpException,
+    IntentNotFoundError,
     SkillNotFoundError,
-    SkillRequiredIdError,
 )
 export class AgentsExceptionFilter implements ExceptionFilter {
     // MARK: - Constructor
@@ -74,26 +72,26 @@ export class AgentsExceptionFilter implements ExceptionFilter {
             });
         }
 
-        if (exception instanceof ChatRequiredIdError) {
-            throw new BadRequestException(i18n.agents.chatRequiredId(), {
+        if (exception instanceof IntentNotFoundError) {
+            throw new NotFoundException(i18n.agents.intentNotFound(), {
+                cause: exception,
+            });
+        }
+
+        if (exception instanceof AgentIntentNotFoundError) {
+            throw new NotFoundException(i18n.agents.agentIntentNotFound(), {
                 cause: exception,
             });
         }
 
         if (exception instanceof ChatNotFoundError) {
-            throw new NotFoundException(i18n.agents.chatNotFound(), {
+            throw new NotFoundException(i18n.chats.chatNotFound(), {
                 cause: exception,
             });
         }
 
         if (exception instanceof SkillNotFoundError) {
             throw new NotFoundException(i18n.skills.skillNotFound(), {
-                cause: exception,
-            });
-        }
-
-        if (exception instanceof SkillRequiredIdError) {
-            throw new BadRequestException(i18n.skills.skillRequiredId(), {
                 cause: exception,
             });
         }

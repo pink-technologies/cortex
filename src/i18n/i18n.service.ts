@@ -11,7 +11,7 @@ import { I18nService as i18n } from 'nestjs-i18n';
  * to localized messages used throughout the application.
  *
  * It acts as an abstraction over the underlying i18n library,
- * ensuring that:
+ * ensuring that: - cross-domain localized messages are grouped together,
  * - translation keys are centralized and discoverable,
  * - message usage is consistent across modules,
  * - refactors are safer and less error-prone,
@@ -37,26 +37,38 @@ export class I18nService {
     requiredName: () => this.i18n.t('agents.agent_required_name'),
 
     /**
-     * Message displayed when a agent is not found. 
+     * Message displayed when an agent is not found.
      */
-    notFound: () => this.i18n.t('agents.agent_not_found'),
+    agentNotFound: () => this.i18n.t('agents.agent_not_found'),
+
+    /**
+     * Message displayed when an intent (slug) is not found.
+     */
+    intentNotFound: () => this.i18n.t('agents.intent_not_found'),
+
+    /**
+     * Message displayed when an agent intent is not found.
+     */
+    agentIntentNotFound: () => this.i18n.t('agents.agent_intent_not_found'),
 
     /**
      * Message displayed when a agent ID is required.
      */
     agentRequiredId: () => this.i18n.t('agents.agent_required_id'),
 
-    /**
-     * Message displayed when a chat ID is required.
-     */
-    chatRequiredId: () => this.i18n.t('agents.chat_required_id'),
+  };
 
+  /**
+   * Chats, cross-domain localized messages.
+   *
+   * These messages are specific to the chats domain.
+   */
+  readonly chats = {
     /**
      * Message displayed when a chat is not found.
      */
-    chatNotFound: () => this.i18n.t('agents.chat_not_found'),
+    chatNotFound: () => this.i18n.t('chats.chat_not_found'),
   };
-
 
   /**
    * Common, cross-domain localized messages.

@@ -3,7 +3,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { ChatRepository } from '@/chats/index';
-import { ChatDto } from '../dto';
+import { ChatDto, CreateChatParametersDto } from '../dto';
 import { ChatNotFoundError } from './error/chat.error';
 
 /**
@@ -25,11 +25,11 @@ export class ChatService {
   /**
    * Creates a new chat.
    *
-   * @param title - The title of the chat.
+   * @param parameters - The parameters for the chat creation.
    * @returns The created chat as a response DTO.
    */
-  async create(title: string): Promise<ChatDto> {
-    const chat = await this.chatRepository.create(title);
+  async create(parameters: CreateChatParametersDto): Promise<ChatDto> {
+    const chat = await this.chatRepository.create(parameters.title);
 
     return ChatDto.from(chat);
   }
