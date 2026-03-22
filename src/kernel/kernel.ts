@@ -2,11 +2,20 @@
 // https://pink-tech.io/
 
 import { Inject, Injectable } from '@nestjs/common';
-import { uuidv4 } from 'zod';
-import type { Agent, AgentContext } from '@/agents';
-import { DECISION_EXECUTOR, type DecisionExecutor } from './executor/desicion-executor';
+import { randomUUID } from 'node:crypto';
+import {
+  AGENT_REGISTRY,
+  type AgentContext,
+  type AgentRegistry,
+} from '@/agents';
+import {
+  DECISION_EXECUTOR,
+  type DecisionExecutor,
+} from './executor/desicion-executor';
 import { KernelResult } from './result/kernel-result';
 import { ExecutionInput } from '@/shared/types';
+
+const DEFAULT_AGENT_ID = 'main-assistant';
 
 /**
  * Kernel “brain” service: single entry for processing {@link KernelInput}.
@@ -18,31 +27,36 @@ import { ExecutionInput } from '@/shared/types';
  */
 @Injectable()
 export class Kernel {
-    // MARK: - Constructor
+  // MARK: - Constructor
 
-    /**
-     * Creates a new {@link Kernel}.
-     *
-     * @param agent - The main assistant agent for the kernel. 
-     * @param decisionExecutor - The decision executor for the kernel.
-     */
-    constructor(
-        private readonly agent: Agent,
-        @Inject(DECISION_EXECUTOR)
-        private readonly decisionExecutor: DecisionExecutor,
-    ) {}
+  /**
+   * Creates a new {@link Kernel}.
+   *
+   * @param agentRegistry - Registry used to resolve the main assistant agent.
+   * @param decisionExecutor - The decision executor for the kernel.
+   */
+  constructor(
+    @Inject(AGENT_REGISTRY)
+    private readonly agentRegistry: AgentRegistry,
+    @Inject(DECISION_EXECUTOR)
+    private readonly decisionExecutor: DecisionExecutor,
+  ) {}
 
-    // MARK: - Instance methods
+  // MARK: - Instance methods
 
-    async process(input: ExecutionInput): Promise<KernelResult> {
-        const executionId = uuidv4().toString();
-        const context: AgentContext = {
-            message: input.message,
-            executionId,
-        };
+  async process(input: ExecutionInput): Promise<KernelResult> {
+    const executionId = randomUUID();
+    const context: AgentContext = {
+      message: input.message,
+      executionId,
+    };
 
-        const decision = await this.agent.decide(context);
+    const agent = this.agentRegistry.get(DEFAULT_AGENT_ID);
 
-        return await this.decisionExecutor.execute(decision, context);
-    }
+    if (!agent) throw new Error('Main agent not found');
+
+    const decision = await agent.decide(context);
+
+    return await this.decisionExecutor.execute(decision, context);
+  }
 }
