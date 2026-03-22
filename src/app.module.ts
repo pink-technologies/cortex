@@ -12,7 +12,6 @@ import { DatabaseModule } from './infraestructure/database';
 import { I18nModule as CortexI18nModule } from './i18n';
 import { KernelModule } from './kernel/kernel.module';
 import { StorageModule } from './infraestructure/storage/storage.module';
-import { ToolsModule } from './tools/tools.module';
 import { SkillsModule } from './skills';
 
 @Module({
@@ -38,8 +37,7 @@ import { SkillsModule } from './skills';
     DatabaseModule,
     StorageModule,
     CortexI18nModule,
-    SkillsModule,
-    ToolsModule,
+    SkillsModule,    
     KernelModule,
   ],
   controllers: [],

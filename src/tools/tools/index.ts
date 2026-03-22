@@ -1,1 +1,0 @@
-export { HelloWorldTool } from './hello-word/hello-world.tool';

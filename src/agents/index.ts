@@ -1,9 +1,2 @@
-export { AgentsService } from './service/agents/agents.service';
-export { AgentsRepository } from './repositories/agents/agents.repository';
-export { AgentsIntentRepository } from './repositories/agents-intent/agents-intent.repository';
-export { AgentsSkillsRepository } from './repositories/agents-skills/agents-skills.repository';
-export { AgentsSkillsService } from './service/agents-skills/agents-skills.service';
-export { AgentRunService } from './service/agent-run/agent-run.service';
-export { OrchestratorService } from './service/orchestrator/agents-orchestrator.service';
-export { AgentsExceptionFilter } from './filter/exception.filter';
-export { AgentsController } from './controller/agents.controller';
+export type { Agent, AgentContext, AgentDecision } from './agent';
+export { type AgentRegistry, AGENT_REGISTRY } from './registry/agent-registry';

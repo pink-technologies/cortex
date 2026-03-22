@@ -6,6 +6,7 @@ export { Prisma } from '@prisma/client';
 export type {
     Agent,
     Chat,
+    AgentIntent,
     AgentSkill,
     AgentStatus,
     Skill,
