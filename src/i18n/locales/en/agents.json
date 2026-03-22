@@ -1,5 +1,7 @@
 {
     "agent_required_id": "Agent ID is required.",
     "agent_required_name": "Agent name is required.",
-    "agent_not_found": "Agent not found."
+    "agent_not_found": "Agent not found.",
+    "intent_not_found": "Intent not found.",
+    "agent_intent_not_found": "Agent intent not found."
 }

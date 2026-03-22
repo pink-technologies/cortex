@@ -2,23 +2,19 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common';
-import { DatabaseModule } from 'src/infraestructure/database';
+import { DatabaseModule } from '@/infraestructure/database/index';
 import { SkillsModule } from 'src/skills';
-import { AgentsController, AgentsSkillsController } from './controller/index';
-import { AgentsRepository } from './repositories/agents/agents.repository';
-import { AgentsSkillsRepository } from './repositories/agents-skills/agents-skills.repository';
-import { AgentsService } from './service/agents.service';
-import { AgentsSkillsService } from './service/agents-skills/agents-skills.service';
+import { AGENT_REGISTRY, InMemoryAgentRegistry } from './registry/agent-registry';
 
 @Module({
-    controllers: [AgentsController, AgentsSkillsController],
-    imports: [DatabaseModule, SkillsModule],
-    exports: [AgentsRepository, AgentsService],
-    providers: [
-        AgentsRepository,
-        AgentsService,
-        AgentsSkillsRepository,
-        AgentsSkillsService,
-    ],
+  controllers: [],
+  imports: [DatabaseModule, SkillsModule],
+  exports: [],
+  providers: [
+    {
+      provide: AGENT_REGISTRY,
+      useClass: InMemoryAgentRegistry,
+    }
+  ],
 })
 export class AgentsModule { }

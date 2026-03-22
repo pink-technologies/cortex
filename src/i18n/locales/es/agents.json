@@ -1,5 +1,7 @@
 {
     "agent_required_id": "El ID del agente es obligatorio.",
     "agent_required_name": "El nombre del agente es obligatorio.",
-    "agent_not_found": "El agente no existe."
+    "agent_not_found": "El agente no existe.",
+    "intent_not_found": "No se encontró la intención.",
+    "agent_intent_not_found": "No se encontró la intención del agente."
 }

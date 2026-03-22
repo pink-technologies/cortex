@@ -78,6 +78,7 @@ model Agent {
   updatedAt   DateTime          @updatedAt
   agentSkills AgentSkill[]
   connections AgentConnection[]
+  intents     AgentIntent[]
 
   @@map("agent")
 }
@@ -126,12 +127,41 @@ model Chat {
   @@map("chat")
 }
 
+model AgentIntent {
+  id        String   @id @default(uuid())
+  agentId   String
+  intentId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent  Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  intent Intent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, intentId])
+  @@index([agentId])
+  @@index([intentId])
+  @@map("agent_intent")
+}
+
+model Intent {
+  id           String        @id @default(uuid())
+  slug         String
+  name         String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  agentIntents AgentIntent[]
+
+  @@unique([slug])
+  @@map("intent")
+}
+
 model Message {
   id        String   @id @default(uuid())
   chatId    String
   role      Role
   content   String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 

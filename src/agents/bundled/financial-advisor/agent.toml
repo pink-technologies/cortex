@@ -1,0 +1,61 @@
+id = "financial-advisor-agent"
+name = "Financial Advisor Agent"
+version = "1.0.0"
+description = "Specialist responsible for financial analysis, business health evaluation, and performance insights."
+
+role = "specialist"
+prompt_file = "prompt.md"
+
+skills = []
+
+skill_groups = [
+  ""
+]
+
+capabilities = [
+  ""
+]
+
+delegates_to = []
+
+tags = [
+  "specialist",
+  "domain:finance",
+  "analysis",
+  "user-facing"
+]
+
+[safety]
+max_delegation_depth = 0
+
+[execution]
+timeout_ms = 45000
+max_iterations = 10
+
+[[config]]
+key = "connection_ids"
+label = "Data Connections"
+description = "Select which connected data providers this agent can use."
+type = "multiselect"
+required = true
+source = "connections:data-provider"
+
+[[config]]
+key = "default_time_window"
+label = "Default Time Window"
+description = "Default analysis period when the user does not specify one."
+type = "select"
+required = true
+default = "last_30_days"
+
+[[config.options]]
+value = "last_7_days"
+label = "Last 7 days"
+
+[[config.options]]
+value = "last_30_days"
+label = "Last 30 days"
+
+[[config.options]]
+value = "last_90_days"
+label = "Last 90 days"
