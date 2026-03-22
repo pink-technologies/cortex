@@ -4,7 +4,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post, UseFilters } from "@nestjs/common";
 import { ChatService } from "src/chats/service/chats.service";
 import { ChatDto, CreateChatParametersDto } from "@/chats/dto";
-import { ChatsExceptionFilter } from "../filter/exception.filter";
+import { ChatExceptionFilter } from "../filter/exception.filter";
 
 /**
  * HTTP controller responsible for handling chat-related read requests.
@@ -13,7 +13,7 @@ import { ChatsExceptionFilter } from "../filter/exception.filter";
  * operations and delegates all business logic to the {@link ChatService}.
  */
 @Controller('/v1/chats')
-@UseFilters(ChatsExceptionFilter)
+@UseFilters(ChatExceptionFilter)
 export class ChatController {
     // - MARK: - constructor
 

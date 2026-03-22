@@ -6,14 +6,13 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
 import * as path from 'path';
-import { AgentsModule } from './agents';
+import { AgentsModule } from './agents/agents.module';
 import { DatabaseExceptionFilter } from './infraestructure/database';
 import { DatabaseModule } from './infraestructure/database';
-import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
+import { KernelModule } from './kernel/kernel.module';
+import { StorageModule } from './infraestructure/storage/storage.module';
 import { SkillsModule } from './skills';
-import { ToolsModule } from './tools/tools.module';
-import { KernelModule } from './kernel';
 
 @Module({
   imports: [
@@ -38,8 +37,7 @@ import { KernelModule } from './kernel';
     DatabaseModule,
     StorageModule,
     CortexI18nModule,
-    SkillsModule,
-    ToolsModule,
+    SkillsModule,    
     KernelModule,
   ],
   controllers: [],

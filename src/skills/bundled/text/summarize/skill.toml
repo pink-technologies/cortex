@@ -1,0 +1,17 @@
+id = "text.summarize"
+name = "Text Summarize"
+version = "1.0.0"
+description = "Summarizes a given text into a concise format."
+
+executor = "text-summarize"
+
+tags = ["text", "writing", "productivity"]
+
+[input]
+schema = "json"
+
+[output]
+schema = "text"
+
+[safety]
+requires_confirmation = false

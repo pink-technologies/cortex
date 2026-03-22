@@ -1,35 +1,20 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Module, type Provider } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AgentsModule } from '@/agents/agents.module';
-import { KernelService } from './service/kernel.service';
-import { KERNEL_ORIGIN_ADAPTER } from './adapters/kernel-origin-adapter.interface';
-import { WebhookProviderHandlerRegistry } from './adapters/webhook/providers/webhook-provider-handler.registry';
-import {
-  KernelOriginAdapterRegistry,
-  type KernelOriginAdapter,
-  WebhookKernelOriginAdapter,
-  ChatKernelOriginAdapter,
-} from './adapters';
+import { DECISION_EXECUTOR, KernelDecisionExecutor } from './executor/desicion-executor';
+import { Kernel } from './kernel';
 
 @Module({
   imports: [AgentsModule],
   providers: [
-    KernelService,
-    KernelOriginAdapterRegistry,
-    WebhookProviderHandlerRegistry,
+    Kernel,
     {
-      provide: KERNEL_ORIGIN_ADAPTER,
-      useClass: WebhookKernelOriginAdapter,
-      multi: true,
-    } as Provider<KernelOriginAdapter>,
-    {
-      provide: KERNEL_ORIGIN_ADAPTER,
-      useClass: ChatKernelOriginAdapter,
-      multi: true,
-    } as Provider<KernelOriginAdapter>,
+      provide: DECISION_EXECUTOR,
+      useClass: KernelDecisionExecutor,
+    }
   ],
-  exports: [KernelService],
+  exports: [Kernel],
 })
 export class KernelModule { }

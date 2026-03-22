@@ -144,6 +144,33 @@ export class I18nService {
     skillNotFound: () => this.i18n.t('skills.skill_not_found'),
   };
 
+  /**
+   * Storage, cross-domain localized messages.
+   *
+   * These messages are specific to the storage domain.
+   */
+  readonly storage = {
+    /**
+     * Message displayed when a storage delete fails.
+     */
+    storageDeleteFailed: () => this.i18n.t('storage.storage_delete_failed'),
+
+    /**
+     * Message displayed when a storage read fails.
+     */
+    storageReadFailed: () => this.i18n.t('storage.storage_read_failed'),
+
+    /**
+     * Message displayed when a storage write fails.
+     */
+    storageWriteFailed: () => this.i18n.t('storage.storage_write_failed'),
+
+    /**
+     * Message displayed when a storage initialization fails.
+     */
+    storageInitializationFailed: () => this.i18n.t('storage.storage_initialization_failed'),
+  };
+
   // MARK: - Constructor
 
   /**

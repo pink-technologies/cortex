@@ -1,0 +1,42 @@
+id = "main-assistant"
+name = "Main Assistant"
+version = "1.0.0"
+description = "General-purpose coordinator that handles simple requests, uses generic skills, and delegates specialized work."
+
+role = "main"
+prompt_file = "prompt.md"
+
+skills = [
+  ""
+]
+
+skill_groups = [
+  ""
+]
+
+capabilities = [
+  ""
+]
+
+delegates_to = [
+  ""
+]
+
+tags = [
+  "orchestrator",
+  "general",
+  "user-facing",
+  "coordination",
+  "delegation",
+  "safe"
+]
+
+[safety]
+allow_skill_use = true
+allow_capability_use = true
+allow_delegation = true
+max_delegation_depth = 3
+
+[execution]
+timeout_ms = 30000
+max_iterations = 12

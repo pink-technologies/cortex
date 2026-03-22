@@ -1,0 +1,65 @@
+id = "financial-data"
+name = "Financial Data"
+version = "1.0.0"
+description = "Access and analyze financial data from connected providers using a structured query language."
+
+type = "integration"
+
+tools = ["financial-data"]
+
+tags = [
+  "finance",
+  "analytics",
+  "business-health",
+  "external"
+]
+
+actions = [
+  "query"
+]
+
+[execution]
+timeout_ms = 20000
+max_concurrency = 10
+
+[safety]
+requires_confirmation = false
+allow_background = false
+
+[constraints]
+max_iterations = 5
+max_rows = 1000
+allow_raw_queries = false
+
+[auth]
+required = true
+connection_type = "data-provider"
+multiple = true
+
+[[config]]
+key = "connection_ids"
+label = "Data Connections"
+description = "Select which connected providers this capability can query."
+type = "multiselect"
+required = true
+source = "connections:data-provider"
+
+[[config]]
+key = "default_time_window"
+label = "Default Time Window"
+description = "Default time range when the query does not specify one."
+type = "select"
+required = true
+default = "last_30_days"
+
+[[config.options]]
+value = "last_7_days"
+label = "Last 7 days"
+
+[[config.options]]
+value = "last_30_days"
+label = "Last 30 days"
+
+[[config.options]]
+value = "last_90_days"
+label = "Last 90 days"
