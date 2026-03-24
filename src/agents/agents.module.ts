@@ -3,7 +3,7 @@
 
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@/infraestructure/database/index';
-import { SkillsModule } from 'src/skills';
+import { SkillsModule } from '../skills/skills.module';
 import { AGENT_REGISTRY, InMemoryAgentRegistry } from './registry/agent-registry';
 
 @Module({
