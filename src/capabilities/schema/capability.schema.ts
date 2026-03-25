@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { z } from "zod";
-import { configSchema } from "@/bundled/schemas/shared/config.schema";
+import { configSchema } from "@/shared/types/schema/config.schema";
 
 /**
  * Schema for the capability bundle.
@@ -84,6 +84,6 @@ export const capabilitySchema = z.object({
 });
 
 /**
- * Type for the capability bundle.
+ * Type for the capability schema.
  */
-export type CapabilityBundle = z.infer<typeof capabilitySchema>;
+export type CapabilitySchema = z.infer<typeof capabilitySchema>;

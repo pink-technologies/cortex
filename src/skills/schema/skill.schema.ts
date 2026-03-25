@@ -4,7 +4,7 @@
 import { z } from "zod";
 
 /**
- * Schema for the skill bundle.
+ * Schema for the skill schema.
  *
  * @example
  * ```toml
@@ -44,6 +44,6 @@ export const skillSchema = z.object({
 });
 
 /**
- * Type for the skill bundle.
+ * Type for the skill schema.
  */
-export type SkillBundle = z.infer<typeof skillSchema>;
+export type SkillSchema = z.infer<typeof skillSchema>;

@@ -7,7 +7,6 @@ import { APP_FILTER } from '@nestjs/core';
 import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
 import * as path from 'path';
 import { AgentsModule } from './agents/agents.module';
-import { BundledModule } from './bundled/bundled.module';
 import { DatabaseExceptionFilter } from './infraestructure/database';
 import { DatabaseModule } from './infraestructure/database';
 import { I18nModule as CortexI18nModule } from './i18n';
@@ -35,7 +34,6 @@ import { SkillsModule } from './skills/skills.module';
       },
     }),
     AgentsModule,
-    BundledModule,
     DatabaseModule,
     StorageModule,
     CortexI18nModule,

@@ -2,10 +2,10 @@
 // https://pink-tech.io/
 
 import { z } from "zod";
-import { configSchema } from "@/bundled/schemas/shared/config.schema";
+import { configSchema } from "@/shared/types/schema/config.schema";
 
 /**
- * Schema for the agent bundle.
+ * Schema for the agent schema.
  * 
  * @example
  * ```toml
@@ -66,6 +66,6 @@ export const agentSchema = z.object({
 });
 
 /**
- * Type for the agent bundle.
+ * Type for the agent schema.
  */
-export type AgentBundle = z.infer<typeof agentSchema>;
+export type AgentSchema = z.infer<typeof agentSchema>;

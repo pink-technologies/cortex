@@ -1,11 +1,15 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AGENT_REGISTRY, type AgentDecision, type AgentRegistry } from "@/agents";
 import { Inject } from "@nestjs/common";
 import { KernelResult } from "../result/kernel-result";
 import { AgentDecisionType } from "@/agents/agent";
 import { ExecutionContext } from "@/shared/types/";
+import {
+  AGENT_IN_MEMORY_STORAGE,
+  type AgentDecision,
+  type AgentInMemoryStorage,
+} from "@/agents";
 
 /**
  * Nest DI token for {@link DecisionExecutor}.
@@ -23,14 +27,14 @@ export const DECISION_EXECUTOR = Symbol('DECISION_EXECUTOR');
  * and **use-skill** (tool invocation) according to product rules.
  */
 export interface DecisionExecutor {
-    /**
-     * Executes one decision step; may recurse when the decision is **delegate**.
-     *
-     * @param decision - Output of {@link Agent.decide} or a follow-up after delegation.
-     * @param context - Shared execution scope for this kernel run.
-     * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
-     */
-    execute(decision: AgentDecision, context: ExecutionContext): Promise<KernelResult>;
+  /**
+   * Executes one decision step; may recurse when the decision is **delegate**.
+   *
+   * @param decision - Output of {@link Agent.decide} or a follow-up after delegation.
+   * @param context - Shared execution scope for this kernel run.
+   * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
+   */
+  execute(decision: AgentDecision, context: ExecutionContext): Promise<KernelResult>;
 }
 
 /**
@@ -42,56 +46,58 @@ export interface DecisionExecutor {
  */
 export class KernelDecisionExecutor implements DecisionExecutor {
 
-    // MARK: - Constructor
+  // MARK: - Constructor
 
-    /**
-     * @param agentRegistry - Registry used to resolve {@link Agent} by id for **delegate** decisions.
-     */
-    constructor(
-        @Inject(AGENT_REGISTRY)
-        private readonly agentRegistry: AgentRegistry
-    ) {}
+  /**
+   * Creates a new {@link KernelDecisionExecutor}.
+   *
+   * @param agentRegistry - Process-local store of {@link Agent} instances keyed by id (delegate target lookup).
+   */
+  constructor(
+    @Inject(AGENT_IN_MEMORY_STORAGE)
+    private readonly agentRegistry: AgentInMemoryStorage,
+  ) { }
 
-    // MARK: - DecisionExecutor
+  // MARK: - DecisionExecutor
 
-   /**
-     * Executes one decision step; may recurse when the decision is **delegate**.
-     *
-     * @param decision - Output of {@link Agent.decide} or a follow-up after delegation.
-     * @param context - Shared execution scope for this kernel run.
-     * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
-     */
-    async execute(decision: AgentDecision, context: ExecutionContext): Promise<KernelResult> {
-        // TODO: Real implementation this is just a placeholder
-        switch (decision.type) {
-            case AgentDecisionType.Delegate: {
-                const agent = this.agentRegistry.get(decision.agentId);
-  
-                if (!agent) throw new Error('Agent not found');
-        
-                const nextDecision = await agent.decide({
-                  executionId: context.executionId,
-                  message: context.message,
-                });
-        
-                return this.execute(nextDecision, context);
-              }
+  /**
+    * Executes one decision step; may recurse when the decision is **delegate**.
+    *
+    * @param decision - Output of {@link Agent.decide} or a follow-up after delegation.
+    * @param context - Shared execution scope for this kernel run.
+    * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
+    */
+  async execute(decision: AgentDecision, context: ExecutionContext): Promise<KernelResult> {
+    // TODO: Real implementation this is just a placeholder
+    switch (decision.type) {
+      case AgentDecisionType.Delegate: {
+        const agent = this.agentRegistry.get(decision.agentId);
 
-            case AgentDecisionType.Respond:
-              return {
-                executionId: context.executionId,
-                message: decision.response,
-              };
-      
-            case AgentDecisionType.UseSkill: {
-                throw new Error('UseSkill decision type is not supported yet');
-            }
+        if (!agent) throw new Error('Agent not found');
 
-            default:
-                return {
-                    executionId: context.executionId,
-                    message: 'Invalid decision type',
-                };
-        }
+        const nextDecision = await agent.decide({
+          executionId: context.executionId,
+          message: context.message,
+        });
+
+        return this.execute(nextDecision, context);
+      }
+
+      case AgentDecisionType.Respond:
+        return {
+          executionId: context.executionId,
+          message: decision.response,
+        };
+
+      case AgentDecisionType.UseSkill: {
+        throw new Error('UseSkill decision type is not supported yet');
+      }
+
+      default:
+        return {
+          executionId: context.executionId,
+          message: 'Invalid decision type',
+        };
     }
+  }
 }
