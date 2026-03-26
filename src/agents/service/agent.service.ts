@@ -1,99 +1,96 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { readFile } from "fs/promises";
-import { Inject, Injectable } from "@nestjs/common";
-import { TomlParse } from "@/shared/types";
+import { readFile, readdir } from "fs/promises";
+import path from "path";
+
+import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
+
+import { TomlParser } from "@/shared/types";
+
 import { AgentSchema, agentSchema } from "../schema/agent/agent.schema";
-import { InMemoryStorage } from "@/infraestructure/storage/interfaces/in-memory.interface";
-import { AgentAlreadyRegisteredError } from "../error/error";
+import type { Storage } from "@/infraestructure/storage/storage";
+import { STORAGE } from "@/infraestructure/storage/storage.tokens";
 import { Agent, AgentRole } from "../agent";
+import { AGENTS_BUNDLED_ROOT } from "../agents.tokens";
+
+import {
+    AgentAlreadyRegisteredError,
+    AgentDecideMethodNotImplementedError,
+    AgentFileLoadError
+} from "./error/error";
 
 /**
- * DI token for the process-local {@link InMemoryStorage} used by the agents module.
- *
- * This token allows decoupling the storage implementation from the feature.
- * It should be bound to a concrete implementation (e.g. InMemoryStorageService)
- * within the AgentsModule or replaced with a mock during testing.
- *
- * @example
- * providers: [
- *   {
- *     provide: AGENT_IN_MEMORY_STORAGE,
- *     useClass: InMemoryStorageService,
- *   }
- * ]
- */
-export const AGENT_IN_MEMORY_STORAGE = Symbol('AGENT_IN_MEMORY_STORAGE');
-
-/**
- * Type alias for the in-memory storage used to persist {@link Agent} instances.
- *
- * This follows the generic {@link InMemoryStorage} contract used across the system,
- * avoiding the need for a dedicated registry abstraction.
- */
-export type AgentInMemoryStorage = InMemoryStorage<Agent>;
-
-/**
- * Service responsible for loading agents from a TOML configuration file.
- *
- * This service performs the following steps:
- * 1. Reads a TOML file from disk
- * 2. Parses its contents into a JavaScript object
- * 3. Validates the structure using {@link agentSchema}
- * 4. Transforms the validated schema into a domain {@link Agent}
- * 5. Returns the agent
- *
- * This service is used to load agents from a TOML file and store them in the in-memory storage.
+ * Loads agents from TOML files under the directory injected as {@link AGENTS_BUNDLED_ROOT}
+ * (wired in `AgentsModule` from `AGENTS_BUNDLED_ROOT` in env — same pattern as `REDIS_URL` in `StorageModule`).
  */
 @Injectable()
-export class AgentService {
-
+export class AgentService implements OnModuleInit {
     // MARK: - Constructor
 
     /**
-     * Creates a new instance of {@link AgentService}.
-     *
-     * @param agentStorage - In-memory storage used to persist agent instances
-     * @param tomlParser - Service responsible for parsing TOML content into objects
+     * @param storage - Storage service for agents.
+     * @param tomlParser - Toml parser for agents.
+     * @param agentsTomlPath - Absolute path to the directory that contains the agents.
      */
     constructor(
-        @Inject(AGENT_IN_MEMORY_STORAGE)
-        private readonly agentStorage: AgentInMemoryStorage,
-        private readonly tomlParser: TomlParse,
+        @Inject(STORAGE)
+        private readonly storage: Storage,
+        private readonly tomlParser: TomlParser,
+        @Inject(AGENTS_BUNDLED_ROOT)
+        private readonly agentsTomlPath: string,
     ) { }
+
+    // MARK: - OnModuleInit
+
+    /**
+     * Loads the agent from the TOML file when the module boots.
+     */
+    async onModuleInit(): Promise<void> {
+        await this.load();
+    }
 
     // MARK: - Instance methods
 
     /**
-     * Loads an agent from a TOML file and stores it in the in-memory storage.
-     *
-     * @param path - Absolute or relative file path to the TOML definition
-     *
-     * @throws Will throw if:
-     * - The file cannot be read
-     * - The TOML content is invalid
-     * - The schema validation fails
-     * - An agent with the same id is already registered
+     * Loads the agents from the TOML files.
      */
-    async load(path: string): Promise<Agent> {
-        const raw = await readFile(path, "utf8");
-        const parsed = this.tomlParser.parse<unknown>(raw);
-        const schema = agentSchema.parse(parsed);
-        const agent = this.schemaToAgent(schema);
+    async load(): Promise<void> {
+        const entries = await readdir(this.agentsTomlPath, { withFileTypes: true });
 
-        if (!this.agentStorage.get(agent.id)) throw new AgentAlreadyRegisteredError();
+        for (const entry of entries) {
+            if (!entry.isDirectory()) {
+                continue;
+            }
 
-        this.agentStorage.set(agent, agent.id);
-
-        return agent;
+            const filePath = path.join(this.agentsTomlPath, entry.name, "agent.toml");
+            try {
+                await this.loadAgentFromFile(filePath);
+            } catch {
+                throw new AgentFileLoadError();
+            }
+        }
     }
 
     // MARK: - Private methods
 
-    private schemaToAgent(schema: AgentSchema): Agent {
-        const role =
-            schema.role === "main" ? AgentRole.Assistant : AgentRole.Specialist;
+    private async loadAgentFromFile(filePath: string): Promise<Agent> {
+        const raw = await readFile(filePath, "utf8");
+        const parsed = this.tomlParser.parser<unknown>(raw);
+        const dto = agentSchema.parse(parsed);
+        const schema = AgentSchema.from(dto);
+        const agent = this.schemaToAgent(schema);
+
+        if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
+
+        await this.storage.write(agent, agent.id);
+
+        return agent;
+    }
+
+    private schemaToAgent(agent: AgentSchema): Agent {
+        const schema = agent.schema;
+        const role = schema.role === "MAIN" ? AgentRole.Assistant : AgentRole.Specialist;
 
         return {
             id: schema.id,
@@ -105,7 +102,7 @@ export class AgentService {
                 description: schema.description,
             },
             decide: async () => {
-                throw new Error("Decide method not implemented.");
+                throw new AgentDecideMethodNotImplementedError();
             }
         };
     }

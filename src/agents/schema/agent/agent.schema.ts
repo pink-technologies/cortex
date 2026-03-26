@@ -5,47 +5,17 @@ import { z } from "zod";
 import { configSchema } from "@/shared/types/schema/config.schema";
 
 /**
- * Schema for the agent schema.
- * 
- * @example
- * ```toml
- * id = "main-assistant"
- * name = "Main Assistant"
- * version = "1.0.0"
- * description = "General-purpose coordinator that handles simple requests, uses generic skills, and delegates specialized work."
- * role = "main"
- * prompt_file = "prompt.md"
- * skills = ["text.summarize", "text.translate", "text.spellcheck"]
- * skill_groups = ["text", "translate", "spellcheck"]
- * capabilities = ["jira.read", "jira.write"]
- * delegates_to = ["financial-advisor", "legal-assistant"]
- * tags = ["orchestrator", "general", "user-facing", "coordination", "delegation", "safe"]
- * safety = {
- *   allow_skill_use = true
- *   allow_capability_use = true
- *   allow_delegation = true
- *   max_delegation_depth = 3
- * }
- * execution = {
- *   timeout_ms = 30000
- *   max_iterations = 12
- * }
- * config = [
- *   {
- *     key = "connection_ids"
- *     label = "Data Connections"
- *     description = "Select which connected data providers this agent can use."
- *     type = "multiselect"
- *     required = true
- *     source = "connections:data-provider"
- *   }
+ * Schema for the agent definition.
  */
 export const agentSchema = z.object({
     id: z.string(),
     name: z.string(),
     version: z.string(),
     description: z.string(),
-    role: z.enum(["main", "specialist"]),
+    role: z.preprocess(
+        (val) => (typeof val === "string" ? val.toUpperCase() : val),
+        z.enum(["MAIN", "SPECIALIST"]),
+    ),
     prompt_file: z.string(),
     skills: z.array(z.string()),
     skill_groups: z.array(z.string()),
@@ -68,4 +38,30 @@ export const agentSchema = z.object({
 /**
  * Type for the agent schema.
  */
-export type AgentSchema = z.infer<typeof agentSchema>;
+type AgentSchemaDto = z.infer<typeof agentSchema>;
+
+/**
+ * Class for the agent definition.
+ */
+export class AgentSchema {
+    // MARK: - Constructor
+
+    /**
+     * Creates a new instance of {@link AgentSchema}.
+     *
+     * @param schema - The agent schema.
+     */
+    private constructor(readonly schema: AgentSchemaDto) { }
+
+    // MARK: - Static methods
+
+    /**
+     * Wraps an already-validated {@link AgentSchemaDto} (e.g. `agentSchema.parse` on raw TOML).
+     *
+     * @param input - Validated agent definition.
+     * @returns A new instance of {@link AgentSchema}.
+     */
+    static from(input: AgentSchemaDto): AgentSchema {
+        return new AgentSchema(input);
+    }
+}

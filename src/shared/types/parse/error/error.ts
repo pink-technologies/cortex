@@ -2,10 +2,10 @@
 // https://pink-tech.io/
 
 /**
- * Base class for all parse errors.
+ * Error thrown when parsing fails within the parser application layer.
  *
- * This abstract error represents failures that occur within the
- * parse application layer and serves as a boundary
+ * This error represents failures that occur within the
+ * parser application layer and serves as a boundary
  * between orchestration logic and transport-level concerns
  * (e.g. HTTP, GraphQL).
  *
@@ -15,26 +15,23 @@
  * - optionally wrap an underlying cause for internal diagnostics,
  * - prevent lower-level errors from leaking beyond the parse layer.
  */
-export abstract class ParseError extends Error {
+export class ParserError extends Error {
     // MARK: - Properties
 
     /**
-     * A machine-readable error code identifying the type of
-     * parse error.
+     * Machine-readable code for parser-layer failures.
      */
-    abstract readonly code: string;
-}
+    readonly code = 'PARSER_ERROR';
 
-/**
- * Thrown when a TOML string cannot be parsed.
- *
- * Use this to avoid parsing errors.
- */
-export class TomlParseError extends ParseError {
-    // MARK: - Properties
+    // MARK: - Constructor
 
     /**
-     * Machine-readable code for TOML parse errors.
+     * Creates a new {@link ParserError}.
+     *
+     * @param message - The human-readable error message describing the failure.
+     * @param options - The options for the error.
      */
-    readonly code = 'TOML_PARSE_ERROR';
+    constructor(message?: string, options?: { cause?: unknown }) {
+        super(message ?? 'Parse failed', options);
+    }
 }

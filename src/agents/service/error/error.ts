@@ -39,3 +39,27 @@ export class AgentAlreadyRegisteredError extends AgentServiceError {
    */
   readonly code = 'AGENT_ALREADY_REGISTERED';
 }
+
+/**
+ * Thrown when the decide method is not implemented.
+ */
+export class AgentDecideMethodNotImplementedError extends AgentServiceError {
+  // MARK: - Properties
+
+  /**
+   * Machine-readable code for agent decide method not implemented errors.
+   */
+  readonly code = 'AGENT_DECIDE_METHOD_NOT_IMPLEMENTED';
+}
+
+/**
+ * Thrown when an agent fails to load from a file.
+ */
+export class AgentFileLoadError extends AgentServiceError {
+  // MARK: - Properties
+
+  /**
+   * Machine-readable code for agent load errors.
+   */
+  readonly code = 'AGENT_FILE_LOAD_ERROR';
+}

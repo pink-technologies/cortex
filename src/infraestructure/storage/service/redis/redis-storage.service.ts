@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import Redis from 'ioredis';
-import type { Storage } from '../interfaces/storage.interface';
+import type { Storage } from '../../storage';
 import {
     Injectable,
     OnModuleDestroy,
@@ -112,9 +112,9 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
      * if (user) console.log(user.name);
      * ```
      */
-    async read<T>(forKey: string): Promise<T | null> {
+    async read<T>(key: string): Promise<T | null> {
         try {
-            const raw = await this.client.get(forKey);
+            const raw = await this.client.get(key);
 
             if (raw === null) return null;
 

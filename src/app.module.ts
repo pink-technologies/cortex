@@ -1,17 +1,24 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
-import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n';
-import * as path from 'path';
+import {
+  AcceptLanguageResolver,
+  I18nJsonLoader,
+  I18nModule,
+} from 'nestjs-i18n';
 import { AgentsModule } from './agents/agents.module';
-import { DatabaseExceptionFilter } from './infraestructure/database';
-import { DatabaseModule } from './infraestructure/database';
+import { CapabilitiesModule } from './capabilities';
+import {
+  DatabaseExceptionFilter,
+  DatabaseModule,
+} from './infraestructure/database';
+import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
 import { KernelModule } from './kernel/kernel.module';
-import { StorageModule } from './infraestructure/storage/storage.module';
 import { SkillsModule } from './skills/skills.module';
 
 @Module({
@@ -34,6 +41,7 @@ import { SkillsModule } from './skills/skills.module';
       },
     }),
     AgentsModule,
+    CapabilitiesModule,
     DatabaseModule,
     StorageModule,
     CortexI18nModule,

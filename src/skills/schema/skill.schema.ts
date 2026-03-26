@@ -46,4 +46,30 @@ export const skillSchema = z.object({
 /**
  * Type for the skill schema.
  */
-export type SkillSchema = z.infer<typeof skillSchema>;
+type SkillSchemaDto = z.infer<typeof skillSchema>;
+
+/**
+ * Class for the skill definition.
+ */
+export class SkillSchema {
+    // MARK: - Constructor
+
+    /**
+     * Creates a new instance of {@link CapabilitySchema}.
+     *
+     * @param schema - The agent schema.
+     */
+    private constructor(readonly schema: SkillSchemaDto) { }
+
+    // MARK: - Static methods
+
+    /**
+     * Wraps an already-validated {@link SkillSchemaDto} (e.g. `skillSchema.parse` on raw TOML).
+     *
+     * @param input - Validated skill definition.
+     * @returns A new instance of {@link SkillSchema}.
+     */
+    static from(input: SkillSchemaDto): SkillSchema {
+        return new SkillSchema(input);
+    }
+}

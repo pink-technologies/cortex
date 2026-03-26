@@ -3,19 +3,19 @@
 
 import * as TOML from '@iarna/toml';
 import { Injectable } from '@nestjs/common';
-import { TomlParseError } from './error/error';
+import { ParserError } from './error/error';
 
 /**
- * Interface for the TOML parse operation.
+ * Interface for the TOML parser operation.
  */
-interface Parse {
+interface Parser {
     /**
-     * Parses a raw TOML string into a value of type `T`.
+     * Parses a raw TOML string into a value of type `T` using the `@iarna/toml` library.
      *
      * @param raw - The TOML string to parse.
      * @returns The parsed value.
      */
-    parse<T>(raw: string): T;
+    parser<T>(raw: string): T;
 }
 
 /**
@@ -24,7 +24,7 @@ interface Parse {
  * Uses the `@iarna/toml` library to parse the TOML string.
  */
 @Injectable()
-export class TomlParse implements Parse {
+export class TomlParser implements Parser {
     // MARK: - Parse
 
     /**
@@ -32,13 +32,13 @@ export class TomlParse implements Parse {
      *
      * @param raw - The TOML string to parse.
      * @returns The parsed value.
-     * @throws {@link TomlParseError} When the parse operation fails.
+     * @throws {@link ParserError} When the parse operation fails.
      */
-    parse<T>(raw: string): T {
+    parser<T>(raw: string): T {
         try {
             return TOML.parse(raw) as T;
         } catch (error) {
-            throw new TomlParseError();
+            throw new ParserError(undefined, { cause: error });
         }
     }
 }

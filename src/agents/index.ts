@@ -1,9 +1,10 @@
-export { agentSchema } from './schema/agent/agent.schema';
+export { AgentService } from './service/agent.service';
+
 export {
-  AgentService,
-  AGENT_IN_MEMORY_STORAGE,
-  type AgentInMemoryStorage,
-} from './service/agent.service';
+  agentSchema,
+  AgentSchema,
+} from './schema/agent/agent.schema';
+
 export {
   AgentRole,
   AgentDecisionType,

@@ -5,60 +5,17 @@ import { z } from "zod";
 import { configSchema } from "@/shared/types/schema/config.schema";
 
 /**
- * Schema for the capability bundle.
- * 
- * @example
- * ```toml
- * id = "jira"
- * name = "Jira"
- * version = "1.0.0"
- * description = "Interact with Jira issues and workflows through structured read, search, and write operations."
- * type = "integration"
- * tools = ["jira"]
- * tags = ["jira", "tickets", "project-management", "external"]
- * actions = ["read", "search", "write"]
- * execution = {
- *   timeout_ms = 15000
- *   max_concurrency = 5
- * }
- * safety = {
- *   requires_confirmation = false
- *   allow_background = false
- * }
- * constraints = {
- *   max_iterations = 5
- *   max_rows = 1000
- *   allow_raw_queries = false
- * }
- * auth = {
- *   required = true
- *   connection_type = "jira"
- *   multiple = true
- * }
- * config = [
- *   {
- *     key = "connection_id"
- *     label = "Jira Connection"
- *     description = "Select the Jira connection this capability should use."
- *     type = "select"
- *     required = true
- *     source = "connections:jira"
- *   }
- *   {
- *     key = "default_project_key"
- *     label = "Default Project Key"
- *     description = "Optional default Jira project used when no project is specified."
- *     type = "text"
- *     required = false
- *   }
- * ]
+ * Schema for the capability.
  */
 export const capabilitySchema = z.object({
     id: z.string(),
     name: z.string(),
     version: z.string(),
     description: z.string(),
-    type: z.enum(["integration", "domain"]),
+    type: z.preprocess(
+        (val) => (typeof val === "string" ? val.toUpperCase() : val),
+        z.enum(["INTEGRATION", "DOMAIN"]),
+    ),
     tools: z.array(z.string()),
     tags: z.array(z.string()),
     actions: z.array(z.string()),
@@ -86,4 +43,30 @@ export const capabilitySchema = z.object({
 /**
  * Type for the capability schema.
  */
-export type CapabilitySchema = z.infer<typeof capabilitySchema>;
+type CapabilitySchemaDto = z.infer<typeof capabilitySchema>;
+
+/**
+ * Class for the capability definition.
+ */
+export class CapabilitySchema {
+    // MARK: - Constructor
+
+    /**
+     * Creates a new instance of {@link CapabilitySchema}.
+     *
+     * @param schema - The capability schema.
+     */
+    private constructor(readonly schema: CapabilitySchemaDto) { }
+
+    // MARK: - Static methods
+
+    /**
+     * Wraps an already-validated {@link CapabilitySchemaDto} (e.g. `capabilitySchema.parse` on raw TOML).
+     *
+     * @param input - Validated capability definition.
+     * @returns A new instance of {@link CapabilitySchema}.
+     */
+    static from(input: CapabilitySchemaDto): CapabilitySchema {
+        return new CapabilitySchema(input);
+    }
+}

@@ -6,10 +6,13 @@ import { KernelResult } from "../result/kernel-result";
 import { AgentDecisionType } from "@/agents/agent";
 import { ExecutionContext } from "@/shared/types/";
 import {
-  AGENT_IN_MEMORY_STORAGE,
+  Agent,
   type AgentDecision,
-  type AgentInMemoryStorage,
 } from "@/agents";
+
+import type { Storage } from "@/infraestructure/storage/storage";
+import { STORAGE } from "@/infraestructure/storage/storage.tokens";
+import { KernelAgentNotFoundError, KernelInvalidDecisionTypeError, SkillDecisionTypeNotSupportedError } from "../error/kernel.error";
 
 /**
  * Nest DI token for {@link DecisionExecutor}.
@@ -51,11 +54,11 @@ export class KernelDecisionExecutor implements DecisionExecutor {
   /**
    * Creates a new {@link KernelDecisionExecutor}.
    *
-   * @param agentRegistry - Process-local store of {@link Agent} instances keyed by id (delegate target lookup).
+   * @param storage - Same {@link STORAGE} as {@link AgentService} (in-memory; not Redis JSON).
    */
   constructor(
-    @Inject(AGENT_IN_MEMORY_STORAGE)
-    private readonly agentRegistry: AgentInMemoryStorage,
+    @Inject(STORAGE)
+    private readonly storage: Storage,
   ) { }
 
   // MARK: - DecisionExecutor
@@ -71,9 +74,9 @@ export class KernelDecisionExecutor implements DecisionExecutor {
     // TODO: Real implementation this is just a placeholder
     switch (decision.type) {
       case AgentDecisionType.Delegate: {
-        const agent = this.agentRegistry.get(decision.agentId);
+        const agent = await this.storage.read<Agent>(decision.agentId);
 
-        if (!agent) throw new Error('Agent not found');
+        if (!agent) throw new KernelAgentNotFoundError();
 
         const nextDecision = await agent.decide({
           executionId: context.executionId,
@@ -90,13 +93,13 @@ export class KernelDecisionExecutor implements DecisionExecutor {
         };
 
       case AgentDecisionType.UseSkill: {
-        throw new Error('UseSkill decision type is not supported yet');
+        throw new SkillDecisionTypeNotSupportedError();
       }
 
       default:
         return {
           executionId: context.executionId,
-          message: 'Invalid decision type',
+          message: new KernelInvalidDecisionTypeError(decision).message,
         };
     }
   }
