@@ -1,2 +1,18 @@
-export type { Agent, AgentContext, AgentDecision } from './agent';
-export { type AgentRegistry, AGENT_REGISTRY } from './registry/agent-registry';
+export { AgentService } from './service/agent.service';
+
+export {
+  agentSchema,
+  AgentSchema,
+} from './schema/agent/agent.schema';
+
+export {
+  AgentRole,
+  AgentDecisionType,
+} from './agent';
+
+export type {
+  Agent,
+  AgentContext,
+  AgentDecision,
+  AgentDescriptor,
+} from './agent';

@@ -8,6 +8,18 @@
       {
         "include": "i18n/locales/**/*",
         "watchAssets": true
+      },
+      {
+        "include": "agents/bundled/**/*",
+        "watchAssets": true
+      },
+      {
+        "include": "capabilities/bundled/**/*",
+        "watchAssets": true
+      },
+      {
+        "include": "skills/bundled/**/*",
+        "watchAssets": true
       }
     ]
   }

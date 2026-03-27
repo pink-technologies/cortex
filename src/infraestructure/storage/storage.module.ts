@@ -3,7 +3,7 @@
 
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { RedisStorageService } from './redis/redis-storage.service';
+import { RedisStorageService } from './service/redis/redis-storage.service';
 import { STORAGE } from './storage.tokens';
 
 @Global()
