@@ -1,30 +1,27 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { readFile, readdir } from "fs/promises";
-import path from "path";
+import { readFile, readdir } from 'fs/promises';
+import path from 'path';
 
-import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 
-import type { LLM } from "@/llm/llm";
-import { LLM_TOKEN } from "@/llm/llm.tokens";
-import { TomlParser } from "@/shared/types";
+import type { LLM } from '@/llm/llm';
+import { LLM_TOKEN } from '@/llm/llm.tokens';
+import { TomlParser } from '@/shared/types';
 
-import { AgentSchema, agentSchema } from "../schema/agent/agent.schema";
-import type { Storage } from "@/infraestructure/storage/storage";
-import { STORAGE } from "@/infraestructure/storage/storage.tokens";
-import { Agent, AgentContext, AgentRole } from "../agent";
-import { AGENTS_BUNDLED_ROOT } from "../agents.tokens";
+import { AgentSchema, agentSchema } from '../schema/agent/agent.schema';
+import type { Storage } from '@/infraestructure/storage/storage';
+import { STORAGE } from '@/infraestructure/storage/storage.tokens';
+import { Agent, AgentRole } from '../agent';
+import { AGENTS_BUNDLED_ROOT } from '../agents.tokens';
 
-import {
-    AgentAlreadyRegisteredError,
-    AgentFileLoadError
-} from "./error/error";
-import { PromptDrivenAgent } from "../decision/prompt-driven-agent";
+import { AgentAlreadyRegisteredError, AgentFileLoadError } from './error/error';
+import { PromptDrivenAgent } from '../decision/prompt-driven-agent';
 
-/** Default model id for bundled agents (see `AgentsModule` factory default). */
+/** Default model id for bundled agents. */
 // TODO: Not implemented yet
-const DEFAULT_LLM_MODEL = "" as const;
+const DEFAULT_LLM_MODEL = 'gpt-5.4-mini' as const;
 
 /**
  * Loads agents from TOML files under the directory injected as {@link AGENTS_BUNDLED_ROOT}
@@ -32,90 +29,96 @@ const DEFAULT_LLM_MODEL = "" as const;
  */
 @Injectable()
 export class AgentService implements OnModuleInit {
-    // MARK: - Constructor
+  // MARK: - Constructor
 
-    /**
-     * @param storage - Storage service for agents.
-     * @param tomlParser - Toml parser for agents.
-     * @param agentsTomlPath - Absolute path to the directory that contains the agents.
-     */
-    constructor(
-        @Inject(STORAGE)
-        private readonly storage: Storage,
-        private readonly tomlParser: TomlParser,
-        @Inject(AGENTS_BUNDLED_ROOT)
-        private readonly agentsTomlPath: string,
-        private readonly promptDrivenAgent: PromptDrivenAgent,
-    ) { }
+  /**
+   * @param storage - Storage service for agents.
+   * @param tomlParser - Toml parser for agents.
+   * @param agentsTomlPath - Absolute path to the directory that contains the agents.
+   */
+  constructor(
+    @Inject(STORAGE)
+    private readonly storage: Storage,
+    private readonly tomlParser: TomlParser,
+    @Inject(AGENTS_BUNDLED_ROOT)
+    private readonly agentsTomlPath: string,
+    @Inject(LLM_TOKEN)
+    private readonly llm: LLM,
+  ) {}
 
-    // MARK: - OnModuleInit
+  // MARK: - OnModuleInit
 
-    /**
-     * Loads the agent from the TOML file when the module boots.
-     */
-    async onModuleInit(): Promise<void> {
-        await this.load();
+  /**
+   * Loads the agent from the TOML file when the module boots.
+   */
+  async onModuleInit(): Promise<void> {
+    await this.load();
+  }
+
+  // MARK: - Instance methods
+
+  /**
+   * Loads the agents from the TOML files.
+   */
+  async load(): Promise<void> {
+    const entries = await readdir(this.agentsTomlPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const filePath = path.join(this.agentsTomlPath, entry.name, 'agent.toml');
+      try {
+        await this.loadAgentFromFile(filePath);
+      } catch {
+        throw new AgentFileLoadError();
+      }
     }
+  }
 
-    // MARK: - Instance methods
+  // MARK: - Private methods
 
-    /**
-     * Loads the agents from the TOML files.
-     */
-    async load(): Promise<void> {
-        const entries = await readdir(this.agentsTomlPath, { withFileTypes: true });
+  private async loadAgentFromFile(filePath: string): Promise<Agent> {
+    const raw = await readFile(filePath, 'utf8');
+    const parsed = this.tomlParser.parser<unknown>(raw);
+    const dto = agentSchema.parse(parsed);
+    const schema = AgentSchema.from(dto);
+    const agentDir = path.dirname(filePath);
+    const promptText = await readFile(
+      path.join(agentDir, dto.prompt_file),
+      'utf8',
+    );
+    const agent = this.schemaToAgent(schema, promptText);
 
-        for (const entry of entries) {
-            if (!entry.isDirectory()) {
-                continue;
-            }
+    if (await this.storage.read<Agent>(agent.id))
+      throw new AgentAlreadyRegisteredError();
 
-            const filePath = path.join(this.agentsTomlPath, entry.name, "agent.toml");
-            try {
-                await this.loadAgentFromFile(filePath);
-            } catch {
-                throw new AgentFileLoadError();
-            }
-        }
-    }
+    await this.storage.write(agent, agent.id);
 
-    // MARK: - Private methods
+    return agent;
+  }
 
-    private async loadAgentFromFile(filePath: string): Promise<Agent> {
-        const raw = await readFile(filePath, "utf8");
-        const parsed = this.tomlParser.parser<unknown>(raw);
-        const dto = agentSchema.parse(parsed);
-        const schema = AgentSchema.from(dto);
-        const agentDir = path.dirname(filePath);
-        const promptText = await readFile(path.join(agentDir, dto.prompt_file), "utf8");
-        const agent = this.schemaToAgent(schema, promptText);
+  private schemaToAgent(agent: AgentSchema, promptText: string): Agent {
+    const schema = agent.schema;
+    const role =
+      schema.role === 'MAIN' ? AgentRole.Assistant : AgentRole.Specialist;
 
-        if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
+    const descriptor = {
+      name: schema.name,
+      role,
+      allowedSkillIds: schema.skills,
+      capabilities: schema.capabilities,
+      description: schema.description,
+    };
 
-        await this.storage.write(agent, agent.id);
-
-        return agent;
-    }
-
-    private schemaToAgent(agent: AgentSchema, promptText: string): Agent {
-        const schema = agent.schema;
-        const role = schema.role === "MAIN" ? AgentRole.Assistant : AgentRole.Specialist;
-
-        const descriptor = {
-            name: schema.name,
-            role,
-            allowedSkillIds: schema.skills,
-            capabilities: schema.capabilities,
-            description: schema.description,
-        };
-
-        return {
-            id: schema.id,
-            descriptor,
-            decide: (context: AgentContext) =>
-                this.promptDrivenAgent.decide({
-                    ...context
-                }),
-        };
-    }
+    return new PromptDrivenAgent(
+      schema.id,
+      descriptor,
+      promptText,
+      this.llm,
+      DEFAULT_LLM_MODEL,
+      schema.delegates_to,
+    );
+  }
 }

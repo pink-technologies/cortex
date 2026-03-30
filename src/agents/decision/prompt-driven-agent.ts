@@ -3,7 +3,10 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 
-import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
+import {
+  AgentDecisionSchema,
+  agentDecisionSchema,
+} from '../schema/agent-decision/agent-decision.schema';
 import type {
   Agent,
   AgentContext,
@@ -42,7 +45,7 @@ export class PromptDrivenAgent implements Agent {
     private readonly llm: LLM,
     private readonly model: LLMModel,
     private readonly delegateAgentIds: readonly string[] = [],
-  ) { }
+  ) {}
   systemPrompt?: string | undefined;
 
   // MARK: - Instance methods
@@ -67,7 +70,7 @@ export class PromptDrivenAgent implements Agent {
     });
 
     const raw = JSON.parse(result.content) as unknown;
-    return agentDecisionSchema.parse(raw);
+    return AgentDecisionSchema.from(agentDecisionSchema.parse(raw)).decision;
   }
 
   // MARK: - Private methods
