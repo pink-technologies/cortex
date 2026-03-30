@@ -12,6 +12,7 @@ import {
 } from 'nestjs-i18n';
 import { AgentsModule } from './agents/agents.module';
 import { CapabilitiesModule } from './capabilities';
+import { LLMModule } from './llm/llm.module';
 import {
   DatabaseExceptionFilter,
   DatabaseModule,
@@ -41,6 +42,7 @@ import { SkillsModule } from './skills/skills.module';
       },
     }),
     AgentsModule,
+    LLMModule,
     CapabilitiesModule,
     DatabaseModule,
     StorageModule,

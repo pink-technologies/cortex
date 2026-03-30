@@ -6,19 +6,25 @@ import path from "path";
 
 import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
 
+import type { LLM } from "@/llm/llm";
+import { LLM_TOKEN } from "@/llm/llm.tokens";
 import { TomlParser } from "@/shared/types";
 
 import { AgentSchema, agentSchema } from "../schema/agent/agent.schema";
 import type { Storage } from "@/infraestructure/storage/storage";
 import { STORAGE } from "@/infraestructure/storage/storage.tokens";
-import { Agent, AgentRole } from "../agent";
+import { Agent, AgentContext, AgentRole } from "../agent";
 import { AGENTS_BUNDLED_ROOT } from "../agents.tokens";
 
 import {
     AgentAlreadyRegisteredError,
-    AgentDecideMethodNotImplementedError,
     AgentFileLoadError
 } from "./error/error";
+import { PromptDrivenAgent } from "../decision/prompt-driven-agent";
+
+/** Default model id for bundled agents (see `AgentsModule` factory default). */
+// TODO: Not implemented yet
+const DEFAULT_LLM_MODEL = "" as const;
 
 /**
  * Loads agents from TOML files under the directory injected as {@link AGENTS_BUNDLED_ROOT}
@@ -39,6 +45,7 @@ export class AgentService implements OnModuleInit {
         private readonly tomlParser: TomlParser,
         @Inject(AGENTS_BUNDLED_ROOT)
         private readonly agentsTomlPath: string,
+        private readonly promptDrivenAgent: PromptDrivenAgent,
     ) { }
 
     // MARK: - OnModuleInit
@@ -79,7 +86,9 @@ export class AgentService implements OnModuleInit {
         const parsed = this.tomlParser.parser<unknown>(raw);
         const dto = agentSchema.parse(parsed);
         const schema = AgentSchema.from(dto);
-        const agent = this.schemaToAgent(schema);
+        const agentDir = path.dirname(filePath);
+        const promptText = await readFile(path.join(agentDir, dto.prompt_file), "utf8");
+        const agent = this.schemaToAgent(schema, promptText);
 
         if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
 
@@ -88,22 +97,25 @@ export class AgentService implements OnModuleInit {
         return agent;
     }
 
-    private schemaToAgent(agent: AgentSchema): Agent {
+    private schemaToAgent(agent: AgentSchema, promptText: string): Agent {
         const schema = agent.schema;
         const role = schema.role === "MAIN" ? AgentRole.Assistant : AgentRole.Specialist;
 
+        const descriptor = {
+            name: schema.name,
+            role,
+            allowedSkillIds: schema.skills,
+            capabilities: schema.capabilities,
+            description: schema.description,
+        };
+
         return {
             id: schema.id,
-            descriptor: {
-                name: schema.name,
-                role,
-                allowedSkillIds: schema.skills,
-                capabilities: schema.capabilities,
-                description: schema.description,
-            },
-            decide: async () => {
-                throw new AgentDecideMethodNotImplementedError();
-            }
+            descriptor,
+            decide: (context: AgentContext) =>
+                this.promptDrivenAgent.decide({
+                    ...context
+                }),
         };
     }
 }

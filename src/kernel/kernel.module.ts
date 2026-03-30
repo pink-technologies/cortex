@@ -3,7 +3,7 @@
 
 import { Module } from '@nestjs/common';
 import { AgentsModule } from '@/agents/agents.module';
-import { DECISION_EXECUTOR, KernelDecisionExecutor } from './executor/desicion-executor';
+import { DECISION_EXECUTOR, KernelDecisionExecutor } from './executor/decision-executor';
 import { Kernel } from './kernel';
 
 @Module({

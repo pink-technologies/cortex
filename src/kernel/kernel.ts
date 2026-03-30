@@ -4,7 +4,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv4 } from 'zod';
 import type { Agent, AgentContext } from '@/agents';
-import { DECISION_EXECUTOR, type DecisionExecutor } from './executor/desicion-executor';
+import { DECISION_EXECUTOR, type DecisionExecutor } from './executor/decision-executor';
 import { KernelResult } from './result/kernel-result';
 import { ExecutionInput } from '@/shared/types';
 
@@ -30,7 +30,7 @@ export class Kernel {
         private readonly agent: Agent,
         @Inject(DECISION_EXECUTOR)
         private readonly decisionExecutor: DecisionExecutor,
-    ) {}
+    ) { }
 
     // MARK: - Instance methods
 

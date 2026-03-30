@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { Injectable } from '@nestjs/common';
+
 /**
  * Represents a generic identifier for a Large Language Model (LLM).
  *
@@ -106,7 +108,7 @@ export abstract class LLMProvider {
     return this.supportedModels.includes(model);
   }
 }
-  
+
 /**
  * A concrete implementation of {@link LLMProvider} for the Anthropic platform.
  *
@@ -174,7 +176,8 @@ export class AnthropicProvider extends LLMProvider {
  * provider.supports('claude-3'); // false
  * ```
  */
-class OpenAIProvider extends LLMProvider {
+@Injectable()
+export class OpenAIProvider extends LLMProvider {
   /**
    * A unique identifier for the provider.
    *
@@ -193,12 +196,15 @@ class OpenAIProvider extends LLMProvider {
    * Example: `['gpt-4', 'gpt-4o']`
    */
   protected readonly supportedModels = [
-      'gpt-5.4', 
-      'gpt-5.4-mini', 
-      'gpt-5.4-turbo'
-    ];
+    'gpt-5.4',
+    'gpt-5.4-mini',
+    'gpt-5.4-turbo'
+  ];
 }
 
+/**
+ * The list of providers supported by the LLM module.
+ */
 export const LLM_PROVIDERS = {
   openai: new OpenAIProvider(),
   anthropic: new AnthropicProvider(),
