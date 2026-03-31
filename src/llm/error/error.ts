@@ -56,6 +56,18 @@ export class LLMResponseFormatNotSupportedError extends LLMError {
 }
 
 /**
+ * Thrown when `LLM_DEFAULT_MODEL` is not set (see {@link LLMModule}).
+ */
+export class LLMDefaultModelNotConfiguredError extends LLMError {
+    // MARK: - Properties
+
+    /**
+     * Machine-readable code for missing default LLM model configuration.
+     */
+    readonly code = 'LLM_DEFAULT_MODEL_NOT_CONFIGURED_ERROR';
+}
+
+/**
  * Thrown when an LLM API key is not configured.
  */
 export class LLMAPIKeyNotConfiguredError extends LLMError {

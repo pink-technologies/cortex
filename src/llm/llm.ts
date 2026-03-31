@@ -27,7 +27,7 @@ export const MessageRole = {
      * The user role.
      */
     User: 'user',
-}
+} as const;
 
 /** Union of literal role strings from {@link MessageRole}. */
 export type MessageRole = (typeof MessageRole)[keyof typeof MessageRole];

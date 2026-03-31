@@ -1,8 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable } from '@nestjs/common';
 
 import OpenAI from 'openai';
 import type {
@@ -30,21 +29,18 @@ import {
     LLMModelNotSupportedError,
     LLMMessageRoleNotSupportedError,
     LLMResponseFormatNotSupportedError,
-    LLMAPIKeyNotConfiguredError,
     LLMNoChoicesError,
     LLMToolCallNotSupportedError,
 } from '@/llm/error/error';
-
-/**
- * The name of the environment variable that contains the OpenAI API key.
- */
-const OPENAI_API_KEY = 'OPENAI_API_KEY';
+import { OPENAI_API_KEY_TOKEN } from '@/llm/llm.tokens';
 
 /**
  * OpenAI-backed implementation of {@link LLM} using the official `openai` SDK.
  *
  * Maps {@link LLMGenerateInput} to `chat.completions` and normalizes the response into
- * {@link LlmChatResult}. Requires `OPENAI_API_KEY` in the environment / {@link ConfigService}.
+ * {@link LlmChatResult}.
+ *
+ * The API key is injected via {@link OPENAI_API_KEY_TOKEN} (resolved from env in {@link LLMModule}).
  */
 @Injectable()
 export class OpenAILLMClient implements LLM {
@@ -53,17 +49,14 @@ export class OpenAILLMClient implements LLM {
     private readonly client: OpenAI;
 
     /**
-     * @param config - Reads `OPENAI_API_KEY` from the environment via {@link ConfigService}.
-     * @param openAiProvider - Optional routing / allowlist check before calling the API.
+     * @param apiKey - OpenAI API key (from {@link OPENAI_API_KEY_TOKEN}).
+     * @param openAiProvider - Routing / allowlist check before calling the API.
      */
     constructor(
-        private readonly config: ConfigService,
+        @Inject(OPENAI_API_KEY_TOKEN)
+        apiKey: string,
         private readonly openAiProvider: OpenAIProvider,
     ) {
-        const apiKey = this.config.get<string>(OPENAI_API_KEY);
-
-        if (!apiKey) throw new LLMAPIKeyNotConfiguredError();
-
         this.client = new OpenAI({ apiKey });
     }
 

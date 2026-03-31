@@ -1,8 +1,6 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Inject, Injectable } from '@nestjs/common';
-
 import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
 import type {
   Agent,
@@ -13,15 +11,13 @@ import type {
 
 import type { LLMModel } from '@/llm/provider/llm-provider';
 import { type LLM, MessageRole } from '@/llm/llm';
-import { LLM_TOKEN } from '@/llm/llm.tokens';
 
 /**
- * {@link Agent} whose {@link Agent.decide} call asks the injected {@link LLM} for one structured
+ * {@link Agent} whose {@link Agent.decide} calls the {@link LLM} port for one structured
  * {@link AgentDecision} (JSON), then validates it with {@link agentDecisionSchema}.
  *
- * Injects {@link LLM} (vendor-agnostic port), not a concrete SDK — see Nest `di-prefer-constructor-injection`.
+ * Instantiated by `AgentService` (not a Nest provider); dependencies are constructor arguments.
  */
-@Injectable()
 export class PromptDrivenAgent implements Agent {
   // MARK: - Constructor
 
@@ -30,20 +26,19 @@ export class PromptDrivenAgent implements Agent {
    *
    * @param id - The id of the agent.
    * @param descriptor - The descriptor of the agent.
-   * @param llm - The llm to use.
-   * @param model - The model to use.
+   * @param prompt - System prompt text for the decision call.
+   * @param llm - LLM port (vendor-agnostic).
+   * @param model - Model identifier for {@link LLM.generate}.
    * @param delegateAgentIds - The ids of the agents this agent may delegate to.
    */
   constructor(
     readonly id: string,
     readonly descriptor: AgentDescriptor,
     private readonly prompt: string,
-    @Inject(LLM_TOKEN)
     private readonly llm: LLM,
     private readonly model: LLMModel,
     private readonly delegateAgentIds: readonly string[] = [],
   ) { }
-  systemPrompt?: string | undefined;
 
   // MARK: - Instance methods
 
@@ -60,7 +55,7 @@ export class PromptDrivenAgent implements Agent {
       messages: [
         {
           role: MessageRole.User,
-          content: this.buildUserPrompt(context),
+          content: this.buildPrompt(context),
         },
       ],
       responseFormat: { type: 'json' },
@@ -72,7 +67,7 @@ export class PromptDrivenAgent implements Agent {
 
   // MARK: - Private methods
 
-  private buildUserPrompt(context: AgentContext): string {
+  private buildPrompt(context: AgentContext): string {
     const skills = this.descriptor.allowedSkillIds.join(', ') || 'none';
     const capabilities = this.descriptor.capabilities.join(', ') || 'none';
     const delegates = this.delegateAgentIds.join(', ') || 'none';
