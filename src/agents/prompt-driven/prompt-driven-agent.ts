@@ -1,7 +1,9 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { MessageRole } from '@/llm/llm';
 import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
+import { AgentConfiguration } from '../agent.config';
 import type {
   Agent,
   AgentContext,
@@ -9,36 +11,36 @@ import type {
   AgentDescriptor,
 } from '../agent';
 
-import type { LLMModel } from '@/llm/provider/llm-provider';
-import { type LLM, MessageRole } from '@/llm/llm';
-
 /**
  * {@link Agent} whose {@link Agent.decide} calls the {@link LLM} port for one structured
  * {@link AgentDecision} (JSON), then validates it with {@link agentDecisionSchema}.
  *
- * Instantiated by `AgentService` (not a Nest provider); dependencies are constructor arguments.
+ * Instantiated by `AgentService` (not a Nest provider); pass a single {@link AgentConfiguration}.
  */
 export class PromptDrivenAgent implements Agent {
   // MARK: - Constructor
 
+  constructor(private readonly configuration: AgentConfiguration) { }
+
+  // MARK: - Agent
+
   /**
-   * Creates a new {@link PromptDrivenAgent}.
-   *
-   * @param id - The id of the agent.
-   * @param descriptor - The descriptor of the agent.
-   * @param prompt - System prompt text for the decision call.
-   * @param llm - LLM port (vendor-agnostic).
-   * @param model - Model identifier for {@link LLM.generate}.
-   * @param delegateAgentIds - The ids of the agents this agent may delegate to.
+   * The id of the agent.
+   * 
+   * @returns The id of the agent.
    */
-  constructor(
-    readonly id: string,
-    readonly descriptor: AgentDescriptor,
-    private readonly prompt: string,
-    private readonly llm: LLM,
-    private readonly model: LLMModel,
-    private readonly delegateAgentIds: readonly string[] = [],
-  ) { }
+  get id(): string {
+    return this.configuration.id;
+  }
+
+  /**
+   * The descriptor of the agent.
+   * 
+   * @returns The descriptor of the agent.
+   */
+  get descriptor(): AgentDescriptor {
+    return this.configuration.descriptor;
+  }
 
   // MARK: - Instance methods
 
@@ -49,9 +51,9 @@ export class PromptDrivenAgent implements Agent {
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
   async decide(context: AgentContext): Promise<AgentDecision> {
-    const result = await this.llm.generate({
-      model: this.model,
-      systemPrompt: this.prompt,
+    const { llm, systemPrompt } = this.configuration;
+    const result = await llm.generate({
+      systemPrompt,
       messages: [
         {
           role: MessageRole.User,
@@ -68,16 +70,18 @@ export class PromptDrivenAgent implements Agent {
   // MARK: - Private methods
 
   private buildPrompt(context: AgentContext): string {
-    const skills = this.descriptor.allowedSkillIds.join(', ') || 'none';
-    const capabilities = this.descriptor.capabilities.join(', ') || 'none';
-    const delegates = this.delegateAgentIds.join(', ') || 'none';
+    const { descriptor, delegateAgentIds } = this.configuration;
+    const delegates = delegateAgentIds ?? [];
+    const skills = descriptor.allowedSkillIds.join(', ') || 'none';
+    const capabilities = descriptor.capabilities.join(', ') || 'none';
+    const delegatesLine = delegates.join(', ') || 'none';
 
     return [
       `Execution id: ${context.executionId}`,
       `User message:\n${context.message}`,
       `Available skills: ${skills}`,
       `Available capabilities: ${capabilities}`,
-      `Available delegates: ${delegates}`,
+      `Available delegates: ${delegatesLine}`,
     ].join('\n\n');
   }
 }

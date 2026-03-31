@@ -220,9 +220,10 @@ export interface LlmChatResult {
  */
 export interface LLMGenerateInput {
     /**
-     * The model to use.
+     * The model to use. When omitted, the {@link LLM} implementation applies its configured
+     * default (wired in the concrete client, e.g. from `LLM_DEFAULT_MODEL`).
      */
-    model: LLMModel;
+    model?: LLMModel;
 
     /**
      * The messages to use.

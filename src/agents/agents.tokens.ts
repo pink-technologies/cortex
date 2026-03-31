@@ -6,3 +6,8 @@
  * (each subdirectory may contain `agent.toml`).
  */
 export const AGENTS_BUNDLED_ROOT = Symbol('AGENTS_BUNDLED_ROOT');
+
+/**
+ * Injection token for the main assistant agent ({@link Agent}).
+ */
+export const AGENT = Symbol('AGENT');

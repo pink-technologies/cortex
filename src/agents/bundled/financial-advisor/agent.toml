@@ -8,13 +8,9 @@ prompt_file = "prompt.md"
 
 skills = []
 
-skill_groups = [
-  ""
-]
+skill_groups = []
 
-capabilities = [
-  ""
-]
+capabilities = []
 
 delegates_to = []
 

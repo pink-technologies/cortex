@@ -6,19 +6,23 @@ import path from 'path';
 
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 
-import type { LLM } from '@/llm/llm';
-import type { LLMModel } from '@/llm/provider/llm-provider';
-import { DEFAULT_LLM_MODEL_TOKEN, LLM_TOKEN } from '@/llm/llm.tokens';
+import { OpenAILLMClient } from '@/llm/client/openai/openai-llm.client';
 import { TomlParser } from '@/shared/types';
 
-import { AgentSchema, agentSchema } from '../schema/agent/agent.schema';
+import { AgentRoleDto, AgentSchema, agentSchema } from '../schema/agent/agent.schema';
 import type { Storage } from '@/infraestructure/storage/storage';
 import { STORAGE } from '@/infraestructure/storage/storage.tokens';
 import { Agent, AgentContext, AgentRole } from '../agent';
 import { AGENTS_BUNDLED_ROOT } from '../agents.tokens';
 
-import { AgentAlreadyRegisteredError, AgentFileLoadError } from './error/error';
-import { PromptDrivenAgent } from '../decision/prompt-driven-agent';
+import {
+  AgentAlreadyRegisteredError,
+  AgentFileLoadError,
+  DuplicateMainAgentError,
+  InvalidAgentRoleError,
+  NoEntryOrchestratorAgentError,
+} from './error/error';
+import { PromptDrivenAgent } from '../prompt-driven/prompt-driven-agent';
 
 /**
  * Loads agents from TOML files under the directory injected as {@link AGENTS_BUNDLED_ROOT}
@@ -26,6 +30,12 @@ import { PromptDrivenAgent } from '../decision/prompt-driven-agent';
  */
 @Injectable()
 export class AgentService implements OnModuleInit {
+    /** Deduplicates concurrent or repeated loads (e.g. {@link AGENT} factory vs {@link onModuleInit}). */
+    private loadPromise: Promise<void> | null = null;
+
+    /** Id of the single bundled agent with role MAIN (entry orchestrator for {@link AGENT}). */
+    private mainAgentId: string | null = null;
+
     // MARK: - Constructor
 
     /**
@@ -39,10 +49,7 @@ export class AgentService implements OnModuleInit {
         private readonly tomlParser: TomlParser,
         @Inject(AGENTS_BUNDLED_ROOT)
         private readonly agentsTomlPath: string,
-        @Inject(LLM_TOKEN)
-        private readonly llm: LLM,
-        @Inject(DEFAULT_LLM_MODEL_TOKEN)
-        private readonly defaultLlmModel: LLMModel,
+        private readonly llm: OpenAILLMClient,
     ) { }
 
     // MARK: - OnModuleInit
@@ -51,15 +58,39 @@ export class AgentService implements OnModuleInit {
      * Loads the agent from the TOML file when the module boots.
      */
     async onModuleInit(): Promise<void> {
-        await this.load();
+        await this.ensureLoaded();
     }
 
     // MARK: - Instance methods
 
     /**
+     * Resolves an agent previously persisted under {@link Agent.id} after bundled agents are loaded.
+     */
+    async getAgentById(id: string): Promise<Agent | null> {
+        await this.ensureLoaded();
+        return this.storage.read<Agent>(id);
+    }
+
+    /**
+     * The bundled MAIN orchestrator used by the kernel ({@link AGENT} injection token).
+     */
+    async getEntryOrchestratorAgent(): Promise<Agent> {
+        await this.ensureLoaded();
+        if (!this.mainAgentId) {
+            throw new NoEntryOrchestratorAgentError();
+        }
+        const agent = await this.storage.read<Agent>(this.mainAgentId);
+        if (!agent) {
+            throw new NoEntryOrchestratorAgentError();
+        }
+        return agent;
+    }
+
+    /**
      * Loads the agents from the TOML files.
      */
     async load(): Promise<void> {
+        this.mainAgentId = null;
         const entries = await readdir(this.agentsTomlPath, { withFileTypes: true });
 
         for (const entry of entries) {
@@ -74,9 +105,20 @@ export class AgentService implements OnModuleInit {
                 throw new AgentFileLoadError();
             }
         }
+
+        if (!this.mainAgentId) {
+            throw new NoEntryOrchestratorAgentError();
+        }
     }
 
     // MARK: - Private methods
+
+    private ensureLoaded(): Promise<void> {
+        if (!this.loadPromise) {
+            this.loadPromise = this.load();
+        }
+        return this.loadPromise;
+    }
 
     private async loadAgentFromFile(filePath: string): Promise<Agent> {
         const raw = await readFile(filePath, "utf8");
@@ -91,13 +133,20 @@ export class AgentService implements OnModuleInit {
 
         await this.storage.write(agent, agent.id);
 
+        if (dto.role === 'MAIN') {
+            if (this.mainAgentId !== null) {
+                throw new DuplicateMainAgentError();
+            }
+            this.mainAgentId = agent.id;
+        }
+
         return agent;
     }
 
     private schemaToAgent(agent: AgentSchema, prompt: string): Agent {
         const schema = agent.schema;
-        const role = schema.role === "MAIN" ? AgentRole.Assistant : AgentRole.Specialist;
-
+        const role = this.schemaRoleToAgent(schema.role);
+        const delegateAgentIds = schema.delegates_to.filter((delegate) => delegate.length > 0);
         const descriptor = {
             name: schema.name,
             role,
@@ -106,21 +155,31 @@ export class AgentService implements OnModuleInit {
             description: schema.description,
         };
 
-        const delegateAgentIds = schema.delegates_to.filter((delegate) => delegate.length > 0);
-
-        const promptDriven = new PromptDrivenAgent(
-            schema.id,
+        const promptDriven = new PromptDrivenAgent({
+            id: schema.id,
             descriptor,
-            prompt,
-            this.llm,
-            this.defaultLlmModel,
+            systemPrompt: prompt,
+            llm: this.llm,
             delegateAgentIds,
-        );
+        });
 
         return {
             id: schema.id,
             descriptor,
             decide: (context: AgentContext) => promptDriven.decide(context),
         };
+    }
+
+    private schemaRoleToAgent(role: AgentRoleDto): AgentRole {
+        switch (role) {
+            case "MAIN":
+                return AgentRole.Assistant;
+
+            case "SPECIALIST":
+                return AgentRole.Specialist;
+
+            default:
+                throw new InvalidAgentRoleError();
+        }
     }
 }

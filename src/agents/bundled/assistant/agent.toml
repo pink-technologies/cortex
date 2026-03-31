@@ -6,20 +6,14 @@ description = "General-purpose coordinator that handles simple requests, uses ge
 role = "main"
 prompt_file = "prompt.md"
 
-skills = [
-  ""
-]
+skills = []
 
-skill_groups = [
-  ""
-]
+skill_groups = []
 
-capabilities = [
-  ""
-]
+capabilities = []
 
 delegates_to = [
-  ""
+  "financial-advisor-agent"
 ]
 
 tags = [

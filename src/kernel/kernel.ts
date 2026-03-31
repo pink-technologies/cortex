@@ -2,11 +2,11 @@
 // https://pink-tech.io/
 
 import { Inject, Injectable } from '@nestjs/common';
-import { uuidv4 } from 'zod';
-import type { Agent, AgentContext } from '@/agents';
+import { AGENT, type Agent, type AgentContext } from '@/agents';
 import { DECISION_EXECUTOR, type DecisionExecutor } from './executor/decision-executor';
 import { KernelResult } from './result/kernel-result';
 import { ExecutionInput } from '@/shared/types';
+import { randomUUID } from 'crypto';
 
 /**
  * Kernel “brain” service: single entry for processing {@link KernelInput}.
@@ -27,6 +27,7 @@ export class Kernel {
      * @param decisionExecutor - The decision executor for the kernel.
      */
     constructor(
+        @Inject(AGENT)
         private readonly agent: Agent,
         @Inject(DECISION_EXECUTOR)
         private readonly decisionExecutor: DecisionExecutor,
@@ -35,7 +36,7 @@ export class Kernel {
     // MARK: - Instance methods
 
     async process(input: ExecutionInput): Promise<KernelResult> {
-        const executionId = uuidv4().toString();
+        const executionId = randomUUID();
         const context: AgentContext = {
             message: input.message,
             executionId,

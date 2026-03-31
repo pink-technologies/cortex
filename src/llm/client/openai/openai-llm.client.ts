@@ -1,8 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Inject, Injectable } from '@nestjs/common';
-
+import { OpenAIProvider, type LLMModel } from '@/llm/provider/llm-provider';
 import OpenAI from 'openai';
 import type {
     ChatCompletionCreateParams,
@@ -11,12 +10,12 @@ import type {
     ChatCompletionTool,
 } from 'openai/resources/chat/completions';
 
-import { OpenAIProvider } from '@/llm/provider/llm-provider';
 import type {
     LLM,
     LLMResponseFormat,
     LLMToolDefinition
 } from '@/llm/llm';
+
 import {
     MessageRole,
     type LLMGenerateInput,
@@ -25,6 +24,7 @@ import {
     type LLMToolCall,
     type LLMToolMessage,
 } from '@/llm/llm';
+
 import {
     LLMModelNotSupportedError,
     LLMMessageRoleNotSupportedError,
@@ -32,7 +32,6 @@ import {
     LLMNoChoicesError,
     LLMToolCallNotSupportedError,
 } from '@/llm/error/error';
-import { OPENAI_API_KEY_TOKEN } from '@/llm/llm.tokens';
 
 /**
  * OpenAI-backed implementation of {@link LLM} using the official `openai` SDK.
@@ -40,22 +39,22 @@ import { OPENAI_API_KEY_TOKEN } from '@/llm/llm.tokens';
  * Maps {@link LLMGenerateInput} to `chat.completions` and normalizes the response into
  * {@link LlmChatResult}.
  *
- * The API key is injected via {@link OPENAI_API_KEY_TOKEN} (resolved from env in {@link LLMModule}).
+ * The API key is supplied as a constructor argument (typically from env via {@link LLMModule} factory).
  */
-@Injectable()
 export class OpenAILLMClient implements LLM {
     // MARK: - Private properties
 
     private readonly client: OpenAI;
 
     /**
-     * @param apiKey - OpenAI API key (from {@link OPENAI_API_KEY_TOKEN}).
+     * @param apiKey - OpenAI API key string.
      * @param openAiProvider - Routing / allowlist check before calling the API.
+     * @param defaultModel - Used when {@link LLMGenerateInput.model} is omitted (from `LLM_DEFAULT_MODEL`).
      */
     constructor(
-        @Inject(OPENAI_API_KEY_TOKEN)
         apiKey: string,
         private readonly openAiProvider: OpenAIProvider,
+        private readonly defaultModel: LLMModel,
     ) {
         this.client = new OpenAI({ apiKey });
     }
@@ -67,17 +66,23 @@ export class OpenAILLMClient implements LLM {
      * @returns The chat completion result.
      */
     async generate(input: LLMGenerateInput): Promise<LlmChatResult> {
-        if (!this.openAiProvider.supports(input.model)) {
+        const model = input.model ?? this.defaultModel;
+
+        if (!this.openAiProvider.supports(model)) {
             throw new LLMModelNotSupportedError();
         }
 
         const messages = this.buildChatMessages(input);
         const tools = this.toChatTools(input.tools);
         const responseFormat = this.toChatResponseFormat(input.responseFormat);
+        const requestOptions =
+            input.timeoutMs != null && Number.isFinite(input.timeoutMs)
+                ? { timeout: Math.trunc(input.timeoutMs) }
+                : undefined;
 
         const completion = await this.client.chat.completions.create(
             {
-                model: input.model,
+                model,
                 messages,
                 temperature: input.temperature,
                 max_tokens: input.maxOutputTokens,
@@ -89,7 +94,7 @@ export class OpenAILLMClient implements LLM {
                 tool_choice: this.toChatToolChoice(input.toolChoice),
                 response_format: responseFormat,
             },
-            { timeout: input.timeoutMs ?? undefined },
+            requestOptions,
         );
 
         const choice = completion.choices[0];
