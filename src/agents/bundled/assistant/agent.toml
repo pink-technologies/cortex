@@ -34,3 +34,9 @@ max_delegation_depth = 3
 [execution]
 timeout_ms = 30000
 max_iterations = 12
+
+[model]
+provider = "default"
+model = "default"
+max_tokens = 300
+temperature = 0.2

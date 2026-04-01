@@ -2,8 +2,11 @@
 // https://pink-tech.io/
 
 import { OpenAIProvider, type LLMModel } from '@/llm/provider/llm-provider';
-import OpenAI from 'openai';
+import OpenAI, { APIError } from 'openai';
+import { OpenAiErrorMapper } from '@/llm/client/openai/error/map-openai-error';
+import { OpenAiErrorCode, OpenAILLMError } from '@/llm/client/openai/error/error';
 import type {
+    ChatCompletion,
     ChatCompletionCreateParams,
     ChatCompletionMessage,
     ChatCompletionMessageParam,
@@ -32,6 +35,7 @@ import {
     LLMNoChoicesError,
     LLMToolCallNotSupportedError,
 } from '@/llm/error/error';
+
 
 /**
  * OpenAI-backed implementation of {@link LLM} using the official `openai` SDK.
@@ -75,12 +79,9 @@ export class OpenAILLMClient implements LLM {
         const messages = this.buildChatMessages(input);
         const tools = this.toChatTools(input.tools);
         const responseFormat = this.toChatResponseFormat(input.responseFormat);
-        const requestOptions =
-            input.timeoutMs != null && Number.isFinite(input.timeoutMs)
-                ? { timeout: Math.trunc(input.timeoutMs) }
-                : undefined;
+        const requestOptions = input.timeoutMs != null ? { timeout: input.timeoutMs } : undefined;
 
-        const completion = await this.client.chat.completions.create(
+        const completion = await this.createChatCompletion(
             {
                 model,
                 messages,
@@ -115,6 +116,22 @@ export class OpenAILLMClient implements LLM {
     }
 
     // MARK: - Private methods
+
+    private async createChatCompletion(
+        body: ChatCompletionCreateParams,
+        requestOptions?: { timeout: number },
+    ): Promise<ChatCompletion> {
+        try {
+            const response = await this.client.chat.completions.create(
+                { ...body, stream: false },
+                requestOptions,
+            );
+
+            return response;
+        } catch (error) {
+            throw this.getOpenAiErrorCode(error);
+        }
+    }
 
     private buildChatMessages(input: LLMGenerateInput): ChatCompletionMessageParam[] {
         const messages: LLMMessage[] = [];
@@ -249,5 +266,13 @@ export class OpenAILLMClient implements LLM {
                     throw new LLMToolCallNotSupportedError();
             }
         });
+    }
+
+    private getOpenAiErrorCode(error: unknown): OpenAiErrorCode | null {
+        if (!(error instanceof APIError)) {
+            return OpenAiErrorCode.UNKNOWN;
+        }
+
+        return new OpenAiErrorMapper(error).toCode();
     }
 }

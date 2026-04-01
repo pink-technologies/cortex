@@ -198,7 +198,8 @@ export class OpenAIProvider extends LLMProvider {
   protected readonly supportedModels = [
     'gpt-5.4',
     'gpt-5.4-mini',
-    'gpt-5.4-turbo'
+    'gpt-5.4-turbo',
+    'gpt-4o-mini',
   ];
 }
 

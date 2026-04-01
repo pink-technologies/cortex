@@ -33,6 +33,12 @@ export const agentSchema = z.object({
         max_iterations: z.number(),
     }),
     config: z.array(configSchema).optional(),
+    model: z.object({
+        provider: z.string(),
+        model: z.string(),
+        max_tokens: z.number(),
+        temperature: z.number(),
+    }),
 });
 
 /**
