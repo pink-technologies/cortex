@@ -34,7 +34,7 @@ export type AgentDecisionType = (typeof AgentDecisionType)[keyof typeof AgentDec
 export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
 
 /**
- * Outcome of one {@link Agent.decide} call — a tagged union on `type`.
+ * Outcome of one decide call — a tagged union on `type`.
  *
  * - **delegate** — Route processing to another agent; optional human-readable `reason`.
  * - **respond** — Final (or intermediate) natural-language reply to the user.

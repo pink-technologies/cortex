@@ -8,15 +8,21 @@ import { DatabaseModule } from '@/infraestructure/database/index';
 import { InMemoryStorageService } from '@/infraestructure/storage/service/in-memory/in-memory.service';
 import { STORAGE } from '@/infraestructure/storage/storage.tokens';
 import { TomlParser } from '@/shared/types';
+import { LLMModule } from '@/llm/llm.module';
 import { SkillsModule } from '../skills/skills.module';
-import { AGENTS_BUNDLED_ROOT } from './agents.tokens';
+import { AGENT, AGENTS_BUNDLED_ROOT } from './agents.tokens';
 import { AgentService } from './service/agent.service';
 
 @Module({
   controllers: [],
-  imports: [ConfigModule, DatabaseModule, SkillsModule],
-  exports: [AgentService, STORAGE],
+  imports: [ConfigModule, DatabaseModule, LLMModule, SkillsModule],
+  exports: [AgentService, STORAGE, AGENT],
   providers: [
+    {
+      provide: AGENT,
+      inject: [AgentService],
+      useFactory: (agentService: AgentService) => agentService.getEntryOrchestratorAgent(),
+    },
     {
       provide: STORAGE,
       useFactory: () => new InMemoryStorageService(new Map()),

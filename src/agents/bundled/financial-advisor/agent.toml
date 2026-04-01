@@ -8,13 +8,9 @@ prompt_file = "prompt.md"
 
 skills = []
 
-skill_groups = [
-  ""
-]
+skill_groups = []
 
-capabilities = [
-  ""
-]
+capabilities = []
 
 delegates_to = []
 
@@ -59,3 +55,9 @@ label = "Last 30 days"
 [[config.options]]
 value = "last_90_days"
 label = "Last 90 days"
+
+[model]
+provider = "default"
+model = "default"
+max_tokens = 300
+temperature = 0.2

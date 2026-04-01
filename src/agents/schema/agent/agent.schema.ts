@@ -33,6 +33,12 @@ export const agentSchema = z.object({
         max_iterations: z.number(),
     }),
     config: z.array(configSchema).optional(),
+    model: z.object({
+        provider: z.string(),
+        model: z.string(),
+        max_tokens: z.number(),
+        temperature: z.number(),
+    }),
 });
 
 /**
@@ -40,6 +46,10 @@ export const agentSchema = z.object({
  */
 type AgentSchemaDto = z.infer<typeof agentSchema>;
 
+/**
+ * Type for the agent role.
+ */
+export type AgentRoleDto = z.infer<typeof agentSchema>["role"];
 /**
  * Class for the agent definition.
  */

@@ -1,4 +1,6 @@
+export type { AgentConfiguration } from './agent.config';
 export { AgentService } from './service/agent.service';
+export { AGENT } from './agents.tokens';
 
 export {
   agentSchema,
