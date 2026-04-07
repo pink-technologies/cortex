@@ -1,0 +1,46 @@
+id = "trello"
+name = "Trello"
+version = "1.0.0"
+description = "Interact with Trello boards, lists, and cards through structured read, search, and write operations."
+
+type = "integration"
+
+tools = ["trello-create-card"]
+
+tags = ["trello", "cards", "boards", "project-management", "external"]
+
+actions = [
+  "read",
+  "search",
+  "write"
+]
+
+[execution]
+timeout_ms = 15000
+max_concurrency = 5
+
+[safety]
+requires_confirmation = false
+allow_background = false
+
+[constraints]
+max_iterations = 5
+
+[auth]
+required = true
+connection_type = "trello"
+
+[[config]]
+key = "connection_id"
+label = "Trello Connection"
+description = "Select the Trello connection this capability should use."
+type = "select"
+required = true
+source = "connections:trello"
+
+[[config]]
+key = "default_list_id"
+label = "Default List ID"
+description = "Optional default Trello list id used when creating a card without specifying a list."
+type = "text"
+required = false
