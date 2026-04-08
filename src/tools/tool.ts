@@ -1,13 +1,17 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type { ToolContext } from "./clients/context/tool-context";
+
 /**
- * A tool is a reusable unit of functionality that can be used to perform a task.
- *
- * @typeParam Input - The input type of the tool.
- * @typeParam Output - The output type of the tool.
+ * A tool factory is a function that creates a tool.
  */
-export interface Tool<Input = unknown, Output = unknown> {
+export type ToolFactory = (context: ToolContext) => Tool;
+
+/**
+ * A tool definition is a definition of a tool.
+ */
+export type ToolDefinition = {
     /**
      * The id of the tool.
      */
@@ -22,7 +26,12 @@ export interface Tool<Input = unknown, Output = unknown> {
      * The description of the tool.
      */
     description: string;
+}
 
+/**
+ * A tool is a function that executes a tool.
+ */
+export interface Tool<Input = unknown, Output = unknown> {
     /**
      * Executes the tool with the given input.
      *

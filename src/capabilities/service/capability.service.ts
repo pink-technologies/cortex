@@ -13,7 +13,7 @@ import { STORAGE } from "@/infraestructure/storage/storage.tokens";
 import { Capability } from "../capability";
 import { CAPABILITIES_BUNDLED_ROOT } from "../capability.tokens";
 
-import { CapabilityAlreadyRegisteredError, CapabilityFileLoadError } from "./error/error";
+import { CapabilityFileLoadError } from "./error/error";
 
 /**
  * Loads capabilities from TOML files under the directory injected as {@link CAPABILITIES_BUNDLED_ROOT}
@@ -76,10 +76,6 @@ export class CapabilityService implements OnModuleInit {
         const dto = capabilitySchema.parse(parsed);
         const schema = CapabilitySchema.from(dto);
         const capability = this.schemaToCapability(schema);
-
-        if (await this.storage.read<Capability>(capability.id)) {
-            throw new CapabilityAlreadyRegisteredError();
-        }
 
         await this.storage.write(capability, capability.id);
 

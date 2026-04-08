@@ -61,3 +61,14 @@ export class TrelloTokenNotConfiguredError extends TrelloClientError {
      */
     readonly code = 'TRELLO_TOKEN_NOT_CONFIGURED_ERROR';
 }
+
+/**
+ * Error thrown when a Trello tool runs but {@link ToolContext.trelloClient} was not set
+ * (user has not linked Trello for this execution).
+ */
+export class TrelloClientMissingInContextError extends TrelloClientError {
+    /**
+     * A machine-readable error code identifying missing Trello client in context errors.
+     */
+    readonly code = 'TRELLO_CLIENT_MISSING_IN_CONTEXT';
+}
