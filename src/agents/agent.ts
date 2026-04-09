@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type { ConversationMessage } from '@/shared/types/input/execution-input';
+
 /**
  * High-level persona / responsibility label for an agent.
  *
@@ -25,6 +27,7 @@ export const AgentDecisionType = {
   Delegate: 'delegate',
   Respond: 'respond',
   UseSkill: 'use-skill',
+  UseCapability: 'use-capability',
 } as const;
 
 /** Union of string literals in {@link AgentDecisionType}. */
@@ -39,6 +42,8 @@ export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
  * - **delegate** — Route processing to another agent; optional human-readable `reason`.
  * - **respond** — Final (or intermediate) natural-language reply to the user.
  * - **use-skill** — Run a skill by id with opaque JSON-like `input` (validated by the skill layer).
+ * - **use-capability** - Run a capability by id with opaque JSON-like `input` (validated by the capability layer)
+ *   plus `userMessage`: natural-language confirmation the user sees (same language as the user).
  */
 export type AgentDecision =
   | {
@@ -54,6 +59,12 @@ export type AgentDecision =
     readonly type: typeof AgentDecisionType.UseSkill,
     readonly skillId: string;
     readonly input: Record<string, unknown>
+  }
+  | {
+    readonly type: typeof AgentDecisionType.UseCapability,
+    readonly capabilityId: string;
+    readonly input: Record<string, unknown>;
+    readonly userMessage: string;
   };
 
 /**
@@ -103,6 +114,11 @@ export interface AgentContext {
    * Normalized user utterance for this decision step.
    */
   readonly message: string;
+
+  /**
+   * When provided (e.g. playground with session), multi-turn messages for the LLM.
+   */
+  readonly conversationHistory?: readonly ConversationMessage[];
 }
 
 /**

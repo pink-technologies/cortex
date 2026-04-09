@@ -22,7 +22,7 @@ interface CreateCardToolInput {
     /**
      * The description of the card.
      */
-    description: string;
+    description?: string;
 }
 
 /**
@@ -80,19 +80,39 @@ export class CreateCardTool implements Tool<CreateCardToolInput, CreateCardToolO
      * @throws {@link TrelloCardCreationError} When the API request fails.
      */
     async execute(input: CreateCardToolInput): Promise<CreateCardToolOutput> {
+        const listId = typeof input.listId === 'string' ? input.listId.trim() : '';
+        const name = typeof input.name === 'string' ? input.name.trim() : '';
+        if (!listId || !name) {
+            throw new TrelloCardCreationError();
+        }
+
         const url = this.trelloClient.buildUrl('/cards', {
-            idList: input.listId,
-            name: input.name,
-            desc: input.description,
+            idList: listId,
+            name,
+            desc: input.description ?? '',
         });
 
-        const response = await fetch(url, { method: 'POST' });
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+        });
+
+        const bodyText = await response.text();
 
         if (!response.ok) {
             throw new TrelloCardCreationError();
         }
 
-        const data = await response.json();
+        let data: { id?: string };
+        try {
+            data = JSON.parse(bodyText) as { id?: string };
+        } catch {
+            throw new TrelloCardCreationError();
+        }
+
+        if (typeof data.id !== 'string') {
+            throw new TrelloCardCreationError();
+        }
 
         return { id: data.id };
     }

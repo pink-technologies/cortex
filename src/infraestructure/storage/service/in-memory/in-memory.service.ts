@@ -3,7 +3,11 @@
 
 import { Injectable } from '@nestjs/common';
 import type { Storage } from '../../storage';
-import { StorageDeleteError, StorageReadError, StorageWriteError } from '../error/storage-error';
+import {
+    StorageDeleteError,
+    StorageReadError,
+    StorageWriteError,
+} from '../error/storage-error';
 
 /**
  * Implementation of {@link Storage} backed by a {@link Map} (async API, in-memory).
@@ -56,7 +60,7 @@ export class InMemoryStorageService implements Storage {
      * @param value - Value to store.
      * @param key - Key to store the value under.
      */
-    async write<T>(value: T, key: string): Promise<void> {
+    async write<T>(key: string, value: T): Promise<void> {
         try {
             this.storage.set(key, value);
         } catch {

@@ -4,8 +4,6 @@
 import path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { InMemoryStorageService } from '@/infraestructure/storage/service/in-memory/in-memory.service';
-import { STORAGE } from '@/infraestructure/storage/storage.tokens';
 import { TomlParser } from '@/shared/types';
 import { SKILLS_BUNDLED_ROOT } from './skill.tokens';
 import { SkillService } from './service/skill.service';
@@ -15,11 +13,6 @@ import { SkillService } from './service/skill.service';
     imports: [ConfigModule],
     exports: [SkillService],
     providers: [
-        {
-            provide: STORAGE,
-            useFactory: () =>
-                new InMemoryStorageService(new Map()),
-        },
         {
             provide: SKILLS_BUNDLED_ROOT,
             inject: [ConfigService],

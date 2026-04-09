@@ -16,11 +16,11 @@ import { Agent, AgentContext, AgentRole } from '../agent';
 import { AGENTS_BUNDLED_ROOT } from '../agents.tokens';
 
 import {
-  AgentAlreadyRegisteredError,
-  AgentFileLoadError,
-  DuplicateMainAgentError,
-  InvalidAgentRoleError,
-  NoEntryOrchestratorAgentError,
+    AgentAlreadyRegisteredError,
+    AgentFileLoadError,
+    DuplicateMainAgentError,
+    InvalidAgentRoleError,
+    NoEntryOrchestratorAgentError,
 } from './error/error';
 import { PromptDrivenAgent } from '../prompt-driven/prompt-driven-agent';
 
@@ -131,7 +131,7 @@ export class AgentService implements OnModuleInit {
 
         if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
 
-        await this.storage.write(agent, agent.id);
+        await this.storage.write(agent.id, agent);
 
         if (dto.role === 'MAIN') {
             if (this.mainAgentId !== null) {

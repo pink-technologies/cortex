@@ -16,16 +16,13 @@ import { TrelloClient } from "../trello-client";
  * @throws {@link TrelloTokenNotConfiguredError} When `token` is missing or blank.
  */
 export function buildTrelloClient(apiKey: string, token: string): TrelloClient {
-    const key = apiKey.trim();
-    const t = token.trim();
-
-    if (!key) {
+    if (!apiKey) {
         throw new TrelloAPIKeyNotConfiguredError();
     }
 
-    if (!t) {
+    if (!token) {
         throw new TrelloTokenNotConfiguredError();
     }
 
-    return new TrelloClient(key, t);
+    return new TrelloClient(apiKey, token);
 }

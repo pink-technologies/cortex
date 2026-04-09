@@ -29,6 +29,7 @@ import { ToolsModule } from './tools/tools.module';
       envFilePath: `env/.env.${process.env.NODE_ENV ?? 'development'}`,
       isGlobal: true,
     }),
+    StorageModule,
     I18nModule.forRoot({
       fallbackLanguage: 'en',
       loader: I18nJsonLoader,
@@ -45,7 +46,6 @@ import { ToolsModule } from './tools/tools.module';
     AgentsModule,
     CapabilitiesModule,
     DatabaseModule,
-    StorageModule,
     CortexI18nModule,
     SkillsModule,
     ToolsModule,

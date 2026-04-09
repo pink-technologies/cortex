@@ -40,10 +40,17 @@ export class Kernel {
         const context: AgentContext = {
             message: input.message,
             executionId,
+            conversationHistory: input.conversationHistory,
         };
 
         const decision = await this.agent.decide(context);
 
-        return await this.decisionExecutor.execute(decision, context);
+        return await this.decisionExecutor.execute(decision, {
+            executionId,
+            message: input.message,
+            conversationHistory: input.conversationHistory,
+            sessionId: input.sessionId,
+            userId: input.userId,
+        });
     }
 }

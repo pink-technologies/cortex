@@ -10,7 +10,7 @@ skills = []
 
 skill_groups = []
 
-capabilities = []
+capabilities = ["trello"]
 
 delegates_to = [
   "financial-advisor-agent"

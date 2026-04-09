@@ -2,9 +2,14 @@
 // https://pink-tech.io/
 
 /**
- * Injection token for the Storage abstraction.
+ * Shared in-process registry storage (agents, skills, capability executors).
  *
- * Use this token to inject the storage implementation so consumers depend
- * on the interface rather than the concrete Redis implementation.
+ * Backed by {@link InMemoryStorageService} so non-JSON values (class instances,
+ * functions) survive round-trips. Not suitable for cross-process persistence.
  */
 export const STORAGE = Symbol('STORAGE');
+
+/**
+ * Redis-backed storage for JSON-serializable values only.
+ */
+export const REDIS_STORAGE = Symbol('REDIS_STORAGE');

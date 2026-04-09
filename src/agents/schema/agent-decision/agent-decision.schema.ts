@@ -6,7 +6,14 @@ import { AgentDecisionType } from '@/agents/agent';
 
 /**
  * Runtime validation for agent decisions (e.g. JSON from an LLM `completeStructured` call).
- * Each branch matches exactly one variant of the tagged union (no mixed or partial fields).
+ *
+ * Branches (discriminator `type`):
+ * - `delegate` — `agentId`, optional `reason`
+ * - `respond` — `response`
+ * - `use-skill` — `skillId`, `input`
+ * - `use-capability` — `capabilityId`, `input`, `userMessage`
+ *
+ * Each branch matches exactly one variant of the `AgentDecision` tagged union in `agent.ts`.
  */
 export const agentDecisionSchema = z.discriminatedUnion('type', [
     z.object({
@@ -22,6 +29,12 @@ export const agentDecisionSchema = z.discriminatedUnion('type', [
         type: z.literal(AgentDecisionType.UseSkill),
         skillId: z.string(),
         input: z.record(z.string(), z.unknown()),
+    }),
+    z.object({
+        type: z.literal(AgentDecisionType.UseCapability),
+        capabilityId: z.string(),
+        input: z.record(z.string(), z.unknown()),
+        userMessage: z.string().min(1),
     }),
 ]);
 

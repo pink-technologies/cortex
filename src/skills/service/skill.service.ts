@@ -94,7 +94,7 @@ export class SkillService implements OnModuleInit {
             throw new SkillAlreadyRegisteredError();
         }
 
-        await this.storage.write(skill, skill.id);
+        await this.storage.write(skill.id, skill);
 
         return skill;
     }

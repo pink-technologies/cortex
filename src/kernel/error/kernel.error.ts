@@ -72,3 +72,15 @@ export class SkillDecisionTypeNotSupportedError extends KernelServiceError {
      */
     readonly code = 'SKILL_DECISION_TYPE_NOT_SUPPORTED';
 }
+
+/**
+ * Thrown when a capability is not found.
+ */
+export class KernelCapabilityNotFoundError extends KernelServiceError {
+    // MARK: - Properties
+
+    /**
+     * Machine-readable code for kernel capability not found error.
+     */
+    readonly code = 'KERNEL_CAPABILITY_NOT_FOUND';
+}

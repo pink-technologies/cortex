@@ -48,5 +48,5 @@ export interface WritableStorage {
      * @param key - The key to store the value under.
      * @throws When the write operation fails.
      */
-    write<T>(value: T, key: string): Promise<void>;
+    write<T>(key: string, value: T): Promise<void>;
 }
