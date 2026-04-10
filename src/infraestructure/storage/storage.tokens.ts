@@ -8,8 +8,3 @@
  * functions) survive round-trips. Not suitable for cross-process persistence.
  */
 export const STORAGE = Symbol('STORAGE');
-
-/**
- * Redis-backed storage for JSON-serializable values only.
- */
-export const REDIS_STORAGE = Symbol('REDIS_STORAGE');

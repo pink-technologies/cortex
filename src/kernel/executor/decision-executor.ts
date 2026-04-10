@@ -15,7 +15,6 @@ import { STORAGE } from "@/infraestructure/storage/storage.tokens";
 
 import {
   KernelAgentNotFoundError,
-  KernelCapabilityNotFoundError,
   KernelInvalidDecisionTypeError,
   SkillDecisionTypeNotSupportedError,
 } from "../error/kernel.error";
@@ -89,8 +88,7 @@ export class KernelDecisionExecutor implements DecisionExecutor {
 
         const nextDecision = await agent.decide({
           executionId: context.executionId,
-          message: context.message,
-          conversationHistory: context.conversationHistory,
+          message: context.message
         });
 
         return this.execute(nextDecision, context);

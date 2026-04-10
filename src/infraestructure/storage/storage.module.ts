@@ -5,19 +5,19 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { InMemoryStorageService } from './service/in-memory/in-memory.service';
 import { RedisStorageService } from './service/redis/redis-storage.service';
-import { REDIS_STORAGE, STORAGE } from './storage.tokens';
+import { STORAGE } from './storage.tokens';
 
 @Global()
 @Module({
     imports: [ConfigModule],
-    exports: [STORAGE, REDIS_STORAGE],
+    exports: [STORAGE],
     providers: [
         {
             provide: STORAGE,
             useFactory: () => new InMemoryStorageService(new Map()),
         },
         {
-            provide: REDIS_STORAGE,
+            provide: STORAGE,
             inject: [ConfigService],
             useFactory: async (config: ConfigService) =>
                 await RedisStorageService.make(
