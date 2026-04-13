@@ -60,7 +60,7 @@ export class InMemoryStorageService implements Storage {
      * @param value - Value to store.
      * @param key - Key to store the value under.
      */
-    async write<T>(key: string, value: T): Promise<void> {
+    async write<T>(value: T, key: string): Promise<void> {
         try {
             this.storage.set(key, value);
         } catch {

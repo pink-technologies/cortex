@@ -13,7 +13,7 @@ export const OriginType = { CHAT: 'chat', WEBHOOK: 'webhook' } as const;
 /**
  * Origin that produced this normalized request.
  * Examples: 'chat', 'api', 'voice'
- */ 
+ */
 export type OriginType = (typeof OriginType)[keyof typeof OriginType];
 
 /**
@@ -27,10 +27,20 @@ export interface ExecutionInput {
      * Message content.
      */
     readonly message: string;
-  
+
     /**
      * Origin that produced this normalized request.
      * Examples: 'chat', 'api', 'voice'
      */
     readonly origin: OriginType;
+
+    /**
+     * Stable conversation id (e.g. Prisma `Chat.id`) when the run is tied to a persisted session.
+     */
+    readonly sessionId?: string;
+
+    /**
+     * Authenticated user id when tools must use per-user credentials (e.g. Trello per connection).
+     */
+    readonly userId?: string;
 }

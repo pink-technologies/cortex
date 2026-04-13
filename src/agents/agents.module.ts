@@ -5,6 +5,8 @@ import path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@/infraestructure/database/index';
+import { InMemoryStorageService } from '@/infraestructure/storage/service/in-memory/in-memory.service';
+import { STORAGE } from '@/infraestructure/storage/storage.tokens';
 import { TomlParser } from '@/shared/types';
 import { LLMModule } from '@/llm/llm.module';
 import { SkillsModule } from '../skills/skills.module';
@@ -14,12 +16,16 @@ import { AgentService } from './service/agent.service';
 @Module({
   controllers: [],
   imports: [ConfigModule, DatabaseModule, LLMModule, SkillsModule],
-  exports: [AgentService, AGENT],
+  exports: [AgentService, STORAGE, AGENT],
   providers: [
     {
       provide: AGENT,
       inject: [AgentService],
       useFactory: (agentService: AgentService) => agentService.getEntryOrchestratorAgent(),
+    },
+    {
+      provide: STORAGE,
+      useFactory: () => new InMemoryStorageService(new Map()),
     },
     {
       provide: AGENTS_BUNDLED_ROOT,

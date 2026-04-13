@@ -50,6 +50,7 @@ type AgentSchemaDto = z.infer<typeof agentSchema>;
  * Type for the agent role.
  */
 export type AgentRoleDto = z.infer<typeof agentSchema>["role"];
+
 /**
  * Class for the agent definition.
  */

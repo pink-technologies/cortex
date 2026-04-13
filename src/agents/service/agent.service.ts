@@ -30,10 +30,10 @@ import { PromptDrivenAgent } from '../prompt-driven/prompt-driven-agent';
  */
 @Injectable()
 export class AgentService implements OnModuleInit {
-    /** Deduplicates concurrent or repeated loads (e.g. {@link AGENT} factory vs {@link onModuleInit}). */
+    // MARK: - Private properties
+
     private loadPromise: Promise<void> | null = null;
 
-    /** Id of the single bundled agent with role MAIN (entry orchestrator for {@link AGENT}). */
     private mainAgentId: string | null = null;
 
     // MARK: - Constructor
@@ -76,13 +76,13 @@ export class AgentService implements OnModuleInit {
      */
     async getEntryOrchestratorAgent(): Promise<Agent> {
         await this.ensureLoaded();
-        if (!this.mainAgentId) {
-            throw new NoEntryOrchestratorAgentError();
-        }
+
+        if (!this.mainAgentId) throw new NoEntryOrchestratorAgentError();
+
         const agent = await this.storage.read<Agent>(this.mainAgentId);
-        if (!agent) {
-            throw new NoEntryOrchestratorAgentError();
-        }
+
+        if (!agent) throw new NoEntryOrchestratorAgentError();
+
         return agent;
     }
 
@@ -131,7 +131,7 @@ export class AgentService implements OnModuleInit {
 
         if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
 
-        await this.storage.write(agent.id, agent);
+        await this.storage.write(agent, agent.id);
 
         if (dto.role === 'MAIN') {
             if (this.mainAgentId !== null) {

@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type { CapabilityInputSchema } from '@/capabilities/schema/input/capability-input.schema';
+
 /**
  * Terminal output of a kernel run: what to show the user (or caller) for one
  * {@link ExecutionInput} / execution, after agents and decisions have finished.
@@ -23,6 +25,14 @@ export interface KernelResult {
      *
      * Typically the **respond** branch of {@link AgentDecision}; may also be an error
      * or fallback string when the kernel cannot produce a richer result.
+     *
+     * Human-readable line for the user. Capability-discovery turns include an auto-generated
+     * summary plus structured {@link CapabilityDiscoveryPayload} in {@link capabilityDiscovery}.
      */
     readonly message: string;
+
+    /**
+     * Structured capability discovery from a **respond** decision; omit for normal text replies.
+     */
+    readonly capabilities?: CapabilityInputSchema[];
 }

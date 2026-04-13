@@ -39,8 +39,8 @@ export class Kernel {
         const executionId = randomUUID();
         const context: AgentContext = {
             message: input.message,
-            executionId,
             conversationHistory: input.conversationHistory,
+            executionId,
         };
 
         const decision = await this.agent.decide(context);
@@ -48,9 +48,9 @@ export class Kernel {
         return await this.decisionExecutor.execute(decision, {
             executionId,
             message: input.message,
-            conversationHistory: input.conversationHistory,
             sessionId: input.sessionId,
             userId: input.userId,
+            allowedCapabilityIds: this.agent.descriptor.capabilities,
         });
     }
 }

@@ -142,7 +142,7 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
      * await storage.write('plain-text-token', 'session:abc');
      * ```
      */
-    async write<T>(key: string, value: T): Promise<void> {
+    async write<T>(value: T, key: string): Promise<void> {
         try {
             const serialized = JSON.stringify(value);
 

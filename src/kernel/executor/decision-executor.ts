@@ -18,7 +18,6 @@ import {
   KernelInvalidDecisionTypeError,
   SkillDecisionTypeNotSupportedError,
 } from "../error/kernel.error";
-import { CapabilityExecutor } from "@/capabilities/executors/capability-executor";
 import { CapabilityRegistryService } from "@/capabilities/service/registry/capability-registry.service";
 
 /**
@@ -103,13 +102,20 @@ export class KernelDecisionExecutor implements DecisionExecutor {
 
       case AgentDecisionType.UseCapability: {
         const capability = this.capabilityRegistryService.get(decision.capabilityId);
-
         await capability.execute(decision.input, context);
 
         return {
           executionId: context.executionId,
-          message: decision.userMessage,
+          message: decision.userMessage
         };
+      }
+
+      case AgentDecisionType.SuggestCapability: {
+        return {
+          executionId: context.executionId,
+          message: decision.message,
+          capabilities: decision.capabilities,
+        }
       }
 
       case AgentDecisionType.UseSkill: {

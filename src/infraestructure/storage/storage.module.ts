@@ -3,7 +3,6 @@
 
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { InMemoryStorageService } from './service/in-memory/in-memory.service';
 import { RedisStorageService } from './service/redis/redis-storage.service';
 import { STORAGE } from './storage.tokens';
 
@@ -14,15 +13,11 @@ import { STORAGE } from './storage.tokens';
     providers: [
         {
             provide: STORAGE,
-            useFactory: () => new InMemoryStorageService(new Map()),
-        },
-        {
-            provide: STORAGE,
             inject: [ConfigService],
-            useFactory: async (config: ConfigService) =>
-                await RedisStorageService.make(
-                    config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
-                ),
+            useFactory: async (config: ConfigService) => {
+                const url = config.get<string>('REDIS_URL')?.trim() || 'redis://localhost:6379';
+                return RedisStorageService.make(url);
+            },
         },
     ],
 })

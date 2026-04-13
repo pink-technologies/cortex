@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { ConversationMessage } from '@/shared/types/input/execution-input';
+import { CapabilityInputSchema } from "@/capabilities/schema/input/capability-input.schema";
 
 /**
  * High-level persona / responsibility label for an agent.
@@ -20,14 +20,17 @@ export const AgentRole = {
  * Discriminator values for {@link AgentDecision}.
  *
  * @property Delegate — Hand off to another agent by id.
- * @property Respond — Produce a direct text reply (no further agent hop in this step).
+ * @property Respond — Plain-text reply (no further agent hop in this step).
  * @property UseSkill — Invoke a registered skill with structured input.
+ * @property UseCapability — Invoke a registered capability with structured input.
+ * @property SuggestCapability — Suggest a capability to the user.
  */
 export const AgentDecisionType = {
   Delegate: 'delegate',
   Respond: 'respond',
   UseSkill: 'use-skill',
   UseCapability: 'use-capability',
+  SuggestCapability: 'suggest-capability',
 } as const;
 
 /** Union of string literals in {@link AgentDecisionType}. */
@@ -40,10 +43,12 @@ export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
  * Outcome of one decide call — a tagged union on `type`.
  *
  * - **delegate** — Route processing to another agent; optional human-readable `reason`.
- * - **respond** — Final (or intermediate) natural-language reply to the user.
+ * - **respond** — Final natural-language string.
  * - **use-skill** — Run a skill by id with opaque JSON-like `input` (validated by the skill layer).
- * - **use-capability** - Run a capability by id with opaque JSON-like `input` (validated by the capability layer)
- *   plus `userMessage`: natural-language confirmation the user sees (same language as the user).
+ * - **use-capability** — Run a capability by id with JSON-like `input` (validated by the capability layer)
+ *   plus `userMessage`: natural-language line the user sees (**always** match the user’s language;
+ *   for discovery runs this is the intro/summary; structured options come from the executor result).
+ * - **suggest-capability** — Suggest a capability to the user with a message and structured capabilities.
  */
 export type AgentDecision =
   | {
@@ -65,6 +70,11 @@ export type AgentDecision =
     readonly capabilityId: string;
     readonly input: Record<string, unknown>;
     readonly userMessage: string;
+  }
+  | {
+    readonly type: typeof AgentDecisionType.SuggestCapability,
+    readonly message: string,
+    readonly capabilities: CapabilityInputSchema[]
   };
 
 /**
@@ -114,11 +124,6 @@ export interface AgentContext {
    * Normalized user utterance for this decision step.
    */
   readonly message: string;
-
-  /**
-   * When provided (e.g. playground with session), multi-turn messages for the LLM.
-   */
-  readonly conversationHistory?: readonly ConversationMessage[];
 }
 
 /**

@@ -77,7 +77,7 @@ export class CapabilityService implements OnModuleInit {
         const schema = CapabilitySchema.from(dto);
         const capability = this.schemaToCapability(schema);
 
-        await this.storage.write(capability.id, capability);
+        await this.storage.write(capability, capability.id);
 
         return capability;
     }
