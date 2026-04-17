@@ -40,7 +40,7 @@ export class SkillService implements OnModuleInit {
     // MARK: - OnModuleInit
 
     /**
-     * Loads the capability from the TOML file when the module boots.
+     * Loads bundled skills from disk when the module boots.
      */
     async onModuleInit(): Promise<void> {
         await this.load();
@@ -88,22 +88,44 @@ export class SkillService implements OnModuleInit {
         const parsed = this.tomlParser.parser<unknown>(raw);
         const dto = skillSchema.parse(parsed);
         const schema = SkillSchema.from(dto);
-        const skill = this.schemaToSkill(schema);
+        const skillDir = path.dirname(filePath);
+        const promptTemplate = await this.tryReadSkillMarkdown(skillDir);
+        const skill = this.schemaToSkill(schema, promptTemplate);
 
         if (await this.storage.read<Skill>(skill.id)) {
             throw new SkillAlreadyRegisteredError();
         }
 
-        await this.storage.write(skill.id, skill);
+        await this.storage.write(skill, skill.id);
 
         return skill;
     }
 
-    private schemaToSkill(skill: SkillSchema): Skill {
+    private async tryReadSkillMarkdown(skillDir: string): Promise<string | undefined> {
+        const promptPath = path.join(skillDir, "skill.md");
+        try {
+            return await readFile(promptPath, "utf8");
+        } catch {
+            return undefined;
+        }
+    }
+
+    private schemaToSkill(skill: SkillSchema, promptTemplate?: string): Skill {
         const schema = skill.schema;
 
         return {
-            id: schema.id
+            id: schema.id,
+            name: schema.name,
+            description: schema.description,
+            inputSchema: schema.input.schema,
+            ...(promptTemplate !== undefined ? { promptTemplate } : {}),
         };
+    }
+
+    /**
+     * Returns a skill record previously loaded into {@link STORAGE}, or null if missing.
+     */
+    async findById(id: string): Promise<Skill | null> {
+        return this.storage.read<Skill>(id);
     }
 }
