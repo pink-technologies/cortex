@@ -40,16 +40,3 @@ export interface Skill {
      */
     readonly promptTemplate?: string;
 }
-
-/**
- * A registered skill: stable id.
- *
- * Implementations are stored in {@link SkillRegistry} and invoked by the kernel or orchestrator
- * after resolving which skill should act.
- */
-export interface SkillEntry {
-    /**
-     * The id of the skill.
-     */
-    id: string;
-}

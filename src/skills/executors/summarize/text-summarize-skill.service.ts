@@ -54,7 +54,7 @@ export class TextSummarizeSkillService implements SkillExecutor<SummarizeInput, 
 
         const systemPrompt = (await this.loadPromptTemplate()).replace(
             /\{\{\s*text\s*\}\}/,
-            body,
+            () => body,
         );
         const result = await this.llm.generate({
             systemPrompt,

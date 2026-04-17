@@ -11,7 +11,7 @@ Summarize the input text.
 - Maximum length: 2-3 sentences
 - Keep key facts and entities
 - No opinions
-- No extra commentar
+- No extra commentary
 - Output only the summary
 - Use the same language as the input text
 
