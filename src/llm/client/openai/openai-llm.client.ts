@@ -1,6 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { Logger } from '@nestjs/common';
 import { OpenAIProvider, type LLMModel } from '@/llm/provider/llm-provider';
 import OpenAI, { APIError } from 'openai';
 import { OpenAiErrorMapper } from '@/llm/client/openai/error/map-openai-error';
@@ -188,9 +189,12 @@ export class OpenAILLMClient implements LLM {
         return tools.map((tool) => ({
             type: 'function' as const,
             function: {
-                name: tool.name,
+                name: tool.slug,
                 description: tool.description,
-                parameters: tool.parameters as Record<string, unknown>,
+                parameters: {
+                    type: 'object',
+                    properties: {},
+                },
             },
         }));
     }

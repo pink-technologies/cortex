@@ -2,6 +2,7 @@
 // https://pink-tech.io/
 
 import type { CapabilityInputSchema } from '@/capabilities/schema/input/capability-input.schema';
+import type { SkillInputSchema } from '@/skills/schema/input/skill-input.schema';
 
 /**
  * Terminal output of a kernel run: what to show the user (or caller) for one
@@ -32,7 +33,12 @@ export interface KernelResult {
     readonly message: string;
 
     /**
-     * Structured capability discovery from a **respond** decision; omit for normal text replies.
+     * Structured capability discovery (`suggest-capability` / `suggest-options`); omit for plain replies.
      */
     readonly capabilities?: CapabilityInputSchema[];
+
+    /**
+     * Structured skill hints (`suggest-skill` / `suggest-options`); omit when absent.
+     */
+    readonly skills?: SkillInputSchema[];
 }

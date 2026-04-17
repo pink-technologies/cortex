@@ -86,7 +86,10 @@ export class CapabilityService implements OnModuleInit {
         const schema = capability.schema;
 
         return {
-            id: schema.id
+            id: schema.id,
+            name: schema.name,
+            description: schema.description,
+            tools: schema.tools,
         };
     }
 }

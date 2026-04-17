@@ -12,7 +12,7 @@ import { TomlParser } from '@/shared/types';
 import { AgentRoleDto, AgentSchema, agentSchema } from '../schema/agent/agent.schema';
 import type { Storage } from '@/infraestructure/storage/storage';
 import { STORAGE } from '@/infraestructure/storage/storage.tokens';
-import { Agent, AgentContext, AgentRole } from '../agent';
+import { Agent, AgentContext, AgentDecision, AgentRole } from '../agent';
 import { AGENTS_BUNDLED_ROOT } from '../agents.tokens';
 
 import {
@@ -148,11 +148,10 @@ export class AgentService implements OnModuleInit {
         const role = this.schemaRoleToAgent(schema.role);
         const delegateAgentIds = schema.delegates_to.filter((delegate) => delegate.length > 0);
         const descriptor = {
-            name: schema.name,
+            ...agent.descriptorBase,
             role,
-            allowedSkillIds: schema.skills.filter((skill) => skill.length > 0),
-            capabilities: schema.capabilities.filter((capability) => capability.length > 0),
-            description: schema.description,
+            skills: agent.cleanSkills,
+            capabilities: agent.cleanCapabilities,
         };
 
         const promptDriven = new PromptDrivenAgent({
@@ -166,7 +165,7 @@ export class AgentService implements OnModuleInit {
         return {
             id: schema.id,
             descriptor,
-            decide: (context: AgentContext) => promptDriven.decide(context),
+            decide: (context: AgentContext): Promise<AgentDecision[]> => promptDriven.decide(context),
         };
     }
 

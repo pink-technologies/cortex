@@ -4,6 +4,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
+import { ToolsModule } from '@/tools/tools.module';
+
 import { OpenAILLMClient } from './client/openai/openai-llm.client';
 import {
     LLMAPIKeyNotConfiguredError,
@@ -17,7 +19,7 @@ const OPENAI_API_KEY_ENV = 'OPENAI_API_KEY';
 const LLM_DEFAULT_MODEL_ENV = 'LLM_DEFAULT_MODEL';
 
 @Module({
-    imports: [ConfigModule],
+    imports: [ConfigModule, ToolsModule],
     providers: [
         OpenAIProvider,
         {

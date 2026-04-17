@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { MessageRole } from '@/llm/llm';
-import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
+import { agentDecisionsSchema } from '../schema/agent-decision/agent-decision.schema';
 import { AgentConfiguration } from '../agent.config';
 import type {
   Agent,
@@ -12,14 +12,19 @@ import type {
 } from '../agent';
 
 /**
- * {@link Agent} whose {@link Agent.decide} calls the {@link LLM} port for one structured
- * {@link AgentDecision} (JSON), then validates it with {@link agentDecisionSchema}.
+ * {@link Agent} whose {@link Agent.decide} calls the {@link LLM} port for structured
+ * decision JSON (one object or an array), then validates with {@link agentDecisionsSchema}.
  *
  * Instantiated by `AgentService` (not a Nest provider); pass a single {@link AgentConfiguration}.
  */
 export class PromptDrivenAgent implements Agent {
   // MARK: - Constructor
 
+  /**
+   * Creates a new {@link PromptDrivenAgent}.
+   * 
+   * @param configuration - The configuration of the agent.
+   */
   constructor(private readonly configuration: AgentConfiguration) { }
 
   // MARK: - Agent
@@ -45,12 +50,12 @@ export class PromptDrivenAgent implements Agent {
   // MARK: - Instance methods
 
   /**
-   * Decides the next step for this turn: delegate, respond, or invoke a skill.
+   * Decides ordered steps for this turn: delegate, respond, use-skill, etc.
    *
    * @param context - Current execution id and user message for this decision.
-   * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
+   * @returns Non-empty ordered {@link AgentDecision} list for the kernel to run in sequence.
    */
-  async decide(context: AgentContext): Promise<AgentDecision> {
+  async decide(context: AgentContext): Promise<AgentDecision[]> {
     const { llm, systemPrompt } = this.configuration;
     const result = await llm.generate({
       systemPrompt,
@@ -60,28 +65,24 @@ export class PromptDrivenAgent implements Agent {
           content: this.buildPrompt(context),
         },
       ],
-      responseFormat: { type: 'json' },
     });
 
     const raw = JSON.parse(result.content) as unknown;
-    return agentDecisionSchema.parse(raw);
+    return agentDecisionsSchema.parse(raw);
   }
 
   // MARK: - Private methods
 
   private buildPrompt(context: AgentContext): string {
-    const { descriptor, delegateAgentIds } = this.configuration;
-    const delegates = delegateAgentIds ?? [];
-    const skills = descriptor.allowedSkillIds.join(', ') || 'none';
-    const capabilities = descriptor.capabilities.join(', ') || 'none';
-    const delegatesLine = delegates.join(', ') || 'none';
-
-    return [
+    const parts = [
       `Execution id: ${context.executionId}`,
-      `User message:\n${context.message}`,
-      `Available skills: ${skills}`,
-      `Available capabilities: ${capabilities}`,
-      `Available delegates: ${delegatesLine}`,
-    ].join('\n\n');
+      `Conversation history: ${context.conversationHistory?.map(message => `${message.role}: ${message.content}`).join('\n')}`,
+      `User message: ${context.message}`,
+      `Available skills: ${this.configuration.descriptor.skills.join(', ')}`,
+      `Available capabilities: ${this.configuration.descriptor.capabilities.join(', ')}`,
+      `Available delegates: ${this.configuration.delegateAgentIds?.join(', ') ?? 'none'}`,
+    ];
+
+    return parts.join('\n\n');
   }
 }

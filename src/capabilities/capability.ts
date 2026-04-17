@@ -3,6 +3,9 @@
 
 import { CapabilityExecutor } from "./executors/capability-executor";
 
+/**
+ * A factory for a capability executor.
+ */
 export type CapabilityFactory = () => CapabilityExecutor;
 
 /**
@@ -34,4 +37,19 @@ export interface Capability {
      * Stable key used in {@link CapabilityRegistry}.
      */
     readonly id: string;
+
+    /**
+     * Display name from bundled `capability.toml` (see {@link CapabilityService}).
+     */
+    readonly name?: string;
+
+    /**
+     * Short description from bundled `capability.toml`.
+     */
+    readonly description?: string;
+
+    /**
+     * Tool ids this capability may route to (from `capability.toml`).
+     */
+    readonly tools?: readonly string[];
 }

@@ -6,7 +6,7 @@ description = "General-purpose coordinator that handles simple requests, uses ge
 role = "main"
 prompt_file = "prompt.md"
 
-skills = []
+skills = ["text.summarize"]
 
 skill_groups = []
 

@@ -121,20 +121,16 @@ export type LLMMessage =
  * Declares a function the model may call for this request (capabilities you expose).
  */
 export interface LLMToolDefinition {
+
     /**
-     * The name of the tool definition.
+     * The slug of the tool definition.
      */
-    name: string;
+    slug: string;
 
     /**
      * The description of the tool definition.
      */
-    description?: string;
-
-    /**
-     * The parameters of the tool definition.
-     */
-    parameters: Record<string, unknown>;
+    description: string;
 }
 
 /**

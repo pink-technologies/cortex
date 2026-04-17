@@ -58,21 +58,69 @@ export class AgentSchema {
     // MARK: - Constructor
 
     /**
-     * Creates a new instance of {@link AgentSchema}.
-     *
-     * @param schema - The agent schema.
+     * Creates a new agent schema.
+     * 
+     * @param schema - The schema.
      */
-    private constructor(readonly schema: AgentSchemaDto) { }
-
-    // MARK: - Static methods
+    private constructor(readonly schema: AgentSchemaDto) {}
 
     /**
-     * Wraps an already-validated {@link AgentSchemaDto} (e.g. `agentSchema.parse` on raw TOML).
-     *
-     * @param input - Validated agent definition.
-     * @returns A new instance of {@link AgentSchema}.
+     * Creates a new agent schema.
+     * 
+     * @param input - The input schema.
+     * @returns The agent schema.
      */
     static from(input: AgentSchemaDto): AgentSchema {
         return new AgentSchema(input);
+    }
+
+    // MARK: - Getters
+
+    /**
+     * Gets the clean skills.
+     * 
+     * @returns The clean skills.
+     */
+    get cleanSkills(): string[] {
+        return this.schema.skills.filter((s) => s.length > 0);
+    }
+
+    /**
+     * Gets the clean capabilities.
+     * 
+     * @returns The clean capabilities.
+     */
+    get cleanCapabilities(): string[] {
+        return this.schema.capabilities.filter((c) => c.length > 0);
+    }
+
+    /**
+     * Gets the delegate ids.
+     * 
+     * @returns The delegate ids.
+     */
+    get delegateIds(): string[] {
+        return this.schema.delegates_to.filter((d) => d.length > 0);
+    }
+
+    /**
+     * Gets the role.
+     * 
+     * @returns The role.
+     */
+    get role(): AgentRoleDto {
+        return this.schema.role;
+    }
+
+    /**
+     * Gets the descriptor base.
+     * 
+     * @returns The descriptor base.
+     */
+    get descriptorBase() {
+        return {
+            name: this.schema.name,
+            description: this.schema.description,
+        };
     }
 }
