@@ -5,31 +5,34 @@ import { AgentDescriptor } from "./agent";
 import { LLM } from "@/llm";
 
 /**
- * Static wiring for {@link PromptDrivenAgent}: identity, system prompt, LLM port, and delegation.
+ * Static wiring for a {@link PromptDrivenAgent}: identity, persona, LLM port, prompt text, and optional delegates.
+ *
+ * Built by {@link AgentService} from bundled `agent.toml` (and the referenced prompt file), not registered as a Nest provider.
  */
 export interface AgentConfiguration {
     /**
-     * The id of the agent.
+     * Stable key for storage and {@link AgentDecision} delegation; matches manifest `id` (`agent.toml`).
      */
     readonly id: string;
 
     /**
-     * The descriptor of the agent.
+     * Display name, {@link AgentDescriptor.role | role}, allowed skills, capabilities, and description for prompts / routing.
      */
     readonly descriptor: AgentDescriptor;
 
     /**
-     * The system prompt of the agent.
-     */
-    readonly systemPrompt: string;
-
-    /**
-     * The LLM of the agent.
+     * Port used by {@link PromptDrivenAgent.decide} for the structured JSON {@link AgentDecision} call (e.g. OpenAI-backed client).
      */
     readonly llm: LLM;
 
     /**
-     * The delegate agent ids of the agent.
+     * Agent ids this instance may hand off to via **delegate**; listed in the user prompt as available delegates.
+     * Omitted or empty when the agent never delegates. Matches manifest `delegates_to` when present.
      */
     readonly delegateAgentIds?: readonly string[];
+
+    /**
+     * System instructions prepended to the LLM for every {@link PromptDrivenAgent.decide} call; loaded from the manifest’s prompt file.
+     */
+    readonly systemPrompt: string;
 }

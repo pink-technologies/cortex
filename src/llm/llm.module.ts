@@ -3,19 +3,18 @@
 
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-
-import { OpenAILLMClient } from './client/openai/openai-llm.client';
-import {
-    LLMAPIKeyNotConfiguredError,
-    LLMDefaultModelNotConfiguredError,
-} from './error/error';
+import { OpenAILLM } from './openai/openai-llm';
+import { LLMAPIKeyNotConfiguredError, LLMDefaultModelNotConfiguredError } from './error/error';
 import type { LLMModel } from './provider/llm-provider';
 import { OpenAIProvider } from './provider/llm-provider';
-import { DEFAULT_LLM_MODEL_TOKEN, LLM_TOKEN } from './llm.tokens';
+import { DEFAULT_LLM_MODEL_TOKEN, LLM_TOKEN } from './llm';
 
 const OPENAI_API_KEY_ENV = 'OPENAI_API_KEY';
 const LLM_DEFAULT_MODEL_ENV = 'LLM_DEFAULT_MODEL';
 
+// TODO: Configuration Key for LLM is wrong here - need to fix it
+// The model should be loaded and registered with their configurations
+// Stored
 @Module({
     imports: [ConfigModule],
     providers: [
@@ -25,37 +24,37 @@ const LLM_DEFAULT_MODEL_ENV = 'LLM_DEFAULT_MODEL';
             inject: [ConfigService],
             useFactory: (config: ConfigService): LLMModel => {
                 const raw = config.get<string>(LLM_DEFAULT_MODEL_ENV)?.trim();
+
                 if (!raw) {
                     throw new LLMDefaultModelNotConfiguredError();
                 }
+
                 return raw;
             },
         },
         {
-            provide: OpenAILLMClient,
+            provide: OpenAILLM,
             inject: [ConfigService, OpenAIProvider, DEFAULT_LLM_MODEL_TOKEN],
-            useFactory: (
-                config: ConfigService,
-                openAiProvider: OpenAIProvider,
-                defaultModel: LLMModel,
-            ): OpenAILLMClient => {
+            useFactory: (config: ConfigService, openAiProvider: OpenAIProvider, defaultModel: LLMModel): OpenAILLMClient => {
                 const apiKey = config.get<string>(OPENAI_API_KEY_ENV)?.trim();
+                
                 if (!apiKey) {
                     throw new LLMAPIKeyNotConfiguredError();
                 }
-                return new OpenAILLMClient(apiKey, openAiProvider, defaultModel);
+
+                return new OpenAILLM(apiKey, openAiProvider, defaultModel);
             },
         },
         {
             provide: LLM_TOKEN,
-            useExisting: OpenAILLMClient,
+            useExisting: OpenAILLM,
         },
     ],
     exports: [
-        LLM_TOKEN,
         DEFAULT_LLM_MODEL_TOKEN,
-        OpenAILLMClient,
+        LLM_TOKEN,
+        OpenAILLM,
         OpenAIProvider,
     ],
 })
-export class LLMModule { }
+export class LLMModule {}

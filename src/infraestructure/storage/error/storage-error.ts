@@ -29,13 +29,13 @@ export abstract class StorageError extends Error {
  * This typically occurs when the storage backend is unavailable
  * or the operation times out before completion.
  */
-export class StorageDeleteError extends StorageError {
+export class StorageDeletionError extends StorageError {
   // MARK: - Properties
 
   /**
    * A machine-readable error code identifying storage delete failures.
    */
-  readonly code = 'DELETE_FAILED';
+  readonly code = 'STORAGE_DELETION_FAILED';
 }
 
 /**
@@ -60,13 +60,13 @@ export class StorageInitializationError extends StorageError {
  * the requested key does not exist in a non-nullable context,
  * or a serialization/deserialization error happens during the read.
  */
-export class StorageReadError extends StorageError {
+export class ReadStorageError extends StorageError {
   // MARK: - Properties
 
   /**
    * A machine-readable error code identifying storage read failures.
    */
-  readonly code = 'READ_FAILED';
+  readonly code = 'READ_STORAGE_FAILED';
 }
 
 /**
@@ -81,5 +81,5 @@ export class StorageWriteError extends StorageError {
   /**
    * A machine-readable error code identifying storage write failures.
    */
-  readonly code = 'WRITE_FAILED';
+  readonly code = 'STORAGE_WRITE_FAILED';
 }

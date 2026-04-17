@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { OpenAiErrorCode, OpenAILLMError } from '@/llm/client/openai/error/error';
+import { OpenAiErrorCode, OpenAILLMError } from '@/llm/openai/error/error';
 import { I18nService } from '../../i18n';
 import {
     BadRequestException,

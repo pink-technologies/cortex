@@ -20,7 +20,14 @@ import type {
 export class PromptDrivenAgent implements Agent {
   // MARK: - Constructor
 
-  constructor(private readonly configuration: AgentConfiguration) { }
+  /**
+   * Creates a prompt-driven agent backed by the given static wiring.
+   *
+   * @param configuration - {@link AgentConfiguration}: `id`, {@link AgentDescriptor}, `systemPrompt`,
+   *   {@link LLM} port, and optional `delegateAgentIds`. Used for {@link Agent.id},
+   *   {@link Agent.descriptor}, and {@link Agent.decide} (LLM call + prompt assembly).
+   */
+  constructor(private readonly configuration: AgentConfiguration) {}
 
   // MARK: - Agent
 
@@ -41,8 +48,6 @@ export class PromptDrivenAgent implements Agent {
   get descriptor(): AgentDescriptor {
     return this.configuration.descriptor;
   }
-
-  // MARK: - Instance methods
 
   /**
    * Decides the next step for this turn: delegate, respond, or invoke a skill.
@@ -74,14 +79,14 @@ export class PromptDrivenAgent implements Agent {
     const delegates = delegateAgentIds ?? [];
     const skills = descriptor.allowedSkillIds.join(', ') || 'none';
     const capabilities = descriptor.capabilities.join(', ') || 'none';
-    const delegatesLine = delegates.join(', ') || 'none';
+    const delegatesTo = delegates.join(', ') || 'none';
 
     return [
       `Execution id: ${context.executionId}`,
       `User message:\n${context.message}`,
       `Available skills: ${skills}`,
       `Available capabilities: ${capabilities}`,
-      `Available delegates: ${delegatesLine}`,
+      `Available delegates: ${delegatesTo}`,
     ].join('\n\n');
   }
 }

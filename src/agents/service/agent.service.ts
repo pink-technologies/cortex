@@ -3,18 +3,15 @@
 
 import { readFile, readdir } from 'fs/promises';
 import path from 'path';
-
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-
-import { OpenAILLMClient } from '@/llm/client/openai/openai-llm.client';
-import { TomlParser } from '@/shared/types';
-
-import { AgentRoleDto, AgentSchema, agentSchema } from '../schema/agent/agent.schema';
+import { OpenAILLMClient } from '@/llm/openai/openai-llm';
 import type { Storage } from '@/infraestructure/storage/storage';
 import { STORAGE } from '@/infraestructure/storage/storage.tokens';
-import { Agent, AgentContext, AgentRole } from '../agent';
-import { AGENTS_BUNDLED_ROOT } from '../agents.tokens';
-
+import { Agent, AgentRole } from '../agent';
+import { BUNDLED_AGENTS_ROOT } from '../agents.tokens';
+import { agentSchema } from '../schema/agent/agent.schema';
+import { PromptDrivenAgent } from '../prompt-driven/prompt-driven-agent';
+import { DECODER, type Decoder } from '@/shared/types';
 import {
   AgentAlreadyRegisteredError,
   AgentFileLoadError,
@@ -22,35 +19,38 @@ import {
   InvalidAgentRoleError,
   NoEntryOrchestratorAgentError,
 } from './error/error';
-import { PromptDrivenAgent } from '../prompt-driven/prompt-driven-agent';
 
 /**
- * Loads agents from TOML files under the directory injected as {@link AGENTS_BUNDLED_ROOT}
+ * Loads agents from TOML files under the directory injected as {@link BUNDLED_AGENTS_ROOT}
  * (wired in `AgentsModule` from `AGENTS_BUNDLED_ROOT` in env — same pattern as `REDIS_URL` in `StorageModule`).
  */
 @Injectable()
 export class AgentService implements OnModuleInit {
-    /** Deduplicates concurrent or repeated loads (e.g. {@link AGENT} factory vs {@link onModuleInit}). */
-    private loadPromise: Promise<void> | null = null;
-
-    /** Id of the single bundled agent with role MAIN (entry orchestrator for {@link AGENT}). */
+    // MARK: - Properties
+    
     private mainAgentId: string | null = null;
 
     // MARK: - Constructor
 
     /**
-     * @param storage - Storage service for agents.
-     * @param tomlParser - Toml parser for agents.
-     * @param agentsTomlPath - Absolute path to the directory that contains the agents.
+     * Wires persistence, TOML decoding, bundled agent root, and the LLM used when building {@link PromptDrivenAgent} instances.
+     *
+     * Token bindings are defined in {@link AgentsModule} (`STORAGE`, {@link DECODER}, {@link BUNDLED_AGENTS_ROOT}, `LLMModule`).
+     *
+     * @param llm - {@link OpenAILLMClient} from `LLMModule`; passed into each {@link PromptDrivenAgent} for {@link Agent.decide}.
+     * @param bundledAgentsPath - Injected via {@link BUNDLED_AGENTS_ROOT}; absolute directory path scanned for `*.toml` agent manifests.
+     * @param decoder - Injected via {@link DECODER} as {@link Decoder}; parses agent `.toml` (syntax) and optional refine step (e.g. Zod).
+     * @param storage - Injected via {@link STORAGE}; stores and loads {@link Agent} instances by id after load.
      */
     constructor(
+        private readonly llm: OpenAILLMClient,
+        @Inject(BUNDLED_AGENTS_ROOT)
+        private readonly bundledAgentsPath: string,
+        @Inject(DECODER)
+        private readonly decoder: Decoder,
         @Inject(STORAGE)
         private readonly storage: Storage,
-        private readonly tomlParser: TomlParser,
-        @Inject(AGENTS_BUNDLED_ROOT)
-        private readonly agentsTomlPath: string,
-        private readonly llm: OpenAILLMClient,
-    ) { }
+    ) {}
 
     // MARK: - OnModuleInit
 
@@ -58,49 +58,78 @@ export class AgentService implements OnModuleInit {
      * Loads the agent from the TOML file when the module boots.
      */
     async onModuleInit(): Promise<void> {
-        await this.ensureLoaded();
+        await this.loadAndRegisterAgents();
     }
 
     // MARK: - Instance methods
 
     /**
-     * Resolves an agent previously persisted under {@link Agent.id} after bundled agents are loaded.
+     * Looks up a bundled agent by {@link Agent.id} after {@link load} has written it to {@link STORAGE}.
+     *
+     * Awaits {@link ensureLoaded} first so the registry is populated. Returns `null` when no value exists
+     * for `id` (same contract as {@link Storage.read}).
+     *
+     * @param id - The agent id from manifest `agent.toml` (`schema.id`).
+     * @returns The persisted {@link Agent}, or `null` if absent.
      */
-    async getAgentById(id: string): Promise<Agent | null> {
-        await this.ensureLoaded();
+    async find(id: string): Promise<Agent | null> {
         return this.storage.read<Agent>(id);
     }
 
     /**
-     * The bundled MAIN orchestrator used by the kernel ({@link AGENT} injection token).
+     * Returns the bundled orchestrator agent: the one registered during {@link load} as the single
+     * {@link AgentRole.Assistant} (manifest `MAIN`), tracked in-memory as {@link AgentService.mainAgentId}.
+     *
+     * Awaits {@link ensureLoaded} first so storage and `mainAgentId` are populated. The instance is then
+     * read from {@link STORAGE} by id — callers get the same object shape as {@link find}.
+     *
+     * Wired for the kernel’s {@link AGENT} provider in {@link AgentsModule}.
+     *
+     * @returns The persisted {@link Agent} for the main orchestrator.
+     * @throws {@link NoEntryOrchestratorAgentError} When no main id was recorded during load, or storage has no row for that id.
      */
-    async getEntryOrchestratorAgent(): Promise<Agent> {
-        await this.ensureLoaded();
+    async getMainAssistant(): Promise<Agent> {
         if (!this.mainAgentId) {
             throw new NoEntryOrchestratorAgentError();
         }
+
         const agent = await this.storage.read<Agent>(this.mainAgentId);
+
         if (!agent) {
             throw new NoEntryOrchestratorAgentError();
         }
+
         return agent;
     }
 
-    /**
-     * Loads the agents from the TOML files.
-     */
-    async load(): Promise<void> {
+    // MARK: - Private methods
+
+    private async loadAndRegisterAgents(): Promise<void> {
         this.mainAgentId = null;
-        const entries = await readdir(this.agentsTomlPath, { withFileTypes: true });
+
+        const entries = await readdir(this.bundledAgentsPath, { withFileTypes: true });
 
         for (const entry of entries) {
             if (!entry.isDirectory()) {
                 continue;
             }
 
-            const filePath = path.join(this.agentsTomlPath, entry.name, 'agent.toml');
+            const filePath = path.join(this.bundledAgentsPath, entry.name, 'agent.toml');
+
             try {
-                await this.loadAgentFromFile(filePath);
+                const agent = await this.loadAgentFromFile(filePath);
+
+                if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
+
+                await this.storage.write(agent, agent.id);
+        
+                if (agent.descriptor.role === AgentRole.Assistant) {
+                    if (this.mainAgentId !== null) {
+                        throw new DuplicateMainAgentError();
+                    }
+        
+                    this.mainAgentId = agent.id;
+                }
             } catch {
                 throw new AgentFileLoadError();
             }
@@ -111,66 +140,28 @@ export class AgentService implements OnModuleInit {
         }
     }
 
-    // MARK: - Private methods
-
-    private ensureLoaded(): Promise<void> {
-        if (!this.loadPromise) {
-            this.loadPromise = this.load();
-        }
-        return this.loadPromise;
-    }
-
     private async loadAgentFromFile(filePath: string): Promise<Agent> {
-        const raw = await readFile(filePath, "utf8");
-        const parsed = this.tomlParser.parser<unknown>(raw);
-        const dto = agentSchema.parse(parsed);
-        const schema = AgentSchema.from(dto);
-        const agentDir = path.dirname(filePath);
-        const prompt = await readFile(path.join(agentDir, dto.prompt_file), "utf8");
-        const agent = this.schemaToAgent(schema, prompt);
-
-        if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
-
-        await this.storage.write(agent, agent.id);
-
-        if (dto.role === 'MAIN') {
-            if (this.mainAgentId !== null) {
-                throw new DuplicateMainAgentError();
-            }
-            this.mainAgentId = agent.id;
-        }
-
-        return agent;
-    }
-
-    private schemaToAgent(agent: AgentSchema, prompt: string): Agent {
-        const schema = agent.schema;
-        const role = this.schemaRoleToAgent(schema.role);
-        const delegateAgentIds = schema.delegates_to.filter((delegate) => delegate.length > 0);
-        const descriptor = {
-            name: schema.name,
-            role,
-            allowedSkillIds: schema.skills.filter((skill) => skill.length > 0),
-            capabilities: schema.capabilities.filter((capability) => capability.length > 0),
-            description: schema.description,
-        };
-
-        const promptDriven = new PromptDrivenAgent({
-            id: schema.id,
-            descriptor,
-            systemPrompt: prompt,
+        const rawAgents = await readFile(filePath, "utf8");
+        const schema = this.decoder.decode(rawAgents, (v) => agentSchema.parse(v));
+        const promptFilePath = path.join(path.dirname(filePath), schema.prompt_file);
+        const systemPrompt = await readFile(promptFilePath, "utf8");
+        
+        return new PromptDrivenAgent({
+            id: schema.id,            
             llm: this.llm,
-            delegateAgentIds,
+            systemPrompt,
+            delegateAgentIds: schema.delegates_to.filter((delegate) => delegate.length > 0),
+            descriptor: {
+                name: schema.name,
+                role: this.schemaRoleToAgent(schema.role),
+                allowedSkillIds: schema.skills.filter((skill) => skill.length > 0),
+                capabilities: schema.capabilities.filter((capability) => capability.length > 0),
+                description: schema.description,
+            }
         });
-
-        return {
-            id: schema.id,
-            descriptor,
-            decide: (context: AgentContext) => promptDriven.decide(context),
-        };
     }
 
-    private schemaRoleToAgent(role: AgentRoleDto): AgentRole {
+    private schemaRoleToAgent(role: string): AgentRole {
         switch (role) {
             case "MAIN":
                 return AgentRole.Assistant;

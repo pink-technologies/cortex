@@ -2,6 +2,14 @@
 // https://pink-tech.io/
 
 /**
+ * Injection token for the Storage abstraction.
+ *
+ * Use this token to inject the storage implementation so consumers depend
+ * on the interface rather than the concrete Redis implementation.
+ */
+export const STORAGE = Symbol('STORAGE');
+
+/**
  * Key-value storage: {@link read} / {@link write} / {@link delete} (async).
  * Same role as sync `get`/`set` on a map; only the async surface is exposed.
  *

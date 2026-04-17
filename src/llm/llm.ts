@@ -1,11 +1,42 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { InjectionToken } from "@nestjs/common";
 import { LLMModel } from "./provider/llm-provider";
 
 /**
- * String constants for OpenAI-style chat roles used in {@link LLMMessage} and
- * {@link LlmChatResult}.
+ * Nest DI token for the {@link LLM} port (model client: chat/stream via vendor SDKs, {@link LLMResponse} out).
+ *
+ * Bind to {@link OpenAILLMClient} today; swap in another {@link LLM} implementation
+ * (e.g. Anthropic) or a router provider later without changing call sites that inject this token.
+ */
+export const LLM_TOKEN: InjectionToken<LLM> = Symbol('LLM');
+
+/**
+ * Resolved default chat model id when callers do not override (e.g. agents). Wired in
+ * {@link LLMModule} from the `LLM_DEFAULT_MODEL` environment variable (required).
+ */
+export const DEFAULT_LLM_MODEL_TOKEN: InjectionToken<LLMModel> = Symbol('DEFAULT_LLM_MODEL');
+
+/**
+ * Discriminants for blocks inside {@link LLMMessage.content} (text, image, tool use, tool result).
+ */
+export const ContentKind = {
+    /** Inline or referenced image block. */
+    Image: 'image',
+    /** Plain text segment. */
+    Text: 'text',
+    /** Model-requested tool invocation. */
+    ToolUse: 'tool_use',
+    /** Tool execution result for the model context. */
+    ToolResult: 'tool_result',
+} as const;
+
+/** Union of {@link ContentKind} string literals. */
+export type ContentKind = (typeof ContentKind)[keyof typeof ContentKind];
+
+/**
+ * OpenAI-style chat roles on {@link LLMMessage} and {@link LLMResponse}.
  */
 export const MessageRole = {
     /**
@@ -33,89 +64,114 @@ export const MessageRole = {
 export type MessageRole = (typeof MessageRole)[keyof typeof MessageRole];
 
 /**
- * A system-role message: high-priority instructions that steer the model for the request.
- */
-export interface LLMSystemMessage {
-    /**
-     * The content of the system message.
-     */
-    content: string;
-
-    /**
-     * The role of the system message.
-     */
-    role: typeof MessageRole.System;
-}
-
-/**
- * A tool-role message: the result of running a tool the assistant asked for.
- */
-export interface LLMToolMessage {
-    /**
-     * The content of the tool message.
-     */
-    content: string;
-
-    /**
-     * The role of the tool message.
-     */
-    role: typeof MessageRole.Tool;
-
-    /**
-     * The ID of the tool call.
-     */
-    toolCallId: string;
-
-    /**
-     * The name of the tool.
-     */
-    toolName: string;
-}
-
-/**
- * End-user or caller turn (chat history, current request, or a placeholder when only system
- * instructions are provided).
- */
-export interface LLMUserMessage {
-    /**
-     * The content of the user message.
-     */
-    content: string;
-
-    /**
-     * The role of the user message.
-     */
-    role: typeof MessageRole.User;
-}
-
-/**
- * Prior assistant output in a multi-turn thread (replay for the next completion).
- */
-export interface LLMAssistantMessage {
-    /**
-     * The content of the assistant message.
-     */
-    content: string;
-
-    /**
-     * The role of the assistant message.
-     */
-    role: typeof MessageRole.Assistant;
-}
-
-/**
- * A message in {@link LLMGenerateInput.messages}: system, user, assistant, and/or tool rows
- * for one {@link LLM.generate} call.
+ * Discriminants for {@link StreamEvent.type} in {@link LLM.stream} sequences.
  *
- * **`LLMSystemMessage`** — merged with `systemPrompt` by adapters as needed.
- * **`LLMUserMessage`** / **`LLMAssistantMessage`** — multi-turn chat.
- * **`LLMToolMessage`** — tool execution result paired with a prior {@link LLMToolCall}.
+ * - **`done`** — successful completion of the stream.
+ * - **`error`** — terminal failure.
+ * - **`text`** / **`tool_use`** / **`tool_result`** — incremental payload chunks when streaming.
  */
-export type LLMMessage =
-    | LLMSystemMessage
-    | LLMUserMessage
-    | LLMAssistantMessage
-    | LLMToolMessage;
+export const StreamEventType = {
+    /** Terminal stream failure. */
+    Error: 'error',
+
+    /** Stream finished successfully. */
+    Done: 'done',
+
+    /** Incremental assistant text. */
+    Text: 'text',
+
+    /** Streaming tool-call fragment. */
+    ToolUse: 'tool_use',
+
+    /** Streaming tool result fragment. */
+    ToolResult: 'tool_result',
+} as const;
+
+/** Union of {@link StreamEventType} string literals. */
+export type StreamEventType = (typeof StreamEventType)[keyof typeof StreamEventType];
+
+/**
+ * One turn in the chat transcript passed to {@link LLM.chat} / {@link LLM.stream}.
+ */
+export interface LLMMessage {
+    /**
+     * Multimodal body for this turn: text segments, images, model tool calls, or tool results.
+     */
+    readonly content: Content[];
+
+    /**
+     * Who produced this turn (`user`, `assistant`, `system`, or `tool` per provider mapping).
+     */
+    readonly role: MessageRole;
+}
+
+/**
+ * Inline image part for a user (or model) message; maps to provider vision APIs after encoding.
+ */
+export interface ImageContent {
+    /** Always {@link ContentKind.Image}. */
+    readonly type: typeof ContentKind.Image;
+
+    /**
+     * Payload carrier; today only base64 inline bytes (extend with URL or file ids per vendor later).
+     */
+    readonly source: {
+        /** Base64-encoded image bytes (no `data:` URL prefix unless your adapter strips it). */
+        readonly data: string;
+
+        /** IANA media type, e.g. `image/png`, `image/jpeg`. */
+        readonly mediaType: string;
+
+        /** Encoding discriminator; inline base64. */
+        readonly type: 'base64';
+    };
+}
+
+/** Plain text segment inside {@link LLMMessage.content}. */
+export interface TextContent {
+    /** UTF-8 text for this block. */
+    readonly text: string;
+
+    /** Always {@link ContentKind.Text}. */
+    readonly type: typeof ContentKind.Text;
+}
+
+/**
+ * Model-initiated tool invocation (Anthropic-style block); adapters map to OpenAI `tool_calls` as needed.
+ */
+export interface ToolUseContent {
+    /** Provider tool call id for correlating with {@link ToolResultContent}. */
+    readonly id: string;
+
+    /** Parsed JSON arguments for the named tool. */
+    readonly input: Record<string, unknown>;
+
+    /** Registered tool name. */
+    readonly name: string;
+
+    /** Always {@link ContentKind.ToolUse}. */
+    readonly type: typeof ContentKind.ToolUse;
+}
+
+/**
+ * Outcome of running a tool the model requested; pairs with {@link ToolUseContent} via {@link ToolResultContent.toolUseId}.
+ */
+export interface ToolResultContent {
+    /** Serialized result or error text for the model context. */
+    readonly content: string;
+
+    /** When true, adapters may mark the block as an error without throwing. */
+    readonly isError?: boolean;
+
+    /** Matches {@link ToolUseContent.id} from the originating tool request. */
+    readonly toolUseId: string;
+
+    /** Always {@link ContentKind.ToolResult}. */
+    readonly type: typeof ContentKind.ToolResult;
+}
+
+/** A single block inside {@link LLMMessage.content}. */
+export type Content = TextContent | ToolUseContent | ToolResultContent | ImageContent;
 
 /**
  * Declares a function the model may call for this request (capabilities you expose).
@@ -138,183 +194,128 @@ export interface LLMToolDefinition {
 }
 
 /**
- * One assistant-requested tool invocation, as emitted by the provider (e.g. OpenAI
- * `tool_calls` / function calls).
+ * Token counts returned by the provider for billing and limits (names align with common API fields).
  */
-export interface LLMToolCall {
-    /**
-     * The ID of the tool call.
-     */
-    id: string;
+export interface TokenUsage {
+    /** Tokens charged on the prompt / context side. */
+    readonly inputTokens: number;
 
-    /**
-     * The name of the tool call.
-     */
-    name: string;
-
-    /**
-     * The arguments of the tool call.
-     */
-    arguments: string;
-
-    /**
-     * The type of the tool call.
-     */
-    type: 'function' | 'custom';
-
-    /**
-     * The index of the tool call.
-     */
-    index?: number;
+    /** Tokens generated in the completion. */
+    readonly outputTokens: number;
 }
 
 /**
- * Controls whether and how the model may invoke tools from `LLMGenerateInput.tools`.
+ * Normalized outcome of {@link LLM.chat} (non-streaming).
  */
-export type LLMToolChoice = 'auto' | 'required' | 'none' | { name: string };
-
-/**
- * Structured output mode for the assistant reply when the backend supports it.
- */
-export type LLMResponseFormat =
-    | { type: 'text' }
-    | { type: 'json' }
-    | { type: 'json_schema'; schema: unknown };
-
-/**
- * Result of one {@link LLM.generate} call: assistant payload, tool activity, and trace
- * fields for logging or persistence.
- */
-export interface LlmChatResult {
-    /** 
-     * The ID of the result.
+export interface LLMResponse {
+    /**
+     * Provider completion id when available (for logs, idempotency, or tracing).
      */
     id: string;
 
     /**
-     * The content of the result.
+     * Assistant-side payload: typically {@link TextContent} and/or {@link ToolUseContent} blocks.
      */
-    content: string;
+    content: Content[];
 
     /**
-     * The model of the result.
+     * Model id that produced the reply (may differ from the requested id if the provider normalizes it).
      */
     model: LLMModel;
 
     /**
-     * The role of the result.
+     * Provider stop reason string (e.g. `stop`, `length`, `tool_calls`, vendor-specific).
      */
-    role: MessageRole;
+    stopReason: string;
+
     /**
-     * The tool calls of the result.
+     * Token usage for this completion.
      */
-    toolCalls: LLMToolCall[];
-    /**
-     * The tool results of the result.
-     */
-    toolResults: Record<string, any>;
+    usage: TokenUsage;
 }
 
 /**
- * Chat request: which provider/model to use plus the message list.
+ * Cross-provider options for a single model request (model id, sampling, output shape, tools, etc.).
+ * Callers may merge these with other fields on a larger input object; implementations map them to each vendor’s API.
  */
-export interface LLMGenerateInput {
+export interface LLMOptions {
     /**
-     * The model to use. When omitted, the {@link LLM} implementation applies its configured
-     * default (wired in the concrete client, e.g. from `LLM_DEFAULT_MODEL`).
+     * Chat model id (provider-specific). When omitted, the client uses its configured default model.
      */
-    model?: LLMModel;
+    model: LLMModel;
 
     /**
-     * The messages to use.
-     */
-    messages: LLMMessage[];
-
-    /**
-     * The system prompt to use.
+     * System-level instructions for this request; usually emitted as a `system` message before
+     * the conversational `messages` list.
      */
     systemPrompt?: string;
 
     /**
-     * The temperature to use.
+     * Sampling temperature when the provider supports it (e.g. OpenAI `temperature`).
      */
     temperature?: number;
 
     /**
-     * The maximum output tokens to use.
+     * Maximum tokens in the completion (e.g. OpenAI `max_tokens`).
      */
     maxOutputTokens?: number;
 
     /**
-     * The top P to use.
+     * Per-request client timeout in milliseconds when the adapter supports it.
      */
-    topP?: number;
+    timeout?: number;
 
     /**
-     * The stop sequences to use.
-     */
-    stopSequences?: string[];
-
-    /**
-     * The frequency penalty to use.
-     */
-    frequencyPenalty?: number;
-
-    /**
-     * The presence penalty to use.
-     */
-    presencePenalty?: number;
-
-    /**
-     * The tools to use.
+     * Tool definitions for this turn (provider function-calling). Pair with `toolChoice` on the
+     * full input type where the adapter exposes it.
      */
     tools?: LLMToolDefinition[];
-
+    
     /**
-     * The tool choice to use.
+     * Abort signal for the request.
      */
-    toolChoice?: LLMToolChoice;
-
-    /**
-     * The response format to use.
-     */
-    responseFormat?: LLMResponseFormat;
-
-    /**
-     * The metadata to use.
-     */
-    metadata?: Record<string, string>;
-
-    /**
-     * The conversation ID to use.
-     */
-    conversationId?: string;
-
-    /**
-     * The request ID to use.
-     */
-    requestId?: string;
-
-    /**
-     * The timeout to use.
-     */
-    timeoutMs?: number;
+    abortSignal?: AbortSignal;
 }
 
 /**
- * Hexagonal-style port: domain and application code depend on this contract; adapters
- * implement it with concrete SDKs (OpenAI, Anthropic, Ollama, local runners, etc.).
+ * One chunk in the {@link LLM.stream} async sequence; interpret via {@link StreamEvent.type}.
+ */
+export interface StreamEvent {
+    /**
+     * Event kind; terminal success uses {@link StreamEventType.Done}, failure {@link StreamEventType.Error}.
+     */
+    readonly type: StreamEventType;
+
+    /**
+     * Payload shape depends on `type` (e.g. text delta, tool fragment, error detail).
+     */
+    readonly data: unknown;
+}
+
+/**
+ * Hexagonal-style port: domain code depends on this contract; adapters implement it with concrete SDKs
+ * (OpenAI, Anthropic, Ollama, local runners, etc.).
  *
- * Use it from Nest services or use cases so HTTP clients, authentication, retries, and
- * vendor quirks stay behind one boundary. Callers work only with {@link LLMGenerateInput}
- * and {@link LlmChatResult}.
+ * Callers pass {@link LLMMessage}[] + {@link LLMOptions}; implementations return {@link LLMResponse} or a
+ * {@link StreamEvent} sequence.
  */
 export interface LLM {
     /**
-     * Generate a chat response from the model.
-     * 
-     * @param input - The input for the chat request.
-     * @returns The result of the chat request.
+     * Runs a single chat completion and returns the full result.
+     *
+     * @param messages - Conversation history and current turn, in order.
+     * @param options - Model override, system prompt, sampling, tools, timeout, etc.
+     * @returns Normalized {@link LLMResponse} including {@link LLMResponse.content} and {@link LLMResponse.usage}.
+     * @throws On non-retryable API or adapter errors.
      */
-    generate(input: LLMGenerateInput): Promise<LlmChatResult>;
+    chat(messages: LLMMessage[], options: LLMOptions): Promise<LLMResponse>;
+
+    /**
+     * Streams a chat completion as an async iterable of {@link StreamEvent}.
+     *
+     * @param messages - Same as {@link LLM.chat}.
+     * @param options - Same as {@link LLM.chat}.
+     * @returns Async iterable; on success the last event uses {@link StreamEventType.Done}, on failure {@link StreamEventType.Error}.
+     */
+    stream(messages: LLMMessage[], options: LLMOptions): AsyncIterable<StreamEvent>;
 }
