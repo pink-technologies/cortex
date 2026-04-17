@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { MessageRole } from '@/llm/llm';
+import { ContentKind, MessageRole, type TextContent } from '@/llm/llm';
 import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
 import { AgentConfiguration } from '../agent.config';
 import type {
@@ -23,7 +23,7 @@ export class PromptDrivenAgent implements Agent {
   /**
    * Creates a prompt-driven agent backed by the given static wiring.
    *
-   * @param configuration - {@link AgentConfiguration}: `id`, {@link AgentDescriptor}, `systemPrompt`,
+   * @param configuration - {@link AgentConfiguration}: `id`, {@link AgentDescriptor}, `model`, `systemPrompt`,
    *   {@link LLM} port, and optional `delegateAgentIds`. Used for {@link Agent.id},
    *   {@link Agent.descriptor}, and {@link Agent.decide} (LLM call + prompt assembly).
    */
@@ -56,19 +56,32 @@ export class PromptDrivenAgent implements Agent {
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
   async decide(context: AgentContext): Promise<AgentDecision> {
-    const { llm, systemPrompt } = this.configuration;
-    const result = await llm.generate({
-      systemPrompt,
-      messages: [
+    const { llm, systemPrompt, model } = this.configuration;
+    const result = await llm.chat(
+      [
         {
           role: MessageRole.User,
-          content: this.buildPrompt(context),
+          content: [
+            {
+              type: ContentKind.Text,
+              text: this.buildPrompt(context),
+            },
+          ],
         },
       ],
-      responseFormat: { type: 'json' },
-    });
+      {
+        model,
+        systemPrompt,
+      },
+    );
 
-    const raw = JSON.parse(result.content) as unknown;
+    const assistantText = result.content
+      .filter((block): block is TextContent => block.type === ContentKind.Text)
+      .map((block) => block.text)
+      .join('')
+      .trim();
+
+    const raw = JSON.parse(assistantText) as unknown;
     return agentDecisionSchema.parse(raw);
   }
 

@@ -4,9 +4,11 @@
 import { readFile, readdir } from 'fs/promises';
 import path from 'path';
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { OpenAILLMClient } from '@/llm/openai/openai-llm';
+import { OpenAILLM } from '@/llm/openai/openai-llm';
+import { DEFAULT_LLM_MODEL_TOKEN } from '@/llm/llm';
+import type { LLMModel } from '@/llm';
 import type { Storage } from '@/infraestructure/storage/storage';
-import { STORAGE } from '@/infraestructure/storage/storage.tokens';
+import { STORAGE } from '@/infraestructure/storage';
 import { Agent, AgentRole } from '../agent';
 import { BUNDLED_AGENTS_ROOT } from '../agents.tokens';
 import { agentSchema } from '../schema/agent/agent.schema';
@@ -40,10 +42,13 @@ export class AgentService implements OnModuleInit {
      * @param llm - {@link OpenAILLMClient} from `LLMModule`; passed into each {@link PromptDrivenAgent} for {@link Agent.decide}.
      * @param bundledAgentsPath - Injected via {@link BUNDLED_AGENTS_ROOT}; absolute directory path scanned for `*.toml` agent manifests.
      * @param decoder - Injected via {@link DECODER} as {@link Decoder}; parses agent `.toml` (syntax) and optional refine step (e.g. Zod).
+     * @param defaultLlmModel - Injected via {@link DEFAULT_LLM_MODEL_TOKEN}; passed into each {@link PromptDrivenAgent} as {@link AgentConfiguration.model}.
      * @param storage - Injected via {@link STORAGE}; stores and loads {@link Agent} instances by id after load.
      */
     constructor(
-        private readonly llm: OpenAILLMClient,
+        private readonly llm: OpenAILLM,
+        @Inject(DEFAULT_LLM_MODEL_TOKEN)
+        private readonly defaultLlmModel: LLMModel,
         @Inject(BUNDLED_AGENTS_ROOT)
         private readonly bundledAgentsPath: string,
         @Inject(DECODER)
@@ -147,7 +152,8 @@ export class AgentService implements OnModuleInit {
         const systemPrompt = await readFile(promptFilePath, "utf8");
         
         return new PromptDrivenAgent({
-            id: schema.id,            
+            id: schema.id,
+            model: this.defaultLlmModel,
             llm: this.llm,
             systemPrompt,
             delegateAgentIds: schema.delegates_to.filter((delegate) => delegate.length > 0),

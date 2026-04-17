@@ -9,8 +9,7 @@ import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { DECODER, type Decoder } from "@/shared/types";
 
 import { SkillSchema, skillSchema } from "../schema/skill.schema";
-import type { Storage } from "@/infraestructure/storage/storage";
-import { STORAGE } from "@/infraestructure/storage/storage.tokens";
+import { STORAGE, type Storage } from "@/infraestructure/storage/storage";
 import { SKILLS_BUNDLED_ROOT } from "../skill.tokens";
 import { Skill } from "../skill";
 

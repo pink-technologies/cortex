@@ -11,7 +11,7 @@ import {
 } from "@/agents";
 
 import type { Storage } from "@/infraestructure/storage/storage";
-import { STORAGE } from "@/infraestructure/storage/storage.tokens";
+import { STORAGE } from "@/infraestructure/storage";
 import { KernelAgentNotFoundError, KernelInvalidDecisionTypeError, SkillDecisionTypeNotSupportedError } from "../error/kernel.error";
 
 /**

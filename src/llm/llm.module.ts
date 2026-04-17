@@ -34,15 +34,15 @@ const LLM_DEFAULT_MODEL_ENV = 'LLM_DEFAULT_MODEL';
         },
         {
             provide: OpenAILLM,
-            inject: [ConfigService, OpenAIProvider, DEFAULT_LLM_MODEL_TOKEN],
-            useFactory: (config: ConfigService, openAiProvider: OpenAIProvider, defaultModel: LLMModel): OpenAILLMClient => {
+            inject: [ConfigService],
+            useFactory: (config: ConfigService): OpenAILLM => {
                 const apiKey = config.get<string>(OPENAI_API_KEY_ENV)?.trim();
                 
                 if (!apiKey) {
                     throw new LLMAPIKeyNotConfiguredError();
                 }
 
-                return new OpenAILLM(apiKey, openAiProvider, defaultModel);
+                return new OpenAILLM(apiKey);
             },
         },
         {

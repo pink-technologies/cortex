@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { AgentDescriptor } from "./agent";
-import { LLM } from "@/llm";
+import type { LLM, LLMModel } from "@/llm";
 
 /**
  * Static wiring for a {@link PromptDrivenAgent}: identity, persona, LLM port, prompt text, and optional delegates.
@@ -24,6 +24,11 @@ export interface AgentConfiguration {
      * Port used by {@link PromptDrivenAgent.decide} for the structured JSON {@link AgentDecision} call (e.g. OpenAI-backed client).
      */
     readonly llm: LLM;
+
+    /**
+     * Chat model id for {@link PromptDrivenAgent.decide} (typically the app default from `LLM_DEFAULT_MODEL`).
+     */
+    readonly model: LLMModel;
 
     /**
      * Agent ids this instance may hand off to via **delegate**; listed in the user prompt as available delegates.

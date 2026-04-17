@@ -2,8 +2,8 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import type { Storage } from '../../storage';
-import { StorageDeleteError, ReadStorageError, StorageWriteError } from '../../error/storage-error';
+import { StorageDeleteError, type Storage } from '../../storage';
+import { ReadStorageError, StorageWriteError } from '../error/storage-error';
 
 /**
  * Implementation of {@link Storage} backed by a {@link Map} (async API, in-memory).
