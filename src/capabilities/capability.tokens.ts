@@ -5,4 +5,4 @@
  * Injection token for the absolute path to the bundled capabilities directory
  * (each subdirectory may contain `capability.toml`).
  */
-export const CAPABILITIES_BUNDLED_ROOT = Symbol('CAPABILITIES_BUNDLED_ROOT');
+export const BUNDLED_CAPABILITIES_ROOT = Symbol('BUNDLED_CAPABILITIES_ROOT');

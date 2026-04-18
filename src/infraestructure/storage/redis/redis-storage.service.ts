@@ -2,15 +2,12 @@
 // https://pink-tech.io/
 
 import Redis from 'ioredis';
-import type { Storage } from '../../storage';
+import type { Storage } from '../storage';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import {
-    Injectable,
-    OnModuleDestroy,
-} from '@nestjs/common';
-import {
-    StorageDeleteError,
+    StorageDeletionError,
     StorageInitializationError,
-    StorageReadError,
+    ReadStorageError,
     StorageWriteError,
 } from '../error/storage-error';
 
@@ -81,7 +78,7 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
      * If the key does not exist, the operation is considered successful (no error thrown).
      *
      * @param key - Key to delete.
-     * @throws {StorageDeleteError} When the DEL operation fails.
+     * @throws {StorageDeletionError} When the DEL operation fails.
      *
      * @example
      * ```typescript
@@ -92,7 +89,7 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
         try {
             await this.client.del(key);
         } catch {
-            throw new StorageDeleteError();
+            throw new StorageDeletionError();
         }
     }
 
@@ -104,7 +101,7 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
      *
      * @param key - Key to query.
      * @returns Deserialized value, or `null` if key does not exist.
-     * @throws {StorageReadError} When the GET operation fails.
+     * @throws {ReadStorageError} When the GET operation fails.
      *
      * @example
      * ```typescript
@@ -120,7 +117,7 @@ export class RedisStorageService implements OnModuleDestroy, Storage {
 
             return JSON.parse(raw) as T;
         } catch {
-            throw new StorageReadError();
+            throw new ReadStorageError();
         }
     }
 

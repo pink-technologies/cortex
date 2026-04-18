@@ -4,11 +4,11 @@
 import path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { InMemoryStorageService } from '@/infraestructure/storage/service/in-memory/in-memory.service';
-import { STORAGE } from '@/infraestructure/storage/storage.tokens';
-import { TomlParser } from '@/shared/types';
+import { DECODER, TomlDecoder } from '@/shared/types';
 import { SKILLS_BUNDLED_ROOT } from './skill.tokens';
 import { SkillService } from './service/skill.service';
+import { STORAGE } from '@/infraestructure/storage';
+import { InMemoryStorageService } from '@/infraestructure/storage/in-memory/in-memory.service';
 
 @Module({
     controllers: [],
@@ -30,7 +30,7 @@ import { SkillService } from './service/skill.service';
                 return path.isAbsolute(root) ? root : path.join(process.cwd(), root);
             },
         },
-        TomlParser,
+        { provide: DECODER, useClass: TomlDecoder },
         SkillService,
     ],
 })

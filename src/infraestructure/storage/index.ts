@@ -1,10 +1,9 @@
-export { RedisStorageService } from './service/redis/redis-storage.service';
-export type { Storage } from './storage';
-export { STORAGE } from './storage.tokens';
+export { RedisStorageService } from './redis/redis-storage.service';
+export { type Storage, STORAGE } from './storage';
 export {
-  StorageDeleteError,
+  StorageDeletionError as StorageDeleteError,
   StorageError,
   StorageInitializationError,
-  StorageReadError,
+  ReadStorageError as StorageReadError,
   StorageWriteError,
-} from './service/error/storage-error';
+} from './error/storage-error';

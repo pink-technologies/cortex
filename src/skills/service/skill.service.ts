@@ -6,11 +6,10 @@ import path from "path";
 
 import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
 
-import { TomlParser } from "@/shared/types";
+import { DECODER, type Decoder } from "@/shared/types";
 
 import { SkillSchema, skillSchema } from "../schema/skill.schema";
-import type { Storage } from "@/infraestructure/storage/storage";
-import { STORAGE } from "@/infraestructure/storage/storage.tokens";
+import { STORAGE, type Storage } from "@/infraestructure/storage/storage";
 import { SKILLS_BUNDLED_ROOT } from "../skill.tokens";
 import { Skill } from "../skill";
 
@@ -26,13 +25,14 @@ export class SkillService implements OnModuleInit {
 
     /**
      * @param storage - Storage service for capabilities.
-     * @param tomlParser - Toml parser for capabilities.
+     * @param decoder - {@link Decoder} for skill manifests ({@link DECODER}).
      * @param capabilitiesTomlPath - Absolute path to the directory that contains the capabilities.
      */
     constructor(
         @Inject(STORAGE)
         private readonly storage: Storage,
-        private readonly tomlParser: TomlParser,
+        @Inject(DECODER)
+        private readonly decoder: Decoder,
         @Inject(SKILLS_BUNDLED_ROOT)
         private readonly skillsTomlPath: string,
     ) { }
@@ -85,8 +85,7 @@ export class SkillService implements OnModuleInit {
 
     private async loadSkillFromFile(filePath: string): Promise<Skill> {
         const raw = await readFile(filePath, "utf8");
-        const parsed = this.tomlParser.parser<unknown>(raw);
-        const dto = skillSchema.parse(parsed);
+        const dto = this.decoder.decode(raw, (v) => skillSchema.parse(v));
         const schema = SkillSchema.from(dto);
         const skill = this.schemaToSkill(schema);
 

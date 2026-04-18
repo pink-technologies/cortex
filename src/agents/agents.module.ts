@@ -5,34 +5,40 @@ import path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@/infraestructure/database/index';
-import { InMemoryStorageService } from '@/infraestructure/storage/service/in-memory/in-memory.service';
-import { STORAGE } from '@/infraestructure/storage/storage.tokens';
-import { TomlParser } from '@/shared/types';
+import { InMemoryStorageService } from '@/infraestructure/storage/in-memory/in-memory.service';
+import { STORAGE } from '@/infraestructure/storage';
+import { LLMModule } from '@/llm/llm.module';
 import { SkillsModule } from '../skills/skills.module';
-import { AGENTS_BUNDLED_ROOT } from './agents.tokens';
+import { AGENT, BUNDLED_AGENTS_ROOT, BUNDLED_AGENTS_ROOT_KEY } from './agents.tokens';
 import { AgentService } from './service/agent.service';
+import { DECODER, TomlDecoder } from '@/shared/types';
 
 @Module({
   controllers: [],
-  imports: [ConfigModule, DatabaseModule, SkillsModule],
-  exports: [AgentService, STORAGE],
+  imports: [ConfigModule, DatabaseModule, LLMModule, SkillsModule],
+  exports: [AgentService, STORAGE, AGENT],
   providers: [
+    { provide: DECODER, useClass: TomlDecoder },
+    AgentService,
+    {
+      provide: AGENT,
+      inject: [AgentService],
+      useFactory: (agentService: AgentService) => agentService.getMainAssistant(),
+    },
     {
       provide: STORAGE,
       useFactory: () => new InMemoryStorageService(new Map()),
     },
     {
-      provide: AGENTS_BUNDLED_ROOT,
+      provide: BUNDLED_AGENTS_ROOT,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const raw = config.get<string>('AGENTS_BUNDLED_ROOT')?.trim();
+        const raw = config.get<string>(BUNDLED_AGENTS_ROOT_KEY)?.trim();
         const hasExistingPath = raw && raw.length > 0;
         const root = hasExistingPath ? raw : path.join('src', 'agents', 'bundled');
         return path.isAbsolute(root) ? root : path.join(process.cwd(), root);
       },
     },
-    TomlParser,
-    AgentService,
   ],
 })
-export class AgentsModule { }
+export class AgentsModule {}

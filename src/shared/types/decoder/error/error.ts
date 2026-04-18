@@ -15,23 +15,23 @@
  * - optionally wrap an underlying cause for internal diagnostics,
  * - prevent lower-level errors from leaking beyond the parse layer.
  */
-export class ParserError extends Error {
+export class DecoderError extends Error {
     // MARK: - Properties
 
     /**
      * Machine-readable code for parser-layer failures.
      */
-    readonly code = 'PARSER_ERROR';
+    readonly code = 'DECODER_ERROR';
 
     // MARK: - Constructor
 
     /**
-     * Creates a new {@link ParserError}.
+     * Creates a new {@link DecoderError}.
      *
      * @param message - The human-readable error message describing the failure.
      * @param options - The options for the error.
      */
     constructor(message?: string, options?: { cause?: unknown }) {
-        super(message ?? 'Parse failed', options);
+        super(message ?? 'Decode failed', options);
     }
 }

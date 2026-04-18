@@ -1,15 +1,8 @@
+export type { AgentConfiguration } from './agent.config';
 export { AgentService } from './service/agent.service';
-
-export {
-  agentSchema,
-  AgentSchema,
-} from './schema/agent/agent.schema';
-
-export {
-  AgentRole,
-  AgentDecisionType,
-} from './agent';
-
+export { AGENT } from './agents.tokens';
+export type { AgentSchema, agentSchema } from './schema/agent/agent.schema';
+export { AgentRole, AgentDecisionType } from './agent';
 export type {
   Agent,
   AgentContext,
