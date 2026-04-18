@@ -2,11 +2,14 @@
 // https://pink-tech.io/
 
 import type { LLM, LLMMessage, LLMOptions, LLMResponse, StreamEvent } from '@/llm/llm';
-import { mapFromOpenAIChatCompletion, mapToOpenAIMessageList, mapToOpenAITool } from './mappers/openai-mappers';
-import { OpenAIProvider, type LLMModel } from '@/llm/provider/llm-provider';
-import { OpenAiErrorMapper } from '@/llm/openai/error/map-openai-error';
-import { OpenAiErrorCode } from '@/llm/openai/error/error';
-import OpenAI, { APIError } from 'openai';
+import { OpenAIProvider } from '@/llm/provider/llm-provider';
+import OpenAI from 'openai';
+import { 
+    mapFromOpenAIChatCompletion,
+    mapFromOpenAIError, 
+    mapToOpenAIMessageList, 
+    mapToOpenAITool 
+} from './mappers/openai-mappers';
 
 /**
  * OpenAI-backed implementation of {@link LLM} using the official `openai` SDK.
@@ -65,7 +68,7 @@ export class OpenAILLM implements LLM {
 
             return mapFromOpenAIChatCompletion(chatCompletion)
         } catch (error) {
-            throw error
+            throw mapFromOpenAIError(error)
         }
      }
 
@@ -79,17 +82,4 @@ export class OpenAILLM implements LLM {
      async *stream(messages: LLMMessage[], options: LLMOptions): AsyncIterable<StreamEvent> {
         throw new Error('Unimplemented');
      }
-
-    // MARK: - Private methods
-
-    private getOpenAiErrorCode(error: unknown): OpenAiErrorCode | null {
-        if (!(error instanceof APIError)) {
-            return OpenAiErrorCode.UNKNOWN;
-        }
-
-        return new OpenAiErrorMapper(error).toCode();
-    }
 }
-
-
-  

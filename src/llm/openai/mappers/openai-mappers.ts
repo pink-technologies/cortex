@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { LLMNoChoicesError, LLMToolCallNotSupportedError } from "@/llm/error/error";
+import { LLMAuthenticationError, LLMConnectionError, LLMEmptyResponseError, LLMError, LLMInvalidRequestError, LLMModelNotSupportedError, LLMPermissionDeniedError, LLMRateLimitError, LLMServiceUnavailableError, LLMTimeoutError, LLMToolCallNotSupportedError, LLMUnknownProviderError } from "@/llm/error/error";
 import { Content, ContentKind, LLMMessage, LLMResponse, LLMToolDefinition, MessageRole, TextContent, ToolUseContent } from "@/llm/llm"
 import OpenAI from "openai";
 import { 
@@ -17,7 +17,7 @@ import {
 /**
  * Converts a non-streaming OpenAI {@link ChatCompletion} into Cortex {@link LLMResponse}.
  *
- * **Choice handling** — Uses `choices[0]` only. Throws {@link LLMNoChoicesError} when the array is empty.
+ * **Choice handling** — Uses `choices[0]` only. Throws {@link LLMEmptyResponseError} when the array is empty.
  *
  * **Content** — Builds an ordered {@link Content} list:
  * - When `message.content` is present, appends one {@link TextContent} block (assistant text).
@@ -32,7 +32,7 @@ import {
  * @throws {@link LLMNoChoicesError} When `choices` is empty.
  */
 export function mapFromOpenAIChatCompletion(chatCompletion: ChatCompletion): LLMResponse {
-  if (chatCompletion.choices.length === 0) throw new LLMNoChoicesError();
+  if (chatCompletion.choices.length === 0) throw new LLMEmptyResponseError();
 
   const choice = chatCompletion.choices[0]
   const content: Content[] = []
@@ -59,6 +59,170 @@ export function mapFromOpenAIChatCompletion(chatCompletion: ChatCompletion): LLM
       outputTokens: chatCompletion.usage?.completion_tokens ?? 0,
     },
   }
+}
+
+/**
+ * Normalizes an OpenAI SDK or transport error into a Cortex {@link LLMError}.
+ *
+ * **OpenAI SDK types** — Uses `instanceof` checks in order; the first match wins:
+ * - {@link OpenAI.APIConnectionTimeoutError} → {@link LLMTimeoutError}
+ * - {@link OpenAI.APIConnectionError} → {@link LLMConnectionError}
+ * - {@link OpenAI.AuthenticationError} → {@link LLMAuthenticationError}
+ * - {@link OpenAI.PermissionDeniedError} → {@link LLMPermissionDeniedError}
+ * - {@link OpenAI.BadRequestError} → {@link LLMInvalidRequestError}
+ * - {@link OpenAI.UnprocessableEntityError} → {@link LLMInvalidRequestError}
+ * - {@link OpenAI.NotFoundError} → {@link LLMModelNotSupportedError} when `error.message` mentions `"model"`;
+ *   otherwise {@link LLMInvalidRequestError}
+ * - {@link OpenAI.RateLimitError} → {@link LLMRateLimitError}
+ * - {@link OpenAI.InternalServerError} → {@link LLMServiceUnavailableError}
+ * - Any other {@link OpenAI.APIError} → {@link LLMUnknownProviderError}
+ *
+ * **Fallbacks** — A plain {@link Error} becomes {@link LLMUnknownProviderError} with the same message;
+ * non-`Error` values become {@link LLMUnknownProviderError} with a generic message. In all cases,
+ * `provider` is set to `openai`, and `requestId` is forwarded when the SDK exposes `requestID`.
+ *
+ * @param error - Value thrown or rejected by the OpenAI client (SDK errors, `Error`, or unknown).
+ * @returns A domain {@link LLMError}; never throws.
+ */
+export function mapFromOpenAIError(error: unknown): LLMError {
+  if (error instanceof OpenAI.APIConnectionTimeoutError) {
+      return new LLMTimeoutError(
+          'The LLM request timed out.',
+          {
+              cause: error,
+              provider: 'openai',              
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.APIConnectionError) {
+      return new LLMConnectionError(
+          'The LLM provider could not be reached.',
+          {
+              cause: error,
+              provider: 'openai', 
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.AuthenticationError) {
+      return new LLMAuthenticationError(
+          'Authentication with the LLM provider failed.',
+          {
+              cause: error,
+              provider: 'openai',
+              requestId: error.requestID?.toString()
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.PermissionDeniedError) {
+      return new LLMPermissionDeniedError(
+          'Permission was denied by the LLM provider.',
+          {
+              cause: error,
+              provider: 'openai',
+              requestId: error.requestID?.toString()              
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.BadRequestError) {
+      return new LLMInvalidRequestError(
+          'The LLM request is invalid.',
+          {
+              cause: error,
+              provider: 'openai',
+              requestId: error.requestID?.toString(),              
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.UnprocessableEntityError) {
+      return new LLMInvalidRequestError(
+          'The LLM request could not be processed.',
+          {
+              cause: error,
+              provider: 'openai',
+              requestId: error.requestID?.toString()              
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.NotFoundError) {
+      const message = error.message.toLowerCase()
+
+      if (message.includes('model')) {
+          return new LLMModelNotSupportedError(
+              'The selected LLM model is not supported.',
+              {
+                  cause: error,
+                  provider: 'openai',
+                  requestId: error.requestID?.toString(),                  
+              }
+          )
+      }
+
+      return new LLMInvalidRequestError(
+          'The requested LLM resource was not found.',
+          {
+              cause: error,
+              provider: 'openai',
+              requestId: error.requestID?.toString(),              
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.RateLimitError) {
+      return new LLMRateLimitError(
+          'The LLM provider rate limit has been exceeded.',
+          {
+              cause: error,
+              provider: 'openai',
+              requestId: error.requestID?.toString(),             
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.InternalServerError) {
+      return new LLMServiceUnavailableError(
+          'The LLM provider is temporarily unavailable.',
+          {
+              cause: error,
+              provider: 'openai',
+              requestId: error.requestID?.toString()
+          }
+      )
+  }
+
+  if (error instanceof OpenAI.APIError) {
+      return new LLMUnknownProviderError(
+          'The LLM provider returned an unexpected error.',
+          {
+              cause: error,
+              provider: 'openai',
+              requestId: error.requestID?.toString()              
+          }
+      )
+  }
+
+  if (error instanceof Error) {
+      return new LLMUnknownProviderError(
+          error.message,
+          {
+              cause: error,
+              provider: 'openai',
+          }
+      )
+  }
+
+  return new LLMUnknownProviderError(
+      'An unknown LLM provider error occurred.',
+      {
+          cause: error,
+          provider: 'openai',
+      }
+  )
 }
 
 /**
