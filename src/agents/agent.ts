@@ -10,8 +10,8 @@
  * @property Specialist — Focused domain or task specialist.
  */
 export const AgentRole = {
-    Assistant: 'Assistant',
-    Specialist: 'Specialist',
+  Assistant: 'Assistant',
+  Specialist: 'Specialist',
 } as const;
 
 /**
@@ -22,9 +22,9 @@ export const AgentRole = {
  * @property UseSkill — Invoke a registered skill with structured input.
  */
 export const AgentDecisionType = {
-    Delegate: 'delegate',
-    Respond: 'respond',
-    UseSkill: 'use-skill',
+  Delegate: 'delegate',
+  Respond: 'respond',
+  UseSkill: 'use-skill',
 } as const;
 
 /** Union of string literals in {@link AgentDecisionType}. */
@@ -34,57 +34,57 @@ export type AgentDecisionType = (typeof AgentDecisionType)[keyof typeof AgentDec
 export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
 
 /**
- * Outcome of one {@link Agent.decide} call — a tagged union on `type`.
+ * Outcome of one decide call — a tagged union on `type`.
  *
  * - **delegate** — Route processing to another agent; optional human-readable `reason`.
  * - **respond** — Final (or intermediate) natural-language reply to the user.
  * - **use-skill** — Run a skill by id with opaque JSON-like `input` (validated by the skill layer).
  */
 export type AgentDecision =
-  | { 
-    readonly type: typeof AgentDecisionType.Delegate, 
-    readonly agentId: string; 
-    readonly reason?: string 
-    }
-  | { 
-    readonly type: typeof AgentDecisionType.Respond, 
-    readonly response: string 
-    }
-  | { 
-    readonly type: typeof AgentDecisionType.UseSkill, 
-    readonly skillId: string; 
-    readonly input: Record<string, unknown> 
-    };
+  | {
+    readonly type: typeof AgentDecisionType.Delegate,
+    readonly agentId: string;
+    readonly reason?: string
+  }
+  | {
+    readonly type: typeof AgentDecisionType.Respond,
+    readonly response: string
+  }
+  | {
+    readonly type: typeof AgentDecisionType.UseSkill,
+    readonly skillId: string;
+    readonly input: Record<string, unknown>
+  };
 
 /**
  * Static configuration for an {@link Agent}: display name, role, and what skills/capabilities
  * it may use. Typically immutable for the lifetime of the registered agent.
  */
 export interface AgentDescriptor {
-    /**
-     * Human-readable agent name.
-     */
-    readonly name: string;
-  
-    /**
-     * High-level role in the system ({@link AgentRole}).
-     */
-    readonly role: (typeof AgentRole)[keyof typeof AgentRole];
+  /**
+   * Human-readable agent name.
+   */
+  readonly name: string;
 
-    /**
-     * Skill ids this agent may invoke via {@link AgentDecisionType.UseSkill} (enforce in orchestration).
-     */
-    readonly allowedSkillIds: readonly string[];
-  
-    /**
-     * Capability ids (e.g. manifest keys) this agent is associated with for routing or reasoning.
-     */
-    readonly capabilities: readonly string[];
-  
-    /**
-     * Optional description for routing/discovery.
-     */
-    readonly description?: string;
+  /**
+   * High-level role in the system ({@link AgentRole}).
+   */
+  readonly role: (typeof AgentRole)[keyof typeof AgentRole];
+
+  /**
+   * Skill ids this agent may invoke via {@link AgentDecisionType.UseSkill} (enforce in orchestration).
+   */
+  readonly allowedSkillIds: readonly string[];
+
+  /**
+   * Capability ids (e.g. manifest keys) this agent is associated with for routing or reasoning.
+   */
+  readonly capabilities: readonly string[];
+
+  /**
+   * Optional description for routing/discovery.
+   */
+  readonly description?: string;
 }
 
 /**
@@ -94,15 +94,15 @@ export interface AgentDescriptor {
  * execution id and message into the agent layer.
  */
 export interface AgentContext {
-    /**
-     * Correlates logs, tool calls, and nested hops for this execution (e.g. UUID/ULID).
-     */
-    readonly executionId: string;
-  
-    /**
-     * Normalized user utterance for this decision step.
-     */
-    readonly message: string;
+  /**
+   * Correlates logs, tool calls, and nested hops for this execution (e.g. UUID/ULID).
+   */
+  readonly executionId: string;
+
+  /**
+   * Normalized user utterance for this decision step.
+   */
+  readonly message: string;
 }
 
 /**
@@ -112,21 +112,21 @@ export interface AgentContext {
  * after resolving which agent should act.
  */
 export interface Agent {
-    /**
-     * Stable key used in {@link AgentRegistry} and in {@link AgentDecision} when delegating.
-     */
-    readonly id: string;
+  /**
+   * Stable key used in {@link AgentRegistry} and in {@link AgentDecision} when delegating.
+   */
+  readonly id: string;
 
-    /**
-     * Static metadata.
-     */
-    readonly descriptor: AgentDescriptor;
-  
-    /**
-     * Decides the next step for this turn: delegate, respond, or invoke a skill.
-     *
-     * @param context - Current execution id and user message for this decision.
-     * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
-     */
-    decide(context: AgentContext): Promise<AgentDecision>;
+  /**
+   * Static metadata.
+   */
+  readonly descriptor: AgentDescriptor;
+
+  /**
+   * Decides the next step for this turn: delegate, respond, or invoke a skill.
+   *
+   * @param context - Current execution id and user message for this decision.
+   * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
+   */
+  decide(context: AgentContext): Promise<AgentDecision>;
 }

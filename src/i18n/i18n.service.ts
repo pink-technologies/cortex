@@ -98,6 +98,21 @@ export class I18nService {
      * unavailable due to internal errors.
      */
     serviceUnavailable: () => this.i18n.t('common.service_unavailable'),
+
+    /**
+     * Message displayed when the rate limit is exceeded.
+     */
+    rateLimitExceeded: () => this.i18n.t('common.rate_limit_exceeded'),
+
+    /**
+     * Message displayed when the JSON response format is not valid.
+     */
+    jsonResponseFormatError: () => this.i18n.t('common.json_response_format_error'),
+
+    /**
+     * Message displayed when the insufficient quota.
+     */
+    insufficientQuota: () => this.i18n.t('common.insufficient_quota'),
   };
 
   /**

@@ -39,3 +39,41 @@ export class AgentAlreadyRegisteredError extends AgentServiceError {
    */
   readonly code = 'AGENT_ALREADY_REGISTERED';
 }
+
+/**
+ * Thrown when an agent fails to load from a file.
+ */
+export class AgentFileLoadError extends AgentServiceError {
+  // MARK: - Properties
+
+  /**
+   * Machine-readable code for agent load errors.
+   */
+  readonly code = 'AGENT_FILE_LOAD_ERROR';
+}
+
+/**
+ * Thrown when an invalid agent role is encountered.
+ */
+export class InvalidAgentRoleError extends AgentServiceError {
+  // MARK: - Properties
+
+  /**
+   * Machine-readable code for invalid agent role errors.
+   */
+  readonly code = 'INVALID_AGENT_ROLE';
+}
+
+/**
+ * Thrown when more than one bundled agent is declared with role MAIN.
+ */
+export class DuplicateMainAgentError extends AgentServiceError {
+  readonly code = 'DUPLICATE_MAIN_AGENT';
+}
+
+/**
+ * Thrown when no MAIN orchestrator exists after load, or it was not persisted in storage.
+ */
+export class NoEntryOrchestratorAgentError extends AgentServiceError {
+  readonly code = 'NO_ENTRY_ORCHESTRATOR_AGENT';
+}

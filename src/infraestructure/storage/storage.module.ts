@@ -4,7 +4,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RedisStorageService } from './redis/redis-storage.service';
-import { STORAGE } from './storage.tokens';
+import { STORAGE } from './storage';
 
 @Global()
 @Module({
@@ -14,10 +14,9 @@ import { STORAGE } from './storage.tokens';
         {
             provide: STORAGE,
             inject: [ConfigService],
-            useFactory: async (config: ConfigService) =>
-                await RedisStorageService.make(
-                    config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
-                ),
+            useFactory: async (config: ConfigService) => {
+                await RedisStorageService.make(config.get<string>('REDIS_URL') ?? 'redis://localhost:6379');
+            }
         },
     ],
 })
