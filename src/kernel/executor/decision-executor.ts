@@ -14,6 +14,7 @@ import type { Storage } from "@/infraestructure/storage/storage";
 import { STORAGE } from "@/infraestructure/storage";
 import { KernelAgentNotFoundError, KernelInvalidDecisionTypeError, SkillDecisionTypeNotSupportedError } from "../error/kernel.error";
 import { CapabilityRegistryService } from "@/capabilities/service/registry/ capability-registry.service";
+import { SkillRegistryService } from "@/skills/service/registry/skill-registry.service";
 
 /**
  * Nest DI token for {@link DecisionExecutor}.
@@ -34,11 +35,11 @@ export interface DecisionExecutor {
   /**
    * Executes one decision step; may recurse when the decision is **delegate**.
    *
-   * @param decision - Output of {@link Agent.decide} or a follow-up after delegation.
+   * @param decisions - Output of {@link Agent.decide} or a follow-up after delegation.
    * @param context - Shared execution scope for this kernel run.
    * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
    */
-  execute(decision: AgentDecision, context: ExecutionContext): Promise<KernelResult>;
+  execute(decisions: AgentDecision[], context: ExecutionContext): Promise<KernelResult>;
 }
 
 /**
@@ -62,6 +63,7 @@ export class KernelDecisionExecutor implements DecisionExecutor {
     @Inject(STORAGE)
     private readonly storage: Storage,
     private readonly capabilityRegistryService: CapabilityRegistryService,
+    private readonly skillRegistryService: SkillRegistryService,
   ) { }
 
   // MARK: - DecisionExecutor
@@ -73,56 +75,87 @@ export class KernelDecisionExecutor implements DecisionExecutor {
     * @param context - Shared execution scope for this kernel run.
     * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
     */
-  async execute(decision: AgentDecision, context: ExecutionContext): Promise<KernelResult> {
-    // TODO: Real implementation this is just a placeholder
-    switch (decision.type) {
-      case AgentDecisionType.Delegate: {
-        const agent = await this.storage.read<Agent>(decision.agentId);
+  async execute(decisions: AgentDecision[], context: ExecutionContext): Promise<KernelResult> {
+    let message = '';
 
-        if (!agent) throw new KernelAgentNotFoundError();
+    for (const decision of decisions) {
 
-        const nextDecision = await agent.decide({
-          executionId: context.executionId,
-          message: context.message
-        });
+      switch (decision.type) {
+        case AgentDecisionType.Delegate: {
+          const agent = await this.storage.read<Agent>(decision.agentId);
 
-        return this.execute(nextDecision, context);
-      }
+          if (!agent) throw new KernelAgentNotFoundError();
 
-      case AgentDecisionType.Respond: {
-        return {
-          executionId: context.executionId,
-          message: decision.response,
-        };
-      }
+          const nextDecisions = await agent.decide({
+            executionId: context.executionId,
+            message: context.message
+          });
 
-      case AgentDecisionType.UseCapability: {
-        const capability = this.capabilityRegistryService.get(decision.capabilityId);
-        await capability.execute(decision.input, context);
+          const result = await this.execute(nextDecisions, context);
+          message += result.message + '\n';
+          break;
+        }
 
-        return {
-          executionId: context.executionId,
-          message: decision.userMessage
-        };
-      }
+        case AgentDecisionType.Respond: {
+          message += decision.response + '\n';
+          return {
+            executionId: context.executionId,
+            message: message,
+          };
+        }
 
-      case AgentDecisionType.SuggestCapability: {
-        return {
-          executionId: context.executionId,
-          message: decision.message,
-          capabilities: decision.capabilities,
+        case AgentDecisionType.UseCapability: {
+          const capability = this.capabilityRegistryService.get(decision.capabilityId);
+          await capability.execute(decision.input, context);
+
+          message += `${decision.userMessage}\n`;
+          break;
+        }
+
+        case AgentDecisionType.SuggestCapability: {
+          return {
+            executionId: context.executionId,
+            message: decision.message,
+            capabilities: decision.capabilities,
+          }
+        }
+
+        case AgentDecisionType.SuggestSkill: {
+          return {
+            executionId: context.executionId,
+            message: decision.message,
+            skills: decision.skills,
+          }
+        }
+
+        case AgentDecisionType.SuggestOptions: {
+          return {
+            executionId: context.executionId,
+            message: decision.message,
+            capabilities: decision.capabilities,
+            skills: decision.skills,
+          }
+        }
+
+        case AgentDecisionType.UseSkill: {
+          const skill = this.skillRegistryService.get(decision.skillId);
+          const result = await skill.execute(decision.input, context);
+          message += `\n${result}\n`;
+          break;
+        }
+
+        default: {
+          return {
+            executionId: context.executionId,
+            message: new KernelInvalidDecisionTypeError(decision).message,
+          };
         }
       }
-
-      case AgentDecisionType.UseSkill: {
-        throw new SkillDecisionTypeNotSupportedError();
-      }
-
-      default:
-        return {
-          executionId: context.executionId,
-          message: new KernelInvalidDecisionTypeError(decision).message,
-        };
     }
+
+    return {
+      executionId: context.executionId,
+      message: message,
+    };
   }
 }

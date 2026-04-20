@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { ContentKind, MessageRole, type TextContent } from '@/llm/llm';
-import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
+import { agentDecisionsSchema } from '../schema/agent-decision/agent-decision.schema';
 import { AgentConfiguration } from '../agent.config';
 import type {
   Agent,
@@ -55,7 +55,7 @@ export class PromptDrivenAgent implements Agent {
    * @param context - Current execution id and user message for this decision.
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
-  async decide(context: AgentContext): Promise<AgentDecision> {
+  async decide(context: AgentContext): Promise<AgentDecision[]> {
     const { llm, systemPrompt, model } = this.configuration;
     const result = await llm.chat(
       [
@@ -82,24 +82,21 @@ export class PromptDrivenAgent implements Agent {
       .trim();
 
     const raw = JSON.parse(assistantText) as unknown;
-    return agentDecisionSchema.parse(raw);
+    return agentDecisionsSchema.parse(raw);
   }
 
   // MARK: - Private methods
 
   private buildPrompt(context: AgentContext): string {
-    const { descriptor, delegateAgentIds } = this.configuration;
-    const delegates = delegateAgentIds ?? [];
-    const skills = descriptor.allowedSkillIds.join(', ') || 'none';
-    const capabilities = descriptor.capabilities.join(', ') || 'none';
-    const delegatesTo = delegates.join(', ') || 'none';
-
-    return [
+    const parts = [
       `Execution id: ${context.executionId}`,
-      `User message:\n${context.message}`,
-      `Available skills: ${skills}`,
-      `Available capabilities: ${capabilities}`,
-      `Available delegates: ${delegatesTo}`,
-    ].join('\n\n');
+      `Conversation history: ${context.conversationHistory?.map(message => `${message.role}: ${message.content}`).join('\n')}`,
+      `User message: ${context.message}`,
+      `Available skills: ${this.configuration.descriptor.skills.join(', ')}`,
+      `Available capabilities: ${this.configuration.descriptor.capabilities.join(', ')}`,
+      `Available delegates: ${this.configuration.delegateAgentIds?.join(', ') ?? 'none'}`,
+    ];
+
+    return parts.join('\n\n');
   }
 }

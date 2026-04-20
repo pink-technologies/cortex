@@ -160,7 +160,7 @@ export class AgentService implements OnModuleInit {
             descriptor: {
                 name: schema.name,
                 role: this.schemaRoleToAgent(schema.role),
-                allowedSkillIds: schema.skills.filter((skill) => skill.length > 0),
+                skills: schema.skills.filter((skill) => skill.length > 0),
                 capabilities: schema.capabilities.filter((capability) => capability.length > 0),
                 description: schema.description,
             }

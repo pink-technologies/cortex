@@ -8,7 +8,7 @@ export class CapabilityRegistryService {
 
     private readonly capabilities = new Map<string, CapabilityFactory>();
 
-    // MARK: - Instance methods
+    // MARK: - CapabilityRegistryService
 
     /**
      * Registers a capability factory by id.

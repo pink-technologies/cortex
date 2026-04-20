@@ -44,3 +44,15 @@ export const agentDecisionSchema = z.discriminatedUnion('type', [
         capabilities: z.array(capabilityInputSchema),
     }),
 ]);
+
+/**
+ * One or more {@link agentDecisionSchema} values in execution order.
+ *
+ * Accepts either a JSON array of decisions or a single decision object (wrapped to a one-element array).
+ */
+export const agentDecisionsSchema = z
+    .union([
+        z.array(agentDecisionSchema).min(1).max(32),
+        agentDecisionSchema,
+    ])
+    .transform((v) => (Array.isArray(v) ? v : [v]));

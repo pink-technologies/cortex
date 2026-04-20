@@ -9,11 +9,15 @@ import { SKILLS_BUNDLED_ROOT } from './skill.tokens';
 import { SkillService } from './service/skill.service';
 import { STORAGE } from '@/infraestructure/storage';
 import { InMemoryStorageService } from '@/infraestructure/storage/in-memory/in-memory.service';
+import { SkillRegistryService } from './service/registry/skill-registry.service';
+import { LLMModule } from '@/llm/llm.module';
+import { TextSummarizeSkillService } from './executors/summarize/text-summarize-skill.service';
+import { SkillsBootstrapService } from './service/skills-bootstrap.service';
 
 @Module({
     controllers: [],
-    imports: [ConfigModule],
-    exports: [SkillService],
+    imports: [ConfigModule, LLMModule],
+    exports: [SkillService, SkillRegistryService],
     providers: [
         {
             provide: STORAGE,
@@ -32,6 +36,9 @@ import { InMemoryStorageService } from '@/infraestructure/storage/in-memory/in-m
         },
         { provide: DECODER, useClass: TomlDecoder },
         SkillService,
+        SkillRegistryService,
+        TextSummarizeSkillService,
+        SkillsBootstrapService,
     ],
 })
 export class SkillsModule { }

@@ -2,6 +2,8 @@
 // https://pink-tech.io/
 
 import { CapabilityInputSchema } from "@/capabilities/schema/input/capability-input.schema";
+import { ConversationMessage } from "@/shared/types/input/execution-input";
+import { SkillInputSchema } from "@/skills/schema/input/skill-input.schema";
 
 /**
  * High-level persona / responsibility label for an agent.
@@ -20,17 +22,21 @@ export const AgentRole = {
  * Discriminator values for {@link AgentDecision}.
  *
  * @property Delegate — Hand off to another agent by id.
- * @property Respond — Produce a direct text reply (no further agent hop in this step).
+ * @property Respond — Plain-text reply (no further agent hop in this step).
+ * @property SuggestCapability — Suggest a capability to the user.
+ * @property SuggestSkill — Suggest a skill to the user.
+ * @property SuggestOptions — Suggest both capabilities and skills in one turn (mixed discovery / orientation).
  * @property UseSkill — Invoke a registered skill with structured input.
  * @property UseCapability — Invoke a registered capability with structured input.
- * @property SuggestCapability — Suggest a capability to the user.
  */
 export const AgentDecisionType = {
   Delegate: 'delegate',
   Respond: 'respond',
+  SuggestCapability: 'suggest-capability',
+  SuggestSkill: 'suggest-skill',
+  SuggestOptions: 'suggest-options',
   UseSkill: 'use-skill',
   UseCapability: 'use-capability',
-  SuggestCapability: 'suggest-capability',
 } as const;
 
 /** Union of string literals in {@link AgentDecisionType}. */
@@ -43,10 +49,14 @@ export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
  * Outcome of one decide call — a tagged union on `type`.
  *
  * - **delegate** — Route processing to another agent; optional human-readable `reason`.
- * - **respond** — Final (or intermediate) natural-language reply to the user.
+ * - **respond** — Final natural-language string.
+ * - **suggest-capability** — Suggest a capability to the user with a message and structured capabilities.
+ * - **suggest-skill** — Suggest a skill to the user with a message and structured skills.
+ * - **suggest-options** — Same turn: structured **capabilities** (discovery) **and** relevant **skills** from the allow-list, plus one cohesive **`message`** (e.g. “for the ticket I need …; for the summary you can use …”).
+ * - **use-capability** — Run a capability by id with JSON-like `input` (validated by the capability layer)
+ *   plus `userMessage`: natural-language line the user sees (**always** match the user’s language;
+ *   for discovery runs this is the intro/summary; structured options come from the executor result).
  * - **use-skill** — Run a skill by id with opaque JSON-like `input` (validated by the skill layer).
- * - **use-capability** — Invoke a registered capability with structured input.
- * - **suggest-capability** — Suggest a capability to the user.
  */
 export type AgentDecision =
   | {
@@ -59,6 +69,22 @@ export type AgentDecision =
     readonly response: string
   }
   | {
+    readonly type: typeof AgentDecisionType.SuggestCapability,
+    readonly message: string,
+    readonly capabilities: CapabilityInputSchema[]
+  }
+  | {
+    readonly type: typeof AgentDecisionType.SuggestSkill,
+    readonly message: string,
+    readonly skills: SkillInputSchema[]
+  }
+  | {
+    readonly type: typeof AgentDecisionType.SuggestOptions,
+    readonly message: string,
+    readonly capabilities: CapabilityInputSchema[],
+    readonly skills: SkillInputSchema[],
+  }
+  | {
     readonly type: typeof AgentDecisionType.UseSkill,
     readonly skillId: string;
     readonly input: Record<string, unknown>
@@ -68,11 +94,6 @@ export type AgentDecision =
     readonly capabilityId: string;
     readonly input: Record<string, unknown>;
     readonly userMessage: string;
-  }
-  | {
-    readonly type: typeof AgentDecisionType.SuggestCapability,
-    readonly message: string,
-    readonly capabilities: CapabilityInputSchema[]
   };
 
 /**
@@ -93,7 +114,7 @@ export interface AgentDescriptor {
   /**
    * Skill ids this agent may invoke via {@link AgentDecisionType.UseSkill} (enforce in orchestration).
    */
-  readonly allowedSkillIds: readonly string[];
+  readonly skills: readonly string[];
 
   /**
    * Capability ids (e.g. manifest keys) this agent is associated with for routing or reasoning.
@@ -122,6 +143,11 @@ export interface AgentContext {
    * Normalized user utterance for this decision step.
    */
   readonly message: string;
+
+    /**
+   * Full thread for LLM replay (same shape as {@link ConversationMessage}).
+   */
+    readonly conversationHistory?: readonly ConversationMessage[];
 }
 
 /**
@@ -147,5 +173,5 @@ export interface Agent {
    * @param context - Current execution id and user message for this decision.
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
-  decide(context: AgentContext): Promise<AgentDecision>;
+  decide(context: AgentContext): Promise<AgentDecision[]>;
 }
