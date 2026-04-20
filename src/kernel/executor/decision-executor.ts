@@ -13,6 +13,7 @@ import {
 import type { Storage } from "@/infraestructure/storage/storage";
 import { STORAGE } from "@/infraestructure/storage";
 import { KernelAgentNotFoundError, KernelInvalidDecisionTypeError, SkillDecisionTypeNotSupportedError } from "../error/kernel.error";
+import { CapabilityRegistryService } from "@/capabilities/service/registry/ capability-registry.service";
 
 /**
  * Nest DI token for {@link DecisionExecutor}.
@@ -55,10 +56,12 @@ export class KernelDecisionExecutor implements DecisionExecutor {
    * Creates a new {@link KernelDecisionExecutor}.
    *
    * @param storage - Same {@link STORAGE} as {@link AgentService} (in-memory; not Redis JSON).
+   * @param capabilityRegistryService - The capability registry service.
    */
   constructor(
     @Inject(STORAGE)
     private readonly storage: Storage,
+    private readonly capabilityRegistryService: CapabilityRegistryService,
   ) { }
 
   // MARK: - DecisionExecutor
@@ -80,17 +83,36 @@ export class KernelDecisionExecutor implements DecisionExecutor {
 
         const nextDecision = await agent.decide({
           executionId: context.executionId,
-          message: context.message,
+          message: context.message
         });
 
         return this.execute(nextDecision, context);
       }
 
-      case AgentDecisionType.Respond:
+      case AgentDecisionType.Respond: {
         return {
           executionId: context.executionId,
           message: decision.response,
         };
+      }
+
+      case AgentDecisionType.UseCapability: {
+        const capability = this.capabilityRegistryService.get(decision.capabilityId);
+        await capability.execute(decision.input, context);
+
+        return {
+          executionId: context.executionId,
+          message: decision.userMessage
+        };
+      }
+
+      case AgentDecisionType.SuggestCapability: {
+        return {
+          executionId: context.executionId,
+          message: decision.message,
+          capabilities: decision.capabilities,
+        }
+      }
 
       case AgentDecisionType.UseSkill: {
         throw new SkillDecisionTypeNotSupportedError();

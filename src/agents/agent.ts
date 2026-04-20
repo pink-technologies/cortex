@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { CapabilityInputSchema } from "@/capabilities/schema/input/capability-input.schema";
+
 /**
  * High-level persona / responsibility label for an agent.
  *
@@ -20,11 +22,15 @@ export const AgentRole = {
  * @property Delegate — Hand off to another agent by id.
  * @property Respond — Produce a direct text reply (no further agent hop in this step).
  * @property UseSkill — Invoke a registered skill with structured input.
+ * @property UseCapability — Invoke a registered capability with structured input.
+ * @property SuggestCapability — Suggest a capability to the user.
  */
 export const AgentDecisionType = {
   Delegate: 'delegate',
   Respond: 'respond',
   UseSkill: 'use-skill',
+  UseCapability: 'use-capability',
+  SuggestCapability: 'suggest-capability',
 } as const;
 
 /** Union of string literals in {@link AgentDecisionType}. */
@@ -39,6 +45,8 @@ export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
  * - **delegate** — Route processing to another agent; optional human-readable `reason`.
  * - **respond** — Final (or intermediate) natural-language reply to the user.
  * - **use-skill** — Run a skill by id with opaque JSON-like `input` (validated by the skill layer).
+ * - **use-capability** — Invoke a registered capability with structured input.
+ * - **suggest-capability** — Suggest a capability to the user.
  */
 export type AgentDecision =
   | {
@@ -54,6 +62,17 @@ export type AgentDecision =
     readonly type: typeof AgentDecisionType.UseSkill,
     readonly skillId: string;
     readonly input: Record<string, unknown>
+  }
+  | {
+    readonly type: typeof AgentDecisionType.UseCapability,
+    readonly capabilityId: string;
+    readonly input: Record<string, unknown>;
+    readonly userMessage: string;
+  }
+  | {
+    readonly type: typeof AgentDecisionType.SuggestCapability,
+    readonly message: string,
+    readonly capabilities: CapabilityInputSchema[]
   };
 
 /**
