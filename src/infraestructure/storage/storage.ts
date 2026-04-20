@@ -16,7 +16,6 @@ export const STORAGE = Symbol('STORAGE');
  * Type parameters live on {@link ReadableStorage.read} and {@link WritableStorage.write},
  * not on the storage itself — one instance can hold heterogeneous value types per key.
  *
- * Analogous to Swift's XStorage (ReadableStorage & WritableStorage).
  */
 export type Storage = ReadableStorage & WritableStorage;
 
