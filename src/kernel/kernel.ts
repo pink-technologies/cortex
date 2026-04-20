@@ -7,6 +7,7 @@ import { DECISION_EXECUTOR, type DecisionExecutor } from './executor/decision-ex
 import { KernelResult } from './result/kernel-result';
 import { ExecutionInput } from '@/shared/types';
 import { randomUUID } from 'crypto';
+import { ConversationMessage } from '@/shared/types/input/execution-input';
 
 /**
  * Kernel “brain” service: single entry for processing {@link KernelInput}.
@@ -37,13 +38,27 @@ export class Kernel {
 
     async process(input: ExecutionInput): Promise<KernelResult> {
         const executionId = randomUUID();
-        const context: AgentContext = {
+        const conversationHistory: ConversationMessage[] = [
+            ...(input.conversationHistory ?? []),
+        ];
+
+        const agentContext: AgentContext = {
             message: input.message,
+            conversationHistory,
             executionId,
         };
 
-        const decision = await this.agent.decide(context);
+        const decisions = await this.agent.decide(agentContext);
 
-        return await this.decisionExecutor.execute(decision, context);
+        return this.decisionExecutor.execute(decisions, {
+            executionId,
+            message: input.message,
+            conversationHistory,
+            sessionId: input.sessionId,
+            userId: input.userId,
+            allowedCapabilityIds: this.agent.descriptor.capabilities,
+            allowedSkillIds: this.agent.descriptor.skills,
+            agentId: this.agent.id,
+        });
     }
 }

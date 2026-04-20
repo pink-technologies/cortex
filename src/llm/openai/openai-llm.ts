@@ -51,6 +51,8 @@ export class OpenAILLM implements LLM {
      */
      async chat(messages: LLMMessage[], options: LLMOptions): Promise<LLMResponse> {
         try {                        
+            const timeout = options.timeout != null ? { timeout: options.timeout } : undefined;
+
             const chatCompletion = await this.client.chat.completions.create(
                 {
                   model: options.model,
@@ -62,7 +64,7 @@ export class OpenAILLM implements LLM {
                 },
                 {
                     signal: options.abortSignal,
-                    timeout: options.timeout,
+                    ...timeout,
                 }
             )
 

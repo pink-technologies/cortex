@@ -13,7 +13,7 @@ import {
 import type { Storage } from "@/infraestructure/storage/storage";
 import { STORAGE } from "@/infraestructure/storage";
 import { KernelAgentNotFoundError, KernelInvalidDecisionTypeError, SkillDecisionTypeNotSupportedError } from "../error/kernel.error";
-import { CapabilityRegistryService } from "@/capabilities/service/registry/ capability-registry.service";
+import { CapabilityRegistryService } from "@/capabilities/service/registry/capability-registry.service.ts";
 import { SkillRegistryService } from "@/skills/service/registry/skill-registry.service";
 
 /**

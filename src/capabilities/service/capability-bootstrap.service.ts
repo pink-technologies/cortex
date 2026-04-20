@@ -2,8 +2,8 @@
 // https://pink-tech.io/
 
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import { CapabilityRegistryService } from "./registry/ capability-registry.service";
-import { TrelloCapabilityService } from "./trello/ trello-capability.service";
+import { TrelloCapabilityService } from "./trello/trello-capability.service";
+import { CapabilityRegistryService } from "./registry/capability-registry.service.ts";
 
 /**
  * Registers all capability instances into {@link CapabilityRegistryService} at module init.

@@ -29,6 +29,8 @@ import {
 @Injectable()
 export class AgentService implements OnModuleInit {
     // MARK: - Properties
+
+    private loaded: Promise<void> | null = null;
     
     private mainAgentId: string | null = null;
 
@@ -63,7 +65,7 @@ export class AgentService implements OnModuleInit {
      * Loads the agent from the TOML file when the module boots.
      */
     async onModuleInit(): Promise<void> {
-        await this.loadAndRegisterAgents();
+        await this.ensureLoaded();
     }
 
     // MARK: - Instance methods
@@ -78,6 +80,7 @@ export class AgentService implements OnModuleInit {
      * @returns The persisted {@link Agent}, or `null` if absent.
      */
     async find(id: string): Promise<Agent | null> {
+        await this.ensureLoaded();
         return this.storage.read<Agent>(id);
     }
 
@@ -94,6 +97,8 @@ export class AgentService implements OnModuleInit {
      * @throws {@link NoEntryOrchestratorAgentError} When no main id was recorded during load, or storage has no row for that id.
      */
     async getMainAssistant(): Promise<Agent> {
+        await this.ensureLoaded();
+
         if (!this.mainAgentId) {
             throw new NoEntryOrchestratorAgentError();
         }
@@ -108,6 +113,13 @@ export class AgentService implements OnModuleInit {
     }
 
     // MARK: - Private methods
+
+    private ensureLoaded(): Promise<void> {
+        if (!this.loaded) {
+            this.loaded = this.loadAndRegisterAgents();
+        }
+        return this.loaded;
+    }
 
     private async loadAndRegisterAgents(): Promise<void> {
         this.mainAgentId = null;

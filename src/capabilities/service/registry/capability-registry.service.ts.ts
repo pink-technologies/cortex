@@ -1,11 +1,16 @@
+// Copyright (c) 2026, PinkTech
+// https://pink-tech.io/
+
 import { Injectable } from "@nestjs/common";
 import { CapabilityFactory } from "@/capabilities/capability";
 import { CapabilityExecutor } from "@/capabilities/executors/capability-executor";
 
+/**
+ * In-memory registry of capabilities based on the Factory Pattern.
+ */
 @Injectable()
 export class CapabilityRegistryService {
     // MARK: - Private properties
-
     private readonly capabilities = new Map<string, CapabilityFactory>();
 
     // MARK: - CapabilityRegistryService
