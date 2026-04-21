@@ -3,9 +3,9 @@
 
 import { ContentKind, MessageRole, type TextContent } from '@/llm/llm';
 import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
-import { AgentConfiguration } from '../agent.config';
 import type {
   Agent,
+  AgentConfiguration,
   AgentContext,
   AgentDecision,
   AgentDescriptor,
@@ -55,9 +55,8 @@ export class PromptDrivenAgent implements Agent {
    * @param context - Current execution id and user message for this decision.
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
-  async decide(context: AgentContext): Promise<AgentDecision> {
-    const { llm, systemPrompt, model } = this.configuration;
-    const result = await llm.chat(
+  async decide(context: AgentContext): Promise<AgentDecision> {    
+    const result = await this.configuration.llm.chat(
       [
         {
           role: MessageRole.User,
@@ -70,14 +69,14 @@ export class PromptDrivenAgent implements Agent {
         },
       ],
       {
-        model,
-        systemPrompt,
+        model: this.configuration.model,
+        systemPrompt: this.configuration.systemPrompt,
       },
     );
 
     const assistantText = result.content
-      .filter((block): block is TextContent => block.type === ContentKind.Text)
-      .map((block) => block.text)
+      .filter((content): content is TextContent => content.type === ContentKind.Text)
+      .map((content) => content.text)
       .join('')
       .trim();
 
@@ -87,12 +86,11 @@ export class PromptDrivenAgent implements Agent {
 
   // MARK: - Private methods
 
-  private buildPrompt(context: AgentContext): string {
-    const { descriptor, delegateAgentIds } = this.configuration;
-    const delegates = delegateAgentIds ?? [];
-    const skills = descriptor.allowedSkillIds.join(', ') || 'none';
-    const capabilities = descriptor.capabilities.join(', ') || 'none';
+  private buildPrompt(context: AgentContext): string { 
+    const delegates = this.configuration.delegatesTo ?? []
+    const capabilities = this.configuration.descriptor.capabilities.join(', ') || 'none'
     const delegatesTo = delegates.join(', ') || 'none';
+    const skills = this.configuration.descriptor.skills.join(', ') || 'none'
 
     return [
       `Execution id: ${context.executionId}`,

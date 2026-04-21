@@ -8,7 +8,7 @@ import { DatabaseModule } from '@/infraestructure/database/index';
 import { InMemoryStorageService } from '@/infraestructure/storage/in-memory/in-memory.service';
 import { STORAGE } from '@/infraestructure/storage';
 import { DECODER, TomlDecoder } from '@/shared/types';
-import { BUNDLED_CAPABILITIES_PATH, BUNDLED_CAPABILITIES_PATH_KEY } from './capability.tokens';
+import { BUNDLED_CAPABILITIES_PATH, BUNDLED_CAPABILITIES_PATH_KEY } from './capability-tokens';
 import { CapabilityService } from './service/capability.service';
 import { ToolsModule } from '@/tools/tools.module';
 import { TrelloCapabilityService } from './service/trello/trello-capability.service';

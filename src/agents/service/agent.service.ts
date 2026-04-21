@@ -10,17 +10,11 @@ import type { LLMModel } from '@/llm';
 import type { Storage } from '@/infraestructure/storage/storage';
 import { STORAGE } from '@/infraestructure/storage';
 import { Agent, AgentRole } from '../agent';
-import { BUNDLED_AGENTS_PATH } from '../agents.tokens';
+import { AgentsInitializationError, FailedToGetMainAgentError } from './error/error';
+import { BUNDLED_AGENTS_PATH } from '../agents-tokens';
 import { agentSchema } from '../schema/agent/agent.schema';
 import { PromptDrivenAgent } from '../prompt-driven/prompt-driven-agent';
 import { DECODER, type Decoder } from '@/shared/types';
-import {
-  AgentAlreadyRegisteredError,
-  AgentFileLoadError,
-  DuplicateMainAgentError,
-  InvalidAgentRoleError,
-  NoEntryOrchestratorAgentError,
-} from './error/error';
 
 /**
  * Loads agents from TOML files under the directory injected as {@link BUNDLED_AGENTS_PATH}
@@ -95,13 +89,19 @@ export class AgentService implements OnModuleInit {
      */
     async getMainAssistant(): Promise<Agent> {
         if (!this.mainAgentId) {
-            throw new NoEntryOrchestratorAgentError();
+            throw new FailedToGetMainAgentError('No main agent found');
         }
 
-        const agent = await this.storage.read<Agent>(this.mainAgentId);
+        let agent: Agent | null
+        
+        try {
+            agent = await this.storage.read<Agent>(this.mainAgentId);
+        } catch (error) {
+            throw new FailedToGetMainAgentError('Failed to get main agent', error);
+        }
 
         if (!agent) {
-            throw new NoEntryOrchestratorAgentError();
+            throw new FailedToGetMainAgentError('No main agent found');
         }
 
         return agent;
@@ -112,36 +112,37 @@ export class AgentService implements OnModuleInit {
     private async loadAndRegisterAgents(): Promise<void> {
         this.mainAgentId = null;
 
-        const entries = await readdir(this.bundledAgentsPath, { withFileTypes: true });
+        const entries = await readdir(this.bundledAgentsPath, { withFileTypes: true })
 
         for (const entry of entries) {
             if (!entry.isDirectory()) {
                 continue;
             }
 
-            const filePath = path.join(this.bundledAgentsPath, entry.name, 'agent.toml');
-
             try {
-                const agent = await this.loadAgentFromFile(filePath);
-
-                if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
-
+                const filePath = path.join(this.bundledAgentsPath, entry.name, 'agent.toml')
+                const agent = await this.loadAgentFromFile(filePath)
+    
+                if (await this.storage.read<Agent>(agent.id)) {
+                    throw new Error('Agent already registered')
+                }
+    
                 await this.storage.write(agent, agent.id);
-        
+            
                 if (agent.descriptor.role === AgentRole.Assistant) {
                     if (this.mainAgentId !== null) {
-                        throw new DuplicateMainAgentError();
+                        throw new Error('Duplicated main agent')
                     }
-        
+            
                     this.mainAgentId = agent.id;
                 }
-            } catch {
-                throw new AgentFileLoadError();
+            } catch (error) {
+                throw new AgentsInitializationError('Failed to load and register agent', error);
             }
         }
 
         if (!this.mainAgentId) {
-            throw new NoEntryOrchestratorAgentError();
+            throw new AgentsInitializationError('No main agent found')
         }
     }
 
@@ -156,13 +157,13 @@ export class AgentService implements OnModuleInit {
             model: this.defaultLlmModel,
             llm: this.llm,
             systemPrompt,
-            delegateAgentIds: schema.delegates_to.filter((delegate) => delegate.length > 0),
+            delegatesTo: schema.delegates_to.filter((delegate) => delegate.length > 0),
             descriptor: {
                 name: schema.name,
-                role: this.schemaRoleToAgent(schema.role),
-                allowedSkillIds: schema.skills.filter((skill) => skill.length > 0),
                 capabilities: schema.capabilities.filter((capability) => capability.length > 0),
                 description: schema.description,
+                role: this.schemaRoleToAgent(schema.role),
+                skills: schema.skills.filter((skill) => skill.length > 0),
             }
         });
     }
@@ -176,7 +177,7 @@ export class AgentService implements OnModuleInit {
                 return AgentRole.Specialist;
 
             default:
-                throw new InvalidAgentRoleError();
+                throw new Error('Invalid agent role');
         }
     }
 }

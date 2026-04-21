@@ -7,9 +7,9 @@ import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { DECODER, type Decoder } from "@/shared/types";
 import { capabilitySchema } from "../schema/capability.schema";
 import { STORAGE, type Storage } from "@/infraestructure/storage";
-import { BUNDLED_CAPABILITIES_PATH } from "../capability.tokens";
+import { BUNDLED_CAPABILITIES_PATH } from "../capability-tokens";
 import { Capability } from "../capability";
-import { CapabilityAlreadyRegisteredError, CapabilityFileLoadError } from "./error/error";
+import { CapabilitiesInitializationError } from "./error/error";
 
 /**
  * Loads capabilities from TOML files under the directory injected as {@link BUNDLED_CAPABILITIES_ROOT}
@@ -66,12 +66,12 @@ export class CapabilityService implements OnModuleInit {
                 };
 
                 if (await this.storage.read<Capability>(capability.id)) {
-                    throw new CapabilityAlreadyRegisteredError();
+                    throw new Error('Capability already registered');
                 }
 
                 await this.storage.write(capability, capability.id);
-            } catch {
-                throw new CapabilityFileLoadError();
+            } catch (error) {
+                throw new CapabilitiesInitializationError('Failed to load capability from file', error);
             }
         }
     }

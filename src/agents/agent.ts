@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { LLM, LLMModel } from "@/llm";
+
 /**
  * High-level persona / responsibility label for an agent.
  *
@@ -74,7 +76,7 @@ export interface AgentDescriptor {
   /**
    * Skill ids this agent may invoke via {@link AgentDecisionType.UseSkill} (enforce in orchestration).
    */
-  readonly allowedSkillIds: readonly string[];
+  readonly skills: readonly string[];
 
   /**
    * Capability ids (e.g. manifest keys) this agent is associated with for routing or reasoning.
@@ -103,6 +105,44 @@ export interface AgentContext {
    * Normalized user utterance for this decision step.
    */
   readonly message: string;
+}
+
+/**
+ * Static wiring for a {@link PromptDrivenAgent}: identity, persona, LLM port, prompt text, and optional delegates.
+ *
+ * Built by {@link AgentService} from bundled `agent.toml` (and the referenced prompt file), not registered as a Nest provider.
+ */
+export interface AgentConfiguration {
+  /**
+   * Stable key for storage and {@link AgentDecision} delegation; matches manifest `id` (`agent.toml`).
+   */
+  readonly id: string;
+
+  /**
+   * Display name, {@link AgentDescriptor.role | role}, allowed skills, capabilities, and description for prompts / routing.
+   */
+  readonly descriptor: AgentDescriptor;
+
+    /**
+   * Agent ids this instance may hand off to via **delegate**; listed in the user prompt as available delegates.
+   * Omitted or empty when the agent never delegates. Matches manifest `delegates_to` when present.
+   */
+    readonly delegatesTo?: readonly string[];
+
+  /**
+   * Port used by {@link PromptDrivenAgent.decide} for the structured JSON {@link AgentDecision} call (e.g. OpenAI-backed client).
+   */
+  readonly llm: LLM;
+
+  /**
+   * Chat model id for {@link PromptDrivenAgent.decide} (typically the app default from `LLM_DEFAULT_MODEL`).
+   */
+  readonly model: LLMModel;
+
+  /**
+   * System instructions prepended to the LLM for every {@link PromptDrivenAgent.decide} call; loaded from the manifest’s prompt file.
+   */
+  readonly systemPrompt: string;
 }
 
 /**

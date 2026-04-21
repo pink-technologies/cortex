@@ -2,6 +2,11 @@
 // https://pink-tech.io/
 
 /**
+ * Injection token for the main assistant agent ({@link Agent}).
+ */
+export const AGENT = Symbol('AGENT');
+
+/**
  * `ConfigService` / `.env` key for the bundled agents directory (string).
  *
  * Use this with `config.get(BUNDLED_AGENTS_ROOT_KEY)` — not {@link BUNDLED_AGENTS_PATH},
@@ -14,8 +19,3 @@ export const BUNDLED_AGENTS_PATH_KEY = 'BUNDLED_AGENTS_PATH' as const;
  * (each subdirectory may contain `agent.toml`).
  */
 export const BUNDLED_AGENTS_PATH = Symbol(BUNDLED_AGENTS_PATH_KEY);
-
-/**
- * Injection token for the main assistant agent ({@link Agent}).
- */
-export const AGENT = Symbol('AGENT');

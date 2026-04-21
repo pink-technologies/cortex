@@ -16,7 +16,7 @@ export class InMemoryStorageService implements Storage {
     /**
      * @param storage - Backing map; keys are string ids, values are untyped at rest.
      */
-    public constructor(private readonly storage: Map<string, unknown>) { }
+    public constructor(private readonly storage: Map<string, unknown> = new Map()) {}
 
     // MARK: - Storage
 
