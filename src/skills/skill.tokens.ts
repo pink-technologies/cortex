@@ -5,4 +5,4 @@
  * Injection token for the absolute path to the bundled skills directory
  * (each subdirectory may contain `skill.toml`).
  */
-export const SKILLS_BUNDLED_ROOT = Symbol('SKILLS_BUNDLED_ROOT');
+export const BUNDLED_SKILLS_ROOT = Symbol('BUNDLED_SKILLS_ROOT');

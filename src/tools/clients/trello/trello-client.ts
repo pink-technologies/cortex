@@ -7,8 +7,8 @@
 export class TrelloClient {
     // MARK: - Private properties
 
-    private readonly baseUrl = 'https://api.trello.com';
-
+    private readonly baseUrl = 'https://api.trello.com/1';
+    
     // MARK: - Constructor
 
     /**

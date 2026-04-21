@@ -1,15 +1,20 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { randomUUID } from 'crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { AGENT, type Agent, type AgentContext } from '@/agents';
 import { DECISION_EXECUTOR, type DecisionExecutor } from './executor/decision-executor';
 import { KernelResult } from './result/kernel-result';
 import { ExecutionInput } from '@/shared/types';
-import { randomUUID } from 'crypto';
+import { ConversationMessage } from '@/shared/types/input/execution-input';
+import { 
+    AGENT, 
+    type Agent, 
+    type AgentContext,
+} from '@/agents';
 
 /**
- * Kernel “brain” service: single entry for processing {@link KernelInput}.
+ * Kernel “brain” service: single entry for processing {@link ExecutionInput}.
  *
  * Responsibilities:
  * - resolve the agent ID (from intent or default)
@@ -35,15 +40,36 @@ export class Kernel {
 
     // MARK: - Instance methods
 
+    /**
+     * Processes an {@link ExecutionInput} through the kernel pipeline.
+     *
+     * @param input - The {@link ExecutionInput} to process.
+     *
+     * @returns A promise that resolves to a KernelResult.
+     */
     async process(input: ExecutionInput): Promise<KernelResult> {
         const executionId = randomUUID();
-        const context: AgentContext = {
+        const conversationHistory: ConversationMessage[] = [
+            ...(input.conversationHistory ?? []),
+        ];
+
+        const agentContext: AgentContext = {
             message: input.message,
+            conversationHistory,
             executionId,
         };
 
-        const decision = await this.agent.decide(context);
+        const decisions = await this.agent.decide(agentContext);
 
-        return await this.decisionExecutor.execute(decision, context);
+        return this.decisionExecutor.execute(decisions, {
+            executionId,
+            message: input.message,
+            conversationHistory,
+            sessionId: input.sessionId,
+            userId: input.userId,
+            allowedCapabilityIds: this.agent.descriptor.capabilities,
+            allowedSkillIds: this.agent.descriptor.skills,
+            agentId: this.agent.id,
+        });
     }
 }

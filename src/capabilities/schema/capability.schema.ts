@@ -39,3 +39,34 @@ export const capabilitySchema = z.object({
     }),
     config: z.array(configSchema),
 });
+
+/**
+ * Type for the capability schema.
+ */
+type CapabilitySchemaDto = z.infer<typeof capabilitySchema>;
+
+/**
+ * Class for the capability definition.
+ */
+export class CapabilitySchema {
+    // MARK: - Constructor
+
+    /**
+     * Creates a new instance of {@link CapabilitySchema}.
+     *
+     * @param schema - The capability schema.
+     */
+    private constructor(readonly schema: CapabilitySchemaDto) { }
+
+    // MARK: - Static methods
+
+    /**
+     * Wraps an already-validated {@link CapabilitySchemaDto} (e.g. `capabilitySchema.parse` on raw TOML).
+     *
+     * @param input - Validated capability definition.
+     * @returns A new instance of {@link CapabilitySchema}.
+     */
+    static from(input: CapabilitySchemaDto): CapabilitySchema {
+        return new CapabilitySchema(input);
+    }
+}

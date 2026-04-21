@@ -23,86 +23,57 @@ export abstract class AgentServiceError extends Error {
    * agent service error.
    */
   abstract readonly code: string;
-
-  /**
-   * The underlying error that originated this domain error.
-   *
-   * This value is intended for diagnostics, logging, and debugging,
-   * and should generally not be exposed directly to consumers.
-   */
-  readonly cause?: unknown
-
-  // MARK: - Initializer
-
-  /**
-   * Creates a new {@link AgentServiceError} instance.
-   *
-   * - Parameter message: A human-readable description of the failure.
-   * - Parameter cause: The underlying error that originated this domain error.
-   */
-  protected constructor(message: string, cause?: unknown) {
-    super(message)
-    
-    this.cause = cause
-  }
 }
 
 /**
- * Thrown when the agents subsystem fails to start up (for example module wiring,
- * registry bootstrap, or loading persisted agent configuration).
+ * Thrown when an agent registration is attempted but the agent (or its identifier)
+ * is already registered in the system.
  *
- * The optional {@link cause} preserves the original failure for logging and
- * diagnostics without exposing it as the primary service error.
+ * Use this to avoid duplicate registrations or conflicting agent identity in the registry.
  */
-export class AgentsInitializationError extends AgentServiceError {
+export class AgentAlreadyRegisteredError extends AgentServiceError {
   // MARK: - Properties
 
   /**
-   * A machine-readable error code identifying the type of
-   * agent service error.
+   * Machine-readable code for duplicate agent registration errors.
    */
-  readonly code = 'AGENTS_INITIALIZATION_ERROR';
-
-  // MARK: - Initializer
-
-  /**
-   * Creates an agents initialization error.
-   *
-   * - Parameter message: A human-readable description of the failure.
-   * - Parameter cause: The underlying error that originated this domain error.
-   */
-  constructor(message: string, cause?: unknown) {
-    super(message, cause)
-  }
+  readonly code = 'AGENT_ALREADY_REGISTERED';
 }
 
 /**
- * Thrown when loading the MAIN orchestrator from storage fails for a reason other
- * than a simple absence of data — for example I/O errors, driver failures, or
- * unexpected exceptions from {@link Storage.read}.
- *
- * Prefer {@link MainAgentNotFoundError} when the main id is missing or the row
- * is absent; use this error when the read itself fails and {@link cause} should
- * carry the underlying failure for diagnostics.
+ * Thrown when an agent fails to load from a file.
  */
-export class FailedToGetMainAgentError extends AgentServiceError {
+export class AgentFileLoadError extends AgentServiceError {
   // MARK: - Properties
 
   /**
-   * A machine-readable error code identifying the type of
-   * agent service error.
+   * Machine-readable code for agent load errors.
    */
-  readonly code = 'FAILED_TO_GET_MAIN_AGENT_ERROR';
+  readonly code = 'AGENT_FILE_LOAD_ERROR';
+}
 
-  // MARK: - Initializer
+/**
+ * Thrown when an invalid agent role is encountered.
+ */
+export class InvalidAgentRoleError extends AgentServiceError {
+  // MARK: - Properties
 
   /**
-   * Creates an failed to get main agent error.
-   *
-   * - Parameter message: A human-readable description of the failure.
-   * - Parameter cause: The underlying error that originated this domain error.
+   * Machine-readable code for invalid agent role errors.
    */
-  constructor(message: string, cause?: unknown) {
-    super(message, cause)
-  }
+  readonly code = 'INVALID_AGENT_ROLE';
+}
+
+/**
+ * Thrown when more than one bundled agent is declared with role MAIN.
+ */
+export class DuplicateMainAgentError extends AgentServiceError {
+  readonly code = 'DUPLICATE_MAIN_AGENT';
+}
+
+/**
+ * Thrown when no MAIN orchestrator exists after load, or it was not persisted in storage.
+ */
+export class NoEntryOrchestratorAgentError extends AgentServiceError {
+  readonly code = 'NO_ENTRY_ORCHESTRATOR_AGENT';
 }

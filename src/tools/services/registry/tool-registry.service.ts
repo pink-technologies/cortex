@@ -1,10 +1,19 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { ToolContext } from '../../clients/context/tool-context';
 import { Injectable } from '@nestjs/common';
-import { Tool, ToolDefinition, ToolFactory } from '../../tool';
-import { ToolAlreadyRegisteredError, ToolNotFoundError, ToolRequiredIdError } from '../error/tool.error';
+
+import type { ToolContext } from '../../clients/context/tool-context';
+import {
+    Tool,
+    ToolDefinition,
+    ToolFactory,
+} from '../../tool';
+import {
+    ToolAlreadyRegisteredError,
+    ToolNotFoundError,
+    ToolRequiredIdError,
+} from '../../services/error/tool.error';
 
 /**
  * A tool entry is a definition and a factory for a tool.

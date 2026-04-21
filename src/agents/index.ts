@@ -3,7 +3,7 @@ export { AGENT } from './agents-tokens';
 export type { AgentSchema, agentSchema } from './schema/agent/agent.schema';
 export type { 
   Agent, 
-  AgentContext, 
+  AgentContext,
   AgentConfiguration,
   AgentDecision,
   AgentDecisionType,

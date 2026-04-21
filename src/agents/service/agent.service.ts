@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import path from 'path';
 import { readFile, readdir } from 'fs/promises';
+import path from 'path';
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { OpenAILLM } from '@/llm/openai/openai-llm';
 import { DEFAULT_LLM_MODEL_TOKEN } from '@/llm/llm';
@@ -10,19 +10,27 @@ import type { LLMModel } from '@/llm';
 import type { Storage } from '@/infraestructure/storage/storage';
 import { STORAGE } from '@/infraestructure/storage';
 import { Agent, AgentRole } from '../agent';
-import { AgentsInitializationError, FailedToGetMainAgentError } from './error/error';
-import { BUNDLED_AGENTS_PATH } from '../agents-tokens';
+import { BUNDLED_AGENTS_ROOT } from '../agents-tokens';
 import { agentSchema } from '../schema/agent/agent.schema';
 import { PromptDrivenAgent } from '../prompt-driven/prompt-driven-agent';
 import { DECODER, type Decoder } from '@/shared/types';
+import {
+  AgentAlreadyRegisteredError,
+  AgentFileLoadError,
+  DuplicateMainAgentError,
+  InvalidAgentRoleError,
+  NoEntryOrchestratorAgentError,
+} from './error/error';
 
 /**
- * Loads agents from TOML files under the directory injected as {@link BUNDLED_AGENTS_PATH}
+ * Loads agents from TOML files under the directory injected as {@link BUNDLED_AGENTS_ROOT}
  * (wired in `AgentsModule` from `AGENTS_BUNDLED_ROOT` in env — same pattern as `REDIS_URL` in `StorageModule`).
  */
 @Injectable()
 export class AgentService implements OnModuleInit {
     // MARK: - Properties
+
+    private loaded: Promise<void> | null = null;
     
     private mainAgentId: string | null = null;
 
@@ -31,10 +39,10 @@ export class AgentService implements OnModuleInit {
     /**
      * Wires persistence, TOML decoding, bundled agent root, and the LLM used when building {@link PromptDrivenAgent} instances.
      *
-     * Token bindings are defined in {@link AgentsModule} (`STORAGE`, {@link DECODER}, {@link BUNDLED_AGENTS_PATH}, `LLMModule`).
+     * Token bindings are defined in {@link AgentsModule} (`STORAGE`, {@link DECODER}, {@link BUNDLED_AGENTS_ROOT}, `LLMModule`).
      *
      * @param llm - {@link OpenAILLMClient} from `LLMModule`; passed into each {@link PromptDrivenAgent} for {@link Agent.decide}.
-     * @param bundledAgentsPath - Injected via {@link BUNDLED_AGENTS_PATH}; absolute directory path scanned for `*.toml` agent manifests.
+     * @param bundledAgentsPath - Injected via {@link BUNDLED_AGENTS_ROOT}; absolute directory path scanned for `*.toml` agent manifests.
      * @param decoder - Injected via {@link DECODER} as {@link Decoder}; parses agent `.toml` (syntax) and optional refine step (e.g. Zod).
      * @param defaultLlmModel - Injected via {@link DEFAULT_LLM_MODEL_TOKEN}; passed into each {@link PromptDrivenAgent} as {@link AgentConfiguration.model}.
      * @param storage - Injected via {@link STORAGE}; stores and loads {@link Agent} instances by id after load.
@@ -43,7 +51,7 @@ export class AgentService implements OnModuleInit {
         private readonly llm: OpenAILLM,
         @Inject(DEFAULT_LLM_MODEL_TOKEN)
         private readonly defaultLlmModel: LLMModel,
-        @Inject(BUNDLED_AGENTS_PATH)
+        @Inject(BUNDLED_AGENTS_ROOT)
         private readonly bundledAgentsPath: string,
         @Inject(DECODER)
         private readonly decoder: Decoder,
@@ -57,7 +65,7 @@ export class AgentService implements OnModuleInit {
      * Loads the agent from the TOML file when the module boots.
      */
     async onModuleInit(): Promise<void> {
-        await this.loadAndRegisterAgents();
+        await this.ensureLoaded();
     }
 
     // MARK: - Instance methods
@@ -72,6 +80,7 @@ export class AgentService implements OnModuleInit {
      * @returns The persisted {@link Agent}, or `null` if absent.
      */
     async find(id: string): Promise<Agent | null> {
+        await this.ensureLoaded();
         return this.storage.read<Agent>(id);
     }
 
@@ -88,20 +97,16 @@ export class AgentService implements OnModuleInit {
      * @throws {@link NoEntryOrchestratorAgentError} When no main id was recorded during load, or storage has no row for that id.
      */
     async getMainAssistant(): Promise<Agent> {
+        await this.ensureLoaded();
+
         if (!this.mainAgentId) {
-            throw new FailedToGetMainAgentError('No main agent found');
+            throw new NoEntryOrchestratorAgentError();
         }
 
-        let agent: Agent | null
-        
-        try {
-            agent = await this.storage.read<Agent>(this.mainAgentId);
-        } catch (error) {
-            throw new FailedToGetMainAgentError('Failed to get main agent', error);
-        }
+        const agent = await this.storage.read<Agent>(this.mainAgentId);
 
         if (!agent) {
-            throw new FailedToGetMainAgentError('No main agent found');
+            throw new NoEntryOrchestratorAgentError();
         }
 
         return agent;
@@ -109,40 +114,46 @@ export class AgentService implements OnModuleInit {
 
     // MARK: - Private methods
 
+    private ensureLoaded(): Promise<void> {
+        if (!this.loaded) {
+            this.loaded = this.loadAndRegisterAgents();
+        }
+        return this.loaded;
+    }
+
     private async loadAndRegisterAgents(): Promise<void> {
         this.mainAgentId = null;
 
-        const entries = await readdir(this.bundledAgentsPath, { withFileTypes: true })
+        const entries = await readdir(this.bundledAgentsPath, { withFileTypes: true });
 
         for (const entry of entries) {
             if (!entry.isDirectory()) {
                 continue;
             }
 
+            const filePath = path.join(this.bundledAgentsPath, entry.name, 'agent.toml');
+
             try {
-                const filePath = path.join(this.bundledAgentsPath, entry.name, 'agent.toml')
-                const agent = await this.loadAgentFromFile(filePath)
-    
-                if (await this.storage.read<Agent>(agent.id)) {
-                    throw new Error('Agent already registered')
-                }
-    
+                const agent = await this.loadAgentFromFile(filePath);
+
+                if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
+
                 await this.storage.write(agent, agent.id);
-            
+        
                 if (agent.descriptor.role === AgentRole.Assistant) {
                     if (this.mainAgentId !== null) {
-                        throw new Error('Duplicated main agent')
+                        throw new DuplicateMainAgentError();
                     }
-            
+        
                     this.mainAgentId = agent.id;
                 }
-            } catch (error) {
-                throw new AgentsInitializationError('Failed to load and register agent', error);
+            } catch {
+                throw new AgentFileLoadError();
             }
         }
 
         if (!this.mainAgentId) {
-            throw new AgentsInitializationError('No main agent found')
+            throw new NoEntryOrchestratorAgentError();
         }
     }
 
@@ -157,13 +168,13 @@ export class AgentService implements OnModuleInit {
             model: this.defaultLlmModel,
             llm: this.llm,
             systemPrompt,
-            delegatesTo: schema.delegates_to.filter((delegate) => delegate.length > 0),
+            delegateAgentIds: schema.delegates_to.filter((delegate) => delegate.length > 0),
             descriptor: {
                 name: schema.name,
-                capabilities: schema.capabilities.filter((capability) => capability.length > 0),
-                description: schema.description,
                 role: this.schemaRoleToAgent(schema.role),
                 skills: schema.skills.filter((skill) => skill.length > 0),
+                capabilities: schema.capabilities.filter((capability) => capability.length > 0),
+                description: schema.description,
             }
         });
     }
@@ -177,7 +188,7 @@ export class AgentService implements OnModuleInit {
                 return AgentRole.Specialist;
 
             default:
-                throw new Error('Invalid agent role');
+                throw new InvalidAgentRoleError();
         }
     }
 }

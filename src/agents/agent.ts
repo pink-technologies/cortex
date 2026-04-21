@@ -1,7 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { CapabilityInputSchema } from "@/capabilities/schema/input/capability-input.schema";
 import { LLM, LLMModel } from "@/llm";
+import { ConversationMessage } from "@/shared/types/input/execution-input";
+import { SkillInputSchema } from "@/skills/schema/input/skill-input.schema";
 
 /**
  * High-level persona / responsibility label for an agent.
@@ -20,12 +23,20 @@ export const AgentRole = {
  * Discriminator values for {@link AgentDecision}.
  *
  * @property Delegate — Hand off to another agent by id.
- * @property Respond — Produce a direct text reply (no further agent hop in this step).
+ * @property Respond — Plain-text reply (no further agent hop in this step).
+ * @property SuggestCapability — Suggest a capability to the user.
+ * @property SuggestSkill — Suggest a skill to the user.
+ * @property SuggestOptions — Suggest both capabilities and skills in one turn (mixed discovery / orientation).
+ * @property UseCapability — Invoke a registered capability with structured input.
  * @property UseSkill — Invoke a registered skill with structured input.
  */
 export const AgentDecisionType = {
   Delegate: 'delegate',
   Respond: 'respond',
+  SuggestCapability: 'suggest-capability',
+  SuggestSkill: 'suggest-skill',
+  SuggestOptions: 'suggest-options',
+  UseCapability: 'use-capability',
   UseSkill: 'use-skill',
 } as const;
 
@@ -39,7 +50,13 @@ export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
  * Outcome of one decide call — a tagged union on `type`.
  *
  * - **delegate** — Route processing to another agent; optional human-readable `reason`.
- * - **respond** — Final (or intermediate) natural-language reply to the user.
+ * - **respond** — Final natural-language string.
+ * - **suggest-capability** — Suggest a capability to the user with a message and structured capabilities.
+ * - **suggest-skill** — Suggest a skill to the user with a message and structured skills.
+ * - **suggest-options** — Same turn: structured **capabilities** (discovery) **and** relevant **skills** from the allow-list, plus one cohesive **`message`** (e.g. “for the ticket I need …; for the summary you can use …”).
+ * - **use-capability** — Run a capability by id with JSON-like `input` (validated by the capability layer)
+ *   plus `userMessage`: natural-language line the user sees (**always** match the user’s language;
+ *   for discovery runs this is the intro/summary; structured options come from the executor result).
  * - **use-skill** — Run a skill by id with opaque JSON-like `input` (validated by the skill layer).
  */
 export type AgentDecision =
@@ -53,10 +70,71 @@ export type AgentDecision =
     readonly response: string
   }
   | {
+    readonly type: typeof AgentDecisionType.SuggestCapability,
+    readonly message: string,
+    readonly capabilities: CapabilityInputSchema[]
+  }
+  | {
+    readonly type: typeof AgentDecisionType.SuggestSkill,
+    readonly message: string,
+    readonly skills: SkillInputSchema[]
+  }
+  | {
+    readonly type: typeof AgentDecisionType.SuggestOptions,
+    readonly message: string,
+    readonly capabilities: CapabilityInputSchema[],
+    readonly skills: SkillInputSchema[],
+  }
+  | {
+    readonly type: typeof AgentDecisionType.UseCapability,
+    readonly capabilityId: string;
+    readonly input: Record<string, unknown>;
+    readonly userMessage: string;
+  }
+  | {
     readonly type: typeof AgentDecisionType.UseSkill,
     readonly skillId: string;
     readonly input: Record<string, unknown>
   };
+
+
+/**
+ * Static wiring for a {@link PromptDrivenAgent}: identity, persona, LLM port, prompt text, and optional delegates.
+ *
+ * Built by {@link AgentService} from bundled `agent.toml` (and the referenced prompt file), not registered as a Nest provider.
+ */
+export interface AgentConfiguration {
+  /**
+   * Stable key for storage and {@link AgentDecision} delegation; matches manifest `id` (`agent.toml`).
+   */
+  readonly id: string;
+
+  /**
+   * Display name, {@link AgentDescriptor.role | role}, allowed skills, capabilities, and description for prompts / routing.
+   */
+  readonly descriptor: AgentDescriptor;
+
+  /**
+   * Port used by {@link PromptDrivenAgent.decide} for the structured JSON {@link AgentDecision} call (e.g. OpenAI-backed client).
+   */
+  readonly llm: LLM;
+
+  /**
+   * Chat model id for {@link PromptDrivenAgent.decide} (typically the app default from `LLM_DEFAULT_MODEL`).
+   */
+  readonly model: LLMModel;
+
+  /**
+   * Agent ids this instance may hand off to via **delegate**; listed in the user prompt as available delegates.
+   * Omitted or empty when the agent never delegates. Matches manifest `delegates_to` when present.
+   */
+  readonly delegateAgentIds?: readonly string[];
+
+  /**
+   * System instructions prepended to the LLM for every {@link PromptDrivenAgent.decide} call; loaded from the manifest’s prompt file.
+   */
+  readonly systemPrompt: string;
+}
 
 /**
  * Static configuration for an {@link Agent}: display name, role, and what skills/capabilities
@@ -105,44 +183,11 @@ export interface AgentContext {
    * Normalized user utterance for this decision step.
    */
   readonly message: string;
-}
-
-/**
- * Static wiring for a {@link PromptDrivenAgent}: identity, persona, LLM port, prompt text, and optional delegates.
- *
- * Built by {@link AgentService} from bundled `agent.toml` (and the referenced prompt file), not registered as a Nest provider.
- */
-export interface AgentConfiguration {
-  /**
-   * Stable key for storage and {@link AgentDecision} delegation; matches manifest `id` (`agent.toml`).
-   */
-  readonly id: string;
-
-  /**
-   * Display name, {@link AgentDescriptor.role | role}, allowed skills, capabilities, and description for prompts / routing.
-   */
-  readonly descriptor: AgentDescriptor;
 
     /**
-   * Agent ids this instance may hand off to via **delegate**; listed in the user prompt as available delegates.
-   * Omitted or empty when the agent never delegates. Matches manifest `delegates_to` when present.
+   * Full thread for LLM replay (same shape as {@link ConversationMessage}).
    */
-    readonly delegatesTo?: readonly string[];
-
-  /**
-   * Port used by {@link PromptDrivenAgent.decide} for the structured JSON {@link AgentDecision} call (e.g. OpenAI-backed client).
-   */
-  readonly llm: LLM;
-
-  /**
-   * Chat model id for {@link PromptDrivenAgent.decide} (typically the app default from `LLM_DEFAULT_MODEL`).
-   */
-  readonly model: LLMModel;
-
-  /**
-   * System instructions prepended to the LLM for every {@link PromptDrivenAgent.decide} call; loaded from the manifest’s prompt file.
-   */
-  readonly systemPrompt: string;
+    readonly conversationHistory?: readonly ConversationMessage[];
 }
 
 /**
@@ -168,5 +213,5 @@ export interface Agent {
    * @param context - Current execution id and user message for this decision.
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
-  decide(context: AgentContext): Promise<AgentDecision>;
+  decide(context: AgentContext): Promise<AgentDecision[]>;
 }

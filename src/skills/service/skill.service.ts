@@ -3,17 +3,13 @@
 
 import { readFile, readdir } from "fs/promises";
 import path from "path";
-
 import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
-
 import { DECODER, type Decoder } from "@/shared/types";
-
-import { SkillSchema, skillSchema } from "../schema/skill.schema";
-import { STORAGE, type Storage } from "@/infraestructure/storage/storage";
-import { SKILLS_BUNDLED_ROOT } from "../skill.tokens";
-import { Skill } from "../skill";
-
+import { STORAGE, type Storage } from "@/infraestructure/storage";
+import { BUNDLED_SKILLS_ROOT } from "../skill.tokens";
+import { skillSchema } from "../schema/skill.schema";
 import { SkillAlreadyRegisteredError, SkillFileLoadError } from "./error/error";
+import { Skill } from "../skill";
 
 /**
  * Loads skills from TOML files under the directory injected as {@link SKILLS_BUNDLED_ROOT}
@@ -24,41 +20,59 @@ export class SkillService implements OnModuleInit {
     // MARK: - Constructor
 
     /**
-     * @param storage - Storage service for capabilities.
-     * @param decoder - {@link Decoder} for skill manifests ({@link DECODER}).
-     * @param capabilitiesTomlPath - Absolute path to the directory that contains the capabilities.
+     * Wires bundled skill root, TOML decoding, and persistence used when {@link load} registers each {@link Skill}.
+     *
+     * Token bindings are defined in {@link SkillsModule} (`STORAGE`, {@link DECODER}, {@link SKILLS_BUNDLED_ROOT}).
+     *
+     * @param skillsTomlPath - Injected via {@link SKILLS_BUNDLED_ROOT}; absolute directory scanned for subfolders containing `skill.toml`.
+     * @param decoder - Injected via {@link DECODER} as {@link Decoder}; parses skill `.toml` (syntax) and optional refine step (e.g. Zod).
+     * @param storage - Injected via {@link STORAGE}; stores and loads {@link Skill} instances by id after {@link load}.
      */
     constructor(
-        @Inject(STORAGE)
-        private readonly storage: Storage,
+        @Inject(BUNDLED_SKILLS_ROOT)
+        private readonly skillsTomlPath: string,
         @Inject(DECODER)
         private readonly decoder: Decoder,
-        @Inject(SKILLS_BUNDLED_ROOT)
-        private readonly skillsTomlPath: string,
-    ) { }
+        @Inject(STORAGE)
+        private readonly storage: Storage,
+    ) {}
 
     // MARK: - OnModuleInit
 
     /**
-     * Loads the capability from the TOML file when the module boots.
+     * Loads the skill from the TOML file when the module boots.
      */
     async onModuleInit(): Promise<void> {
-        await this.load();
+        await this.loadAndRegisterSkills();
     }
 
-    // MARK: - Instance methods
+    // MARK: - Private methods
 
-    /**
-     * Loads the capabilities from the TOML files under the directory
-     * injected as {@link SKILLS_BUNDLED_ROOT}. Discovers every `skill.toml`
-     * at any depth (e.g. `bundled/text/summarize/skill.toml`).
-     */
-    async load(): Promise<void> {
-        const filePaths = await this.findSkillTomlFiles(this.skillsTomlPath);
+    private async loadAndRegisterSkills(): Promise<void> {
+        const skillFiles = await this.findSkillTomls(this.skillsTomlPath);
 
-        for (const filePath of filePaths) {
+        for (const filePath of skillFiles) {
             try {
-                await this.loadSkillFromFile(filePath);
+                const raw = await readFile(filePath, "utf8");
+        
+                const schema = this.decoder.decode(raw, (v) =>
+                    skillSchema.parse(v),
+                );
+        
+                const skillDir = path.dirname(filePath);
+        
+                const promptTemplate = await readFile(path.join(skillDir, "skill.md"), "utf8");
+
+                if (await this.storage.read<Skill>(schema.id)) {
+                    throw new SkillAlreadyRegisteredError();
+                }
+
+                await this.storage.write({
+                    ...schema,
+                    promptTemplate,
+                }, 
+                schema.id
+            );
             } catch {
                 throw new SkillFileLoadError();
             }
@@ -67,42 +81,21 @@ export class SkillService implements OnModuleInit {
 
     // MARK: - Private methods
 
-    private async findSkillTomlFiles(root: string): Promise<string[]> {
+    private async findSkillTomls(dir: string): Promise<string[]> {
+        const entries = await readdir(dir, { withFileTypes: true });
+
         const results: string[] = [];
-        const entries = await readdir(root, { withFileTypes: true });
 
         for (const entry of entries) {
-            const fullPath = path.join(root, entry.name);
+            const fullPath = path.join(dir, entry.name);
+
             if (entry.isDirectory()) {
-                results.push(...(await this.findSkillTomlFiles(fullPath)));
+                results.push(...(await this.findSkillTomls(fullPath)));
             } else if (entry.name === "skill.toml") {
                 results.push(fullPath);
             }
         }
 
         return results;
-    }
-
-    private async loadSkillFromFile(filePath: string): Promise<Skill> {
-        const raw = await readFile(filePath, "utf8");
-        const dto = this.decoder.decode(raw, (v) => skillSchema.parse(v));
-        const schema = SkillSchema.from(dto);
-        const skill = this.schemaToSkill(schema);
-
-        if (await this.storage.read<Skill>(skill.id)) {
-            throw new SkillAlreadyRegisteredError();
-        }
-
-        await this.storage.write(skill, skill.id);
-
-        return skill;
-    }
-
-    private schemaToSkill(skill: SkillSchema): Skill {
-        const schema = skill.schema;
-
-        return {
-            id: schema.id
-        };
     }
 }

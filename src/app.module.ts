@@ -1,34 +1,34 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import path from 'path'
-import { Module } from '@nestjs/common'
-import { ConfigModule } from '@nestjs/config'
-import { APP_FILTER } from '@nestjs/core'
-import { AgentsModule } from './agents/agents.module'
-import { CapabilitiesModule } from './capabilities'
-import { DatabaseExceptionFilter, DatabaseModule } from './infraestructure/database'
-import { AcceptLanguageResolver, I18nJsonLoader, I18nModule } from 'nestjs-i18n'
-import { I18nModule as CortexI18nModule } from './i18n'
-import { KernelModule } from './kernel/kernel.module'
-import { PlaygroundModule } from './playground/playground.module'
-import { StorageModule } from './infraestructure/storage/storage.module'
-import { SkillsModule } from './skills/skills.module'
+import path from 'path';
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
+import {
+  AcceptLanguageResolver,
+  I18nJsonLoader,
+  I18nModule,
+} from 'nestjs-i18n';
+import { AgentsModule } from './agents/agents.module';
+import { CapabilitiesModule } from './capabilities';
+import {
+  DatabaseExceptionFilter,
+  DatabaseModule,
+} from './infraestructure/database';
+import { StorageModule } from './infraestructure/storage/storage.module';
+import { I18nModule as CortexI18nModule } from './i18n';
+import { KernelModule } from './kernel/kernel.module';
+import { SkillsModule } from './skills/skills.module';
+import { ToolsModule } from './tools/tools.module';
 
 @Module({
   imports: [
-    AgentsModule,
-    CapabilitiesModule,
-    DatabaseModule,
-    StorageModule,
-    CortexI18nModule,
-    SkillsModule,
-    KernelModule,
-    PlaygroundModule,
     ConfigModule.forRoot({
       envFilePath: `env/.env.${process.env.NODE_ENV ?? 'development'}`,
       isGlobal: true,
     }),
+    StorageModule,
     I18nModule.forRoot({
       fallbackLanguage: 'en',
       loader: I18nJsonLoader,
@@ -42,6 +42,13 @@ import { SkillsModule } from './skills/skills.module'
         watch: true,
       },
     }),
+    AgentsModule,
+    CapabilitiesModule,
+    DatabaseModule,
+    CortexI18nModule,
+    SkillsModule,
+    ToolsModule,
+    KernelModule,
   ],
   controllers: [],
   providers: [

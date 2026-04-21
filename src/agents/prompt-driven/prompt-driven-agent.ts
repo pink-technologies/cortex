@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { ContentKind, MessageRole, type TextContent } from '@/llm/llm';
-import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
+import { agentDecisionsSchema } from '../schema/agent-decision/agent-decision.schema';
 import type {
   Agent,
   AgentConfiguration,
@@ -55,8 +55,9 @@ export class PromptDrivenAgent implements Agent {
    * @param context - Current execution id and user message for this decision.
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
-  async decide(context: AgentContext): Promise<AgentDecision> {    
-    const result = await this.configuration.llm.chat(
+  async decide(context: AgentContext): Promise<AgentDecision[]> {
+    const { llm, systemPrompt, model } = this.configuration;
+    const result = await llm.chat(
       [
         {
           role: MessageRole.User,
@@ -69,35 +70,33 @@ export class PromptDrivenAgent implements Agent {
         },
       ],
       {
-        model: this.configuration.model,
-        systemPrompt: this.configuration.systemPrompt,
+        model,
+        systemPrompt,
       },
     );
 
     const assistantText = result.content
-      .filter((content): content is TextContent => content.type === ContentKind.Text)
-      .map((content) => content.text)
+      .filter((block): block is TextContent => block.type === ContentKind.Text)
+      .map((block) => block.text)
       .join('')
       .trim();
 
     const raw = JSON.parse(assistantText) as unknown;
-    return agentDecisionSchema.parse(raw);
+    return agentDecisionsSchema.parse(raw);
   }
 
   // MARK: - Private methods
 
-  private buildPrompt(context: AgentContext): string { 
-    const delegates = this.configuration.delegatesTo ?? []
-    const capabilities = this.configuration.descriptor.capabilities.join(', ') || 'none'
-    const delegatesTo = delegates.join(', ') || 'none';
-    const skills = this.configuration.descriptor.skills.join(', ') || 'none'
-
-    return [
+  private buildPrompt(context: AgentContext): string {
+    const parts = [
       `Execution id: ${context.executionId}`,
-      `User message:\n${context.message}`,
-      `Available skills: ${skills}`,
-      `Available capabilities: ${capabilities}`,
-      `Available delegates: ${delegatesTo}`,
-    ].join('\n\n');
+      `Conversation history: ${context.conversationHistory?.map(message => `${message.role}: ${message.content}`).join('\n') || 'none'}`,
+      `User message: ${context.message}`,
+      `Available skills: ${this.configuration.descriptor.skills.join(', ') || 'none'}`,
+      `Available capabilities: ${this.configuration.descriptor.capabilities.join(', ') || 'none'}`,
+      `Available delegates: ${this.configuration.delegateAgentIds?.join(', ') || 'none'}`,
+    ];
+
+    return parts.join('\n\n');
   }
 }

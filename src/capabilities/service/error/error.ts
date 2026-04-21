@@ -23,55 +23,40 @@ export abstract class CapabilitiesServiceError extends Error {
    * capability service error.
    */
   abstract readonly code: string;
-
-  /**
-   * The underlying error that originated this domain error.
-   *
-   * This value is intended for diagnostics, logging, and debugging,
-   * and should generally not be exposed directly to consumers.
-  */
-  readonly cause?: unknown
-
-  // MARK: - Initializer
-
-  /**
-   * Creates a new {@link CapabilitiesServiceError} instance.
-   *
-   * - Parameter message: A human-readable description of the failure.
-   * - Parameter cause: The underlying error that originated this domain error.
-   */
-  protected constructor(message: string, cause?: unknown) {
-    super(message)
-    
-    this.cause = cause
-  }
 }
 
 /**
- * Thrown when the capabilities subsystem fails to start up (for example module wiring,
- * registry bootstrap, or loading persisted capability configuration).
+ * Thrown when a capability registration is attempted but the capability (or its identifier)
+ * is already registered in the system.
  *
- * The optional {@link cause} preserves the original failure for logging and
- * diagnostics without exposing it as the primary service error.
+ * Use this to avoid duplicate registrations or conflicting capability identity in the registry.
  */
-export class CapabilitiesInitializationError extends CapabilitiesServiceError {
+export class CapabilityAlreadyRegisteredError extends CapabilitiesServiceError {
   // MARK: - Properties
 
   /**
-   * A machine-readable error code identifying the type of
-   * agent service error.
+   * Machine-readable code for duplicate capability registration errors.
    */
-  readonly code = 'CAPABILITIES_INITIALIZATION_ERROR';
+  readonly code = 'CAPABILITY_ALREADY_REGISTERED';
+}
 
-  // MARK: - Initializer
+/**
+ * Thrown when a capability fails to load from a file.
+ */
+export class CapabilityFileLoadError extends CapabilitiesServiceError {
+  // MARK: - Properties
 
   /**
-    * Creates an API key not configured error.
-    *
-    * - Parameter message: A human-readable description of the failure.
-    * - Parameter cause: The underlying error that originated this domain error.
-    */
-  constructor(message: string, cause?: unknown) {
-      super(message, cause)
-  }
+   * Machine-readable code for capability file load errors.
+   */
+  readonly code = 'CAPABILITY_FILE_LOAD_ERROR';
+}
+
+export class CapabilityNotFoundError extends CapabilitiesServiceError {
+  // MARK: - Properties
+
+  /**
+   * Machine-readable code for capability not found errors.
+   */
+  readonly code = 'CAPABILITY_NOT_FOUND';
 }
