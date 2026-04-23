@@ -76,9 +76,10 @@ export class PromptDrivenAgent implements Agent {
     );
 
     const assistantText = result.content
-      .filter((block): block is TextContent => block.type === ContentKind.Text)
-      .map((block) => block.text)
+      .filter((message): message is TextContent => message.type === ContentKind.Text)
+      .map((message) => message.text)
       .join('')
+      .replace(/```json|```/g, '')
       .trim();
 
     const raw = JSON.parse(assistantText) as unknown;
