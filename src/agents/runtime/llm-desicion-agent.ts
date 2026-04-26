@@ -1,18 +1,19 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { ContentKind, MessageRole, type TextContent } from '@/llm/llm';
+import { ContentKind, LLM, MessageRole, type TextContent } from '@/llm/llm';
 import { agentDecisionsSchema } from '../schema/agent-decision/agent-decision.schema';
 import type {
   Agent,
+  AgentDefinition,
   AgentConfiguration,
   AgentContext,
   AgentDecision,
   AgentDescriptor,
-} from '../agent';
+} from '../agent/agent';
 
 /**
- * {@link Agent} whose {@link Agent.decide} calls the {@link LLM} port for one structured
+ * {@link AgentDefinition} whose {@link AgentDefinition.decide} calls the {@link LLM} port for one structured
  * {@link AgentDecision} (JSON), then validates it with {@link agentDecisionSchema}.
  *
  * Instantiated by `AgentService` (not a Nest provider); pass a single {@link AgentConfiguration}.
@@ -23,22 +24,14 @@ export class PromptDrivenAgent implements Agent {
   /**
    * Creates a prompt-driven agent backed by the given static wiring.
    *
-   * @param configuration - {@link AgentConfiguration}: `id`, {@link AgentDescriptor}, `model`, `systemPrompt`,
-   *   {@link LLM} port, and optional `delegateAgentIds`. Used for {@link Agent.id},
-   *   {@link Agent.descriptor}, and {@link Agent.decide} (LLM call + prompt assembly).
+   * @param id - The id of the agent.
+   * @param llm - {@link LLM} port used by {@link PromptDrivenAgent.decide} for the structured JSON {@link AgentDecision} call (e.g. OpenAI-backed client).
+   * @param configuration - {@link AgentConfiguration}: `id`, {@link AgentDescriptor}, `model`, `systemPrompt`,   
+   *   {@link AgentDefinition.descriptor}, and {@link AgentDefinition.decide} (LLM call + prompt assembly).
    */
-  constructor(private readonly configuration: AgentConfiguration) {}
+  constructor(readonly id: string, private readonly llm: LLM, private readonly configuration: AgentConfiguration) {}
 
   // MARK: - Agent
-
-  /**
-   * The id of the agent.
-   * 
-   * @returns The id of the agent.
-   */
-  get id(): string {
-    return this.configuration.id;
-  }
 
   /**
    * The descriptor of the agent.
@@ -56,8 +49,8 @@ export class PromptDrivenAgent implements Agent {
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
   async decide(context: AgentContext): Promise<AgentDecision[]> {
-    const { llm, systemPrompt, model } = this.configuration;
-    const result = await llm.chat(
+    const { systemPrompt, model } = this.configuration;
+    const result = await this.llm.chat(
       [
         {
           role: MessageRole.User,

@@ -1,12 +1,11 @@
 export { AgentService } from './service/agent.service';
-export { AGENT } from './agents-tokens';
-export type { AgentSchema, agentSchema } from './schema/agent/agent.schema';
+export type { agentSchema } from './schema/agent/agent-schema';
 export type { 
-  Agent, 
+  AgentDefinition as Agent, 
   AgentContext,
   AgentConfiguration,
   AgentDecision,
   AgentDecisionType,
   AgentDescriptor,
   AgentRole,
-} from './agent';
+} from './agent/agent';

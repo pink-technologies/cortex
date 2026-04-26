@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { LLM, LLMMessage, LLMOptions, LLMResponse, StreamEvent } from '@/llm/llm';
-import { OpenAIProvider } from '@/llm/provider/llm-provider';
+import { LLMModel } from '../provider/llm-provider';
 import OpenAI from 'openai';
 import { 
     mapFromOpenAIChatCompletion,
@@ -23,6 +23,20 @@ export class OpenAILLM implements LLM {
     // MARK: - Private properties
 
     private readonly client: OpenAI;
+
+    // MARK: - Computed properties
+
+    /**
+     * The list of models supported by the LLM.
+     *
+     * This property defines which models can be used when interacting with the LLM.
+     */
+    readonly supportedModels: LLMModel[] = [
+        'gpt-5.4',
+        'gpt-5.4-mini',
+        'gpt-5.4-turbo',
+        'gpt-4o-mini',
+    ] as const;
 
     // MARK: - Constructor
 

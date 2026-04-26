@@ -5,20 +5,6 @@ import { InjectionToken } from "@nestjs/common";
 import { LLMModel } from "./provider/llm-provider";
 
 /**
- * Nest DI token for the {@link LLM} port (model client: chat/stream via vendor SDKs, {@link LLMResponse} out).
- *
- * Bind to {@link OpenAILLMClient} today; swap in another {@link LLM} implementation
- * (e.g. Anthropic) or a router provider later without changing call sites that inject this token.
- */
-export const LLM_TOKEN: InjectionToken<LLM> = Symbol('LLM');
-
-/**
- * Resolved default chat model id when callers do not override (e.g. agents). Wired in
- * {@link LLMModule} from the `LLM_DEFAULT_MODEL` environment variable (required).
- */
-export const DEFAULT_LLM_MODEL_TOKEN: InjectionToken<LLMModel> = Symbol('DEFAULT_LLM_MODEL');
-
-/**
  * Discriminants for blocks inside {@link LLMMessage.content} (text, image, tool use, tool result).
  */
 export const ContentKind = {
@@ -301,6 +287,13 @@ export interface StreamEvent {
  */
 export interface LLM {
     /**
+     * The list of models supported by the LLM.
+     *
+     * This property defines which models can be used when interacting with the LLM.
+     */
+    readonly supportedModels: readonly LLMModel[]
+
+    /**
      * Runs a single chat completion and returns the full result.
      *
      * @param messages - Conversation history and current turn, in order.
@@ -308,7 +301,7 @@ export interface LLM {
      * @returns Normalized {@link LLMResponse} including {@link LLMResponse.content} and {@link LLMResponse.usage}.
      * @throws On non-retryable API or adapter errors.
      */
-    chat(messages: LLMMessage[], options: LLMOptions): Promise<LLMResponse>;
+    chat(messages: LLMMessage[], options: LLMOptions): Promise<LLMResponse>
 
     /**
      * Streams a chat completion as an async iterable of {@link StreamEvent}.
@@ -317,5 +310,5 @@ export interface LLM {
      * @param options - Same as {@link LLM.chat}.
      * @returns Async iterable; on success the last event uses {@link StreamEventType.Done}, on failure {@link StreamEventType.Error}.
      */
-    stream(messages: LLMMessage[], options: LLMOptions): AsyncIterable<StreamEvent>;
+    stream(messages: LLMMessage[], options: LLMOptions): AsyncIterable<StreamEvent>
 }

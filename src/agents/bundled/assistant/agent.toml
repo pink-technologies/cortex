@@ -1,4 +1,4 @@
-id = "main-assistant"
+id = "assistant"
 name = "Main Assistant"
 version = "1.0.0"
 description = "General-purpose coordinator that handles simple requests, uses generic skills, and delegates specialized work."
@@ -35,8 +35,8 @@ max_delegation_depth = 3
 timeout_ms = 30000
 max_iterations = 12
 
-[model]
-provider = "default"
-model = "default"
+[llm]
+provider = "openAI"
+model = "gpt-5.4"
 max_tokens = 300
 temperature = 0.2

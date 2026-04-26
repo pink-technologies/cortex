@@ -1,194 +1,140 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { readFile, readdir } from 'fs/promises';
-import path from 'path';
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { OpenAILLM } from '@/llm/openai/openai-llm';
-import { DEFAULT_LLM_MODEL_TOKEN } from '@/llm/llm';
-import type { LLMModel } from '@/llm';
-import type { Storage } from '@/infraestructure/storage/storage';
-import { STORAGE } from '@/infraestructure/storage';
-import { Agent, AgentRole } from '../agent';
-import { BUNDLED_AGENTS_ROOT } from '../agents-tokens';
-import { agentSchema } from '../schema/agent/agent.schema';
-import { PromptDrivenAgent } from '../prompt-driven/prompt-driven-agent';
-import { DECODER, type Decoder } from '@/shared/types';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import type { Storage } from '@/infraestructure/storage/storage'
+import { STORAGE } from '@/infraestructure/storage'
+import { AgentDefinition, AgentRole } from '../agent/agent'
+import { BUNDLED_AGENTS_PATH } from '../tokens'
+import { AgentLoader } from '../loader/agent-loader'
 import {
-  AgentAlreadyRegisteredError,
-  AgentFileLoadError,
-  DuplicateMainAgentError,
-  InvalidAgentRoleError,
-  NoEntryOrchestratorAgentError,
-} from './error/error';
+    AgentAlreadyRegisteredError,
+    AgentLoadError,
+    AgentServiceError,
+    DuplicateMainAgentError,
+    FailedToGetMainAgentError,
+    MainAgentNotFoundError,
+} from './error/error'
 
 /**
- * Loads agents from TOML files under the directory injected as {@link BUNDLED_AGENTS_ROOT}
- * (wired in `AgentsModule` from `AGENTS_BUNDLED_ROOT` in env — same pattern as `REDIS_URL` in `StorageModule`).
+ * The key used to store the main assistant agent in the storage.
+ */
+const MAIN_AGENT_ID_KEY = 'agents:main:id';
+
+/**
+ * Registers bundled agents during application startup and exposes lookup
+ * operations for resolving agents by identity or by their MAIN orchestration
+ * role.
+ *
+ * `AgentService` delegates file-system loading to `AgentLoader`. During module
+ * initialization, it loads all bundled agent definitions from the configured
+ * root directory, stores each agent by its stable `Agent.id`, and records the
+ * id of the single MAIN agent under an internal storage key.
+ *
+ * The service enforces the runtime invariant that only one MAIN agent can be
+ * registered. This MAIN agent acts as the ecosystem's orchestrator and is
+ * resolved through `getMainAgent()`.
  */
 @Injectable()
 export class AgentService implements OnModuleInit {
-    // MARK: - Properties
+  // MARK: - Constructor
 
-    private loaded: Promise<void> | null = null;
-    
-    private mainAgentId: string | null = null;
+  /**
+   * Creates an agent service using the configured loader, bundled-agent root,
+   * and storage backend.
+   *
+   * @param agentLoader - The loader responsible for reading bundled agent definitions from disk.
+   * @param bundledAgentsPath - The root directory containing bundled agent subdirectories.
+   * @param storage - The storage backend used to register agents by id and store the MAIN agent index.
+   */
+  constructor(
+    @Inject(AgentLoader)
+    private readonly agentLoader: AgentLoader,
+    @Inject(BUNDLED_AGENTS_PATH)
+    private readonly bundledAgentsPath: string,
+    @Inject(STORAGE)
+    private readonly storage: Storage,
+  ) {}
 
-    // MARK: - Constructor
+  // MARK: - OnModuleInit
 
-    /**
-     * Wires persistence, TOML decoding, bundled agent root, and the LLM used when building {@link PromptDrivenAgent} instances.
-     *
-     * Token bindings are defined in {@link AgentsModule} (`STORAGE`, {@link DECODER}, {@link BUNDLED_AGENTS_ROOT}, `LLMModule`).
-     *
-     * @param llm - {@link OpenAILLMClient} from `LLMModule`; passed into each {@link PromptDrivenAgent} for {@link Agent.decide}.
-     * @param bundledAgentsPath - Injected via {@link BUNDLED_AGENTS_ROOT}; absolute directory path scanned for `*.toml` agent manifests.
-     * @param decoder - Injected via {@link DECODER} as {@link Decoder}; parses agent `.toml` (syntax) and optional refine step (e.g. Zod).
-     * @param defaultLlmModel - Injected via {@link DEFAULT_LLM_MODEL_TOKEN}; passed into each {@link PromptDrivenAgent} as {@link AgentConfiguration.model}.
-     * @param storage - Injected via {@link STORAGE}; stores and loads {@link Agent} instances by id after load.
-     */
-    constructor(
-        private readonly llm: OpenAILLM,
-        @Inject(DEFAULT_LLM_MODEL_TOKEN)
-        private readonly defaultLlmModel: LLMModel,
-        @Inject(BUNDLED_AGENTS_ROOT)
-        private readonly bundledAgentsPath: string,
-        @Inject(DECODER)
-        private readonly decoder: Decoder,
-        @Inject(STORAGE)
-        private readonly storage: Storage,
-    ) {}
+  async onModuleInit(): Promise<void> {
+    const agents = await this.agentLoader.loadAgentsFromRootDirectory(this.bundledAgentsPath)
 
-    // MARK: - OnModuleInit
-
-    /**
-     * Loads the agent from the TOML file when the module boots.
-     */
-    async onModuleInit(): Promise<void> {
-        await this.ensureLoaded();
-    }
-
-    // MARK: - Instance methods
-
-    /**
-     * Looks up a bundled agent by {@link Agent.id} after {@link load} has written it to {@link STORAGE}.
-     *
-     * Awaits {@link ensureLoaded} first so the registry is populated. Returns `null` when no value exists
-     * for `id` (same contract as {@link Storage.read}).
-     *
-     * @param id - The agent id from manifest `agent.toml` (`schema.id`).
-     * @returns The persisted {@link Agent}, or `null` if absent.
-     */
-    async find(id: string): Promise<Agent | null> {
-        await this.ensureLoaded();
-        return this.storage.read<Agent>(id);
-    }
-
-    /**
-     * Returns the bundled orchestrator agent: the one registered during {@link load} as the single
-     * {@link AgentRole.Assistant} (manifest `MAIN`), tracked in-memory as {@link AgentService.mainAgentId}.
-     *
-     * Awaits {@link ensureLoaded} first so storage and `mainAgentId` are populated. The instance is then
-     * read from {@link STORAGE} by id — callers get the same object shape as {@link find}.
-     *
-     * Wired for the kernel’s {@link AGENT} provider in {@link AgentsModule}.
-     *
-     * @returns The persisted {@link Agent} for the main orchestrator.
-     * @throws {@link NoEntryOrchestratorAgentError} When no main id was recorded during load, or storage has no row for that id.
-     */
-    async getMainAssistant(): Promise<Agent> {
-        await this.ensureLoaded();
-
-        if (!this.mainAgentId) {
-            throw new NoEntryOrchestratorAgentError();
+    for (const agent of agents) {
+      try {
+        if (await this.storage.read<AgentDefinition>(agent.id)) {
+            throw new AgentAlreadyRegisteredError(agent.id)
         }
 
-        const agent = await this.storage.read<Agent>(this.mainAgentId);
+        await this.storage.write(agent, agent.id);
 
-        if (!agent) {
-            throw new NoEntryOrchestratorAgentError();
+        if (agent.descriptor.role !== AgentRole.Main) continue
+
+        if (await this.storage.read<string>(MAIN_AGENT_ID_KEY)) {
+            throw new DuplicateMainAgentError(agent.id)
         }
 
-        return agent;
+        await this.storage.write(agent.id, MAIN_AGENT_ID_KEY)
+      } catch (error) {
+        if (error instanceof AgentServiceError) throw error        
+
+        throw new AgentLoadError(
+          `Failed to register agent: ${agent.id}`,
+          { cause: error }
+        )
+      }
+    }
+  }
+
+  // MARK: - Instance methods
+
+  /**
+   * Finds a registered agent by its stable identifier.
+   *
+   * @param id - The agent identifier declared in the agent manifest.
+   * @returns The registered `Agent`, or `null` when no agent exists for the given id.
+   */
+  async find(id: string): Promise<AgentDefinition | null> {
+    return this.storage.read<AgentDefinition>(id);
+  }
+
+  /**
+   * Returns the MAIN agent registered for the current ecosystem.
+   *
+   * The MAIN agent is the orchestrator responsible for coordinating execution,
+   * using skills, invoking capabilities, and delegating work to specialist agents
+   * when allowed by its configuration.
+   *
+   * @returns The registered MAIN `Agent`.
+   *
+   * @throws MainAgentNotFoundError If no MAIN agent id was registered or if the
+   * registered id does not resolve to an agent.
+   * @throws FailedToGetMainAgentError If storage access fails while resolving the
+   * MAIN agent.
+   */
+  async getMainAgent(): Promise<AgentDefinition> {
+    let agent: AgentDefinition | null = null
+
+    try {
+      const mainAgentId = await this.storage.read<string>(MAIN_AGENT_ID_KEY)
+
+      if (!mainAgentId) throw new MainAgentNotFoundError('Main agent not found')
+
+      agent = await this.storage.read<AgentDefinition>(mainAgentId)
+    } catch (error) {
+      if (error instanceof MainAgentNotFoundError) throw error      
+
+      throw new FailedToGetMainAgentError(
+        'Failed to get main agent', 
+        { cause: error }
+      )
     }
 
-    // MARK: - Private methods
-
-    private ensureLoaded(): Promise<void> {
-        if (!this.loaded) {
-            this.loaded = this.loadAndRegisterAgents();
-        }
-        return this.loaded;
+    if (!agent) {
+      throw new MainAgentNotFoundError('Main agent not found')
     }
 
-    private async loadAndRegisterAgents(): Promise<void> {
-        this.mainAgentId = null;
-
-        const entries = await readdir(this.bundledAgentsPath, { withFileTypes: true });
-
-        for (const entry of entries) {
-            if (!entry.isDirectory()) {
-                continue;
-            }
-
-            const filePath = path.join(this.bundledAgentsPath, entry.name, 'agent.toml');
-
-            try {
-                const agent = await this.loadAgentFromFile(filePath);
-
-                if (await this.storage.read<Agent>(agent.id)) throw new AgentAlreadyRegisteredError();
-
-                await this.storage.write(agent, agent.id);
-        
-                if (agent.descriptor.role === AgentRole.Assistant) {
-                    if (this.mainAgentId !== null) {
-                        throw new DuplicateMainAgentError();
-                    }
-        
-                    this.mainAgentId = agent.id;
-                }
-            } catch {
-                throw new AgentFileLoadError();
-            }
-        }
-
-        if (!this.mainAgentId) {
-            throw new NoEntryOrchestratorAgentError();
-        }
-    }
-
-    private async loadAgentFromFile(filePath: string): Promise<Agent> {
-        const rawAgents = await readFile(filePath, "utf8");
-        const schema = this.decoder.decode(rawAgents, (v) => agentSchema.parse(v));
-        const promptFilePath = path.join(path.dirname(filePath), schema.prompt_file);
-        const systemPrompt = await readFile(promptFilePath, "utf8");
-        
-        return new PromptDrivenAgent({
-            id: schema.id,
-            model: this.defaultLlmModel,
-            llm: this.llm,
-            systemPrompt,
-            delegateAgentIds: schema.delegates_to.filter((delegate) => delegate.length > 0),
-            descriptor: {
-                name: schema.name,
-                role: this.schemaRoleToAgent(schema.role),
-                skills: schema.skills.filter((skill) => skill.length > 0),
-                capabilities: schema.capabilities.filter((capability) => capability.length > 0),
-                description: schema.description,
-            }
-        });
-    }
-
-    private schemaRoleToAgent(role: string): AgentRole {
-        switch (role) {
-            case "MAIN":
-                return AgentRole.Assistant;
-
-            case "SPECIALIST":
-                return AgentRole.Specialist;
-
-            default:
-                throw new InvalidAgentRoleError();
-        }
-    }
+    return agent
+  }
 }

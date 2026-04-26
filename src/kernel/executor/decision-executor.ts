@@ -3,7 +3,7 @@
 
 import { Inject } from "@nestjs/common";
 import { KernelResult } from "../result/kernel-result";
-import { AgentDecisionType } from "@/agents/agent";
+import { AgentDecisionType } from "@/agents/agent/agent";
 import { ExecutionContext } from "@/shared/types/";
 import {
   Agent,

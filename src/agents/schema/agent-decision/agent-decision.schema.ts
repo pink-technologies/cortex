@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { z } from 'zod';
-import { AgentDecisionType } from '@/agents/agent';
+import { AgentDecisionType } from '@/agents/agent/agent';
 import { capabilityInputSchema } from '@/capabilities/schema/input/capability-input.schema';
 import { skillInputSchema } from '@/skills/schema/input/skill-input.schema';
 
@@ -66,7 +66,7 @@ const agentDecisionSchema = z.discriminatedUnion('type', [
  */
 export const agentDecisionsSchema = z
     .union([
-        z.array(agentDecisionSchema).min(1).max(32),
+        z.array(agentDecisionSchema).min(1).max(5),
         agentDecisionSchema,
     ])
     .transform((v) => (Array.isArray(v) ? v : [v]));

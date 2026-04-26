@@ -28,7 +28,7 @@ max_delegation_depth = 0
 timeout_ms = 45000
 max_iterations = 10
 
-[[config]]
+[[configuration]]
 key = "connection_ids"
 label = "Data Connections"
 description = "Select which connected data providers this agent can use."
@@ -36,7 +36,7 @@ type = "multiselect"
 required = true
 source = "connections:data-provider"
 
-[[config]]
+[[configuration]]
 key = "default_time_window"
 label = "Default Time Window"
 description = "Default analysis period when the user does not specify one."
@@ -44,20 +44,20 @@ type = "select"
 required = true
 default = "last_30_days"
 
-[[config.options]]
+[[configuration.options]]
 value = "last_7_days"
 label = "Last 7 days"
 
-[[config.options]]
+[[configuration.options]]
 value = "last_30_days"
 label = "Last 30 days"
 
-[[config.options]]
+[[configuration.options]]
 value = "last_90_days"
 label = "Last 90 days"
 
-[model]
-provider = "default"
-model = "default"
+[llm]
+provider = "openAI"
+model = "gpt-5.4"
 max_tokens = 300
 temperature = 0.2

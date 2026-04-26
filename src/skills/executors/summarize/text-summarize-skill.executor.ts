@@ -2,24 +2,13 @@
 // https://pink-tech.io/
 
 import { Inject, Injectable } from "@nestjs/common";
-
 import type { Storage } from "@/infraestructure/storage/storage";
 import { STORAGE } from "@/infraestructure/storage";
 import { SkillExecutor } from "@/skills/executors/skill-executor";
 import type { Skill } from "@/skills/skill";
 import { ExecutionContext } from "@/shared/types";
-import type { LLM } from "@/llm/llm";
-import { 
-    MessageRole,
-    ContentKind, 
-    DEFAULT_LLM_MODEL_TOKEN, 
-    LLM_TOKEN,
-} from "@/llm/llm";
-
-import { 
-    ExecutorPromptLoadError, 
-    ExecutorTextBuildError,
-} from "../error/error";
+import { ContentKind,  MessageRole } from "@/llm/llm";
+import {  ExecutorPromptLoadError,  ExecutorTextBuildError } from "../error/error";
 
 /**
  * Input for the text summarize skill.
@@ -58,18 +47,10 @@ export class TextSummarizeSkillExecutor implements SkillExecutor<SummarizeInput,
 
     /**
      * Creates a new TextSummarizeSkillService.
-     *
-     * @param llm - The LLM to use.
-     * @param llmModel - The LLM model to use.
+     *     
      * @param storage - The storage to use.
      */
     constructor(
-        @Inject(LLM_TOKEN)
-        private readonly llm: LLM,
-    
-        @Inject(DEFAULT_LLM_MODEL_TOKEN)
-        private readonly llmModel: string,
-    
         @Inject(STORAGE)
         private readonly storage: Storage,
     ) {}
