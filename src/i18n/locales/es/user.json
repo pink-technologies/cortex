@@ -1,0 +1,6 @@
+{
+    "user_not_found": "Usuario no encontrado",
+    "user_status_unchanged": "El estado del usuario ya está establecido con el valor solicitado",
+    "phone_registered": "Este número de teléfono ya está registrado",
+    "phone_not_registered": "Este número de teléfono no está registrado"
+}
