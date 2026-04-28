@@ -9,386 +9,231 @@ datasource db {
   provider = "postgresql"
 }
 
-enum AgentStatus {
+enum MembershipStatus {
   ACTIVE
-  DEPRECATED
+  INVITED
+  SUSPENDED
+  UNKNOWN
 }
 
-enum JobEventType {
-  DONE
-  ERROR
-  STATUS
-  TOKEN
-  TOOL_CALL
-  TOOL_RESULT
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+  UNKNOWN
 }
 
-enum JobStatus {
-  CANCELED
-  COMPLETED
-  FAILED
-  QUEUED
-  RUNNING
+enum PermissionScope {
+  ORGANIZATION
+  UNKNOWN
 }
 
-enum Role {
-  USER
-  ASSISTANT
-  SYSTEM
-  TOOL
+enum PermissionStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  UNKNOWN
 }
 
-enum ModelProviderType {
-  OPENAI
-  AZURE
-  GEMINI
-  CLAUDE
-}
-
-enum ConnectionRole {
-  PRIMARY
-  FALLBACK
-  CLASSIFIER
-}
-
-enum SkillInstallationStatus {
-  DISABLED
-  ENABLED
-}
-
-enum SkillInstallationScopeType {
+enum PermissionCategory {
   GLOBAL
-  USER
-  WORKSPACE
+  SYSTEM
+  UNKNOWN
 }
 
-enum SkillStatus {
-  ARCHIVED
+enum RoleType {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+  UNKNOWN
+}
+
+enum RoleStatus {
   ACTIVE
-  DISABLED
-  DRAFT
+  INACTIVE
+  PENDING
+  UNKNOWN
 }
 
-model Agent {
-  id          String            @id @default(uuid())
-  createdAt   DateTime          @default(now())
-  description String?
-  name        String
-  status      AgentStatus       @default(ACTIVE)
-  updatedAt   DateTime          @updatedAt
-  agentSkills AgentSkill[]
-  connections AgentConnection[]
-  intents     AgentIntent[]
-
-  @@map("agent")
+enum PermissionType {
+  GLOBAL
+  SYSTEM
+  UNKNOWN
 }
 
-model AgentConnection {
-  id                String         @id @default(uuid())
-  agentId           String
-  modelConnectionId String
-  role              ConnectionRole @default(PRIMARY)
-  isDefault         Boolean        @default(false)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-
-  agent           Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  modelConnection ModelConnection @relation(fields: [modelConnectionId], references: [id], onDelete: Cascade)
-
-  @@unique([agentId, modelConnectionId])
-  @@index([agentId])
-  @@index([modelConnectionId])
-  @@map("agent_model_connection")
+enum OrganizationStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  UNKNOWN
 }
 
-model AgentSkill {
-  id        String   @id @default(uuid())
-  agentId   String
-  skillId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  agent Agent @relation(fields: [agentId], references: [id])
-  skill Skill @relation(fields: [skillId], references: [id])
-
-  @@unique([agentId, skillId])
-  @@map("agent_skill")
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_CONFIRMATION
+  UNKNOWN
 }
 
-model Chat {
-  id        String   @id @default(uuid())
-  title     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Invitation {
+  id             String    @id @default(uuid())
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  email          String
+  expiresAt      DateTime?
+  invitedById    String?
+  organizationId String?
+  revokedAt      DateTime?
+  roleId         String?
+  status         InvitationStatus
+  token          String      @unique
+  updatedAt      DateTime?    @updatedAt
 
-  messages Message[]
-  jobs     Job[]
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  @@map("chat")
+  @@unique([email, organizationId])
+  @@map("invitations")
 }
 
-model AgentIntent {
-  id        String   @id @default(uuid())
-  agentId   String
-  intentId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model User {
+  id                 String                @id @default(uuid())
+  createdAt          DateTime              @default(now())
+  cognitoSub         String?
+  deletedAt          DateTime?
+  email              String                @unique
+  firstName          String
+  lastName           String
+  profile            UserProfile?
+  status             UserStatus
+  updatedAt          DateTime              @updatedAt
 
-  agent  Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  intent Intent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  organizationMemberships OrganizationMembership[]
 
-  @@unique([agentId, intentId])
-  @@index([agentId])
-  @@index([intentId])
-  @@map("agent_intent")
+  @@index([deletedAt])
+  @@map("users")
 }
 
-model Intent {
-  id           String        @id @default(uuid())
-  slug         String
-  name         String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  agentIntents AgentIntent[]
-
-  @@unique([slug])
-  @@map("intent")
-}
-
-model Message {
-  id        String   @id @default(uuid())
-  chatId    String
-  role      Role
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
-
-  jobId String?
-  job   Job?    @relation("JobMessages", fields: [jobId], references: [id])
-
-  triggeredByJobs Job[] @relation("TriggerMessage")
-  resultOfJobs    Job[] @relation("ResultMessage")
-
-  @@index([chatId])
-  @@map("message")
-}
-
-model Job {
-  id               String    @id @default(uuid())
-  chatId           String
-  triggerMessageId String?
-  status           JobStatus @default(QUEUED)
-  resultMessageId  String?
-  error            String?
-
-  createdAt   DateTime  @default(now())
-  startedAt   DateTime?
-  completedAt DateTime?
-
-  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
-
-  triggerMessage Message? @relation("TriggerMessage", fields: [triggerMessageId], references: [id])
-  resultMessage  Message? @relation("ResultMessage", fields: [resultMessageId], references: [id])
-
-  messages Message[]  @relation("JobMessages")
-  events   JobEvent[]
-
-  @@index([chatId])
-  @@index([status])
-  @@map("job")
-}
-
-model JobEvent {
-  id        String       @id @default(uuid())
-  jobId     String
-  type      JobEventType
-  payload   Json
-  createdAt DateTime     @default(now())
-
-  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  @@index([jobId])
-  @@map("job_event")
-}
-
-model Model {
-  id              String   @id @default(uuid())
-  slug            String
-  name            String
-  description     String?
-  modelProviderId String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  modelProvider    ModelProvider     @relation(fields: [modelProviderId], references: [id], onDelete: Cascade)
-  modelConnections ModelConnection[]
-
-  @@unique([slug])
-  @@index([modelProviderId])
-  @@map("model")
-}
-
-model ModelConnection {
-  id        String   @id @default(uuid())
-  modelId   String
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  model       Model             @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  connections AgentConnection[]
-
-  @@index([modelId])
-  @@map("model_connection")
-}
-
-model ModelProvider {
-  id          String            @id @default(uuid())
-  slug        String
-  name        String
-  description String?
-  type        ModelProviderType
-  config      Json
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  models      Model[]
-
-  @@unique([slug])
-  @@map("model_provider")
-}
-
-model Skill {
+model UserProfile {
   id          String      @id @default(uuid())
-  slug        String      @unique
-  name        String
-  description String?
-  status      SkillStatus @default(ACTIVE)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt    DateTime   @default(now())
+  deletedAt    DateTime?
+  locale       String?
+  profilePictureUrl String?
+  phoneNumber  String?      @unique
+  phoneVerifiedAt DateTime?
+  timezone     String?
+  userId       String
+  updatedAt    DateTime?  @updatedAt
 
-  installations              SkillInstallation[]
-  agentSkills                AgentSkill[]
-  skillDatasourceConnections SkillDatasourceConnection[]
-  skillTools                 SkillTool[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("skill")
+  @@unique([userId])
+  @@map("user_profiles")
 }
 
-enum DatasourceAuthType {
-  NONE
-  API_KEY
-  EMAIL_PASSWORD
-  USERNAME_PASSWORD
-  TOKEN
+model Organization {
+  id                  String                @id @default(uuid())
+  createdAt           DateTime             @default(now())
+  deletedAt           DateTime?
+  name                String
+  slug                String
+  profile OrganizationProfile?
+  status OrganizationStatus
+  updatedAt           DateTime?             @updatedAt
 
-  @@map("datasource_auth_type")
-}
-
-model DatasourceProvider {
-  id                    String                 @id @default(uuid())
-  slug                  String
-  name                  String
-  description           String?
-  authType              DatasourceAuthType     @default(NONE)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  datasourceConnections DatasourceConnection[]
+  memberships  OrganizationMembership[]
+  invitations  Invitation[]
 
   @@unique([slug])
-  @@map("datasource_provider")
+  @@index([deletedAt])
+  @@map("organizations")
 }
 
-model DatasourceConnection {
-  id          String   @id @default(uuid())
-  slug        String
+model OrganizationProfile {
+  id     String    @id @default(uuid())
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+  logoUrl String?
+  organizationId String
+  updatedAt DateTime? @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId])
+  @@map("organization_profiles")
+}
+
+
+model OrganizationMembership {
+  id              String @id @default(uuid())
+  createdAt       DateTime @default(now())
+  joinedAt        DateTime?
+  organizationId  String
+  roleId          String
+  status          MembershipStatus @default(UNKNOWN)
+  userId          String
+  updatedAt       DateTime? @updatedAt
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role          OrganizationRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_memberships")
+}
+
+model OrganizationRole {
+  id          String     @id @default(uuid())
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+  description String
+  key         String
   name        String
-  description String?
-  providerId  String
-  config      Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      RoleStatus @default(UNKNOWN)
+  type        RoleType @default(UNKNOWN)
+  updatedAt   DateTime? @updatedAt
+  
+  members     OrganizationMembership[]
+  permissions OrganizationRolePermission[]
 
-  provider                   DatasourceProvider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  skillDatasourceConnections SkillDatasourceConnection[]
-
-  @@unique([slug])
-  @@index([providerId])
-  @@map("datasource_connection")
+  @@unique([key])
+  @@map("organization_roles")
 }
 
-model SkillDatasourceConnection {
+model OrganizationRolePermission {
   id           String   @id @default(uuid())
-  skillId      String
-  connectionId String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  assignedAt   DateTime?
+  deletedAt    DateTime?
+  permissionId String
+  roleId       String
+  updatedAt    DateTime? @updatedAt
 
-  skill      Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  connection DatasourceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  role       OrganizationRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission       @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
-  @@unique([skillId, connectionId])
-  @@map("skill_connection")
+  @@unique([roleId, permissionId])
+  @@index([deletedAt])
+  @@map("organization_role_permissions")
 }
 
-model Tool {
-  id           String        @id @default(uuid())
-  slug         String
-  name         String
-  description  String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  toolVersions ToolVersion[]
-  skillTools   SkillTool[]
+model Permission {
+  id          String           @id @default(uuid())
+  category    PermissionCategory @default(UNKNOWN)
+  createdAt   DateTime        @default(now())
+  deletedAt   DateTime?
+  description String
+  name        String
+  key         String           @unique
+  scope       PermissionScope  @default(UNKNOWN)
+  status      PermissionStatus @default(UNKNOWN)
+  updatedAt   DateTime? @updatedAt
+  
+  organizationRolePermissions OrganizationRolePermission[]
 
-  @@unique([slug])
-  @@map("tool")
-}
-
-model ToolVersion {
-  id        String   @id @default(uuid())
-  toolId    String
-  version   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
-
-  @@unique([toolId, version])
-  @@map("tool_version")
-}
-
-model SkillTool {
-  id        String   @id @default(uuid())
-  skillId   String
-  toolId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  tool  Tool  @relation(fields: [toolId], references: [id], onDelete: Cascade)
-
-  @@unique([skillId, toolId])
-  @@map("skill_tool")
-}
-
-model SkillInstallation {
-  id               String                     @id @default(uuid())
-  skillId          String
-  scopeType        SkillInstallationScopeType
-  scopeId          String
-  installationPath String?
-  status           SkillInstallationStatus    @default(ENABLED)
-  config           Json?
-  installedBy      String?
-  installedAt      DateTime                   @default(now())
-  createdAt        DateTime                   @default(now())
-  updatedAt        DateTime                   @updatedAt
-
-  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  @@unique([scopeType, scopeId, skillId])
-  @@index([scopeType, scopeId])
-  @@map("skill_installation")
+  @@index([scope])
+  @@map("permissions")
 }
