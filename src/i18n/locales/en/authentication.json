@@ -1,0 +1,12 @@
+{
+	"account_not_confirmed": "User account is not confirmed",
+	"confirm_sign_up_failed": "We couldn't confirm your registration. Please check the verification code and try again",
+	"inactive_user": "This user is inactive. Please contact support",
+	"invalid_credentials": "The provided credentials are invalid",
+	"new_password_required": "New password is required",
+	"phone_number_already_registered": "Phone number is already registered",
+	"signup_failed": "We couldn't complete your registration. Please verify your information and try again",
+	"user_already_exists": "The user already exists",
+	"user_not_found": "User not found",
+	"verify_your_account": "Please verify your account using the code sent to your email"
+}
