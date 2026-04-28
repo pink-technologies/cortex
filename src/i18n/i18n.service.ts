@@ -140,6 +140,30 @@ export class I18nService {
   };
 
   /**
+   * Organization-related localized messages.
+   *
+   * These messages are used for organization creation, management,
+   * and membership flows.
+   */
+  readonly organizations = {
+    /**
+     * Message displayed when a requested organization role
+     * cannot be found.
+     */
+    roleNotFound: () => this.i18n.t('organizations.role_not_found'),
+
+    /**
+     * Message that includes the organization name (e.g. for confirmation
+     * or display). Accepts a dynamic name via interpolation.
+     *
+     * @param name - The organization name to interpolate into the message.
+     * @returns The localized string with the name inserted.
+     */
+    organizationName: (name: string) =>
+      this.i18n.t('organizations.organization_name', { args: { name } }),
+  };
+
+  /**
    * User-related localized messages.
    *
    * These messages are used for user profile and account
