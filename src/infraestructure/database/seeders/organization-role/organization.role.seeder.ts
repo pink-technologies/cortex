@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { Database } from '../../database';
-import { RoleType } from "@prisma/client";
+import { RoleStatus, RoleType } from '@prisma/client';
 import { BaseSeeder } from '../base.seeder';
 
 /**
@@ -34,28 +34,24 @@ export class OrganizationRoleSeeder implements BaseSeeder {
     async prepare(): Promise<void> {
         const roles = [
             {
-                name: 'Administrador',
                 key: RoleType.ADMIN,
-                description: 'Administrator of the organization',
                 type: RoleType.ADMIN,
+                status: RoleStatus.ACTIVE,
             },
             {
-                name: 'Member',
                 key: RoleType.MEMBER,
                 type: RoleType.MEMBER,
-                description: 'Member of the organization',
+                status: RoleStatus.ACTIVE,
             },
             {
-                name: 'Owner',
                 key: RoleType.OWNER,
-                description: 'Owner of the organization',
                 type: RoleType.OWNER,
+                status: RoleStatus.ACTIVE,
             },
             {
-                name: 'Viewer',
                 key: RoleType.VIEWER,
-                description: 'Viewer of the organization',
                 type: RoleType.VIEWER,
+                status: RoleStatus.ACTIVE,
             },
         ];
 
@@ -66,9 +62,15 @@ export class OrganizationRoleSeeder implements BaseSeeder {
     }
 
     /**
-     * Reverts the seeding by deleting all records in OrganizationRole.
+     * Reverts the seeding by deleting organization roles only when no members
+     * reference them. Global roles are shared across organizations; bulk delete
+     * would otherwise remove every member of that role (or fail with RESTRICT).
      */
     async revert(): Promise<void> {
-        await this.database.organizationRole.deleteMany({});
+        await this.database.organizationRole.deleteMany({
+            where: {
+                members: { none: {} },
+            },
+        });
     }
 }
