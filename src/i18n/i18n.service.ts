@@ -330,5 +330,5 @@ export class I18nService {
    * @param i18n - The underlying i18n provider used to
    * resolve translation keys into localized strings.
    */
-  constructor(private readonly i18n: i18n) {}
+  constructor(private readonly i18n: i18n) { }
 }
