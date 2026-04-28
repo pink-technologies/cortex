@@ -314,8 +314,8 @@ export class ProviderUserAlreadyExistsError extends AuthenticatableError {
    *
    * @param cause - The underlying provider error that triggered this failure.
    */
-  constructor(cause: unknown = null) {
-    super('User already exists.', cause != null ? { cause } : undefined);
+  constructor(cause: ErrorOptions) {
+    super('User already exists.', cause);
   }
 }
 
