@@ -6,3 +6,4 @@ export {
   type RefreshTokenParameters,
   UsernameAndPasswordCredential,
 } from './authenticatable';
+export { AuthModule } from './auth.module';

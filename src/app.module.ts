@@ -19,11 +19,7 @@ import {
 import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
 import { KernelModule } from './kernel/kernel.module';
-// import { PlaygroundModule } from './playground/playground.module';
 import { SkillsModule } from './skills/skills.module';
-import { AuthenticationModule } from './authentication';
-import { OrganizationsModule } from './organizations/organization.module';
-import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -44,9 +40,6 @@ import { UsersModule } from './users/users.module';
         watch: true,
       },
     }),
-    AuthenticationModule,
-    UsersModule,
-    OrganizationsModule,
     AgentsModule,
     CapabilitiesModule,
     DatabaseModule,
@@ -54,7 +47,6 @@ import { UsersModule } from './users/users.module';
     CortexI18nModule,
     SkillsModule,
     KernelModule,
-    // PlaygroundModule,
   ],
   controllers: [],
   providers: [

@@ -314,10 +314,10 @@ export abstract class Authenticatable {
    * - validating token shape,
    * - normalizing provider-specific claims into a domain payload.
    *
-   * @param accessToken - A JWT token string (access or ID token).
+   * @param idToken - A JWT token string (ID token).
    * @returns A normalized payload extracted from the token.
    */
-  abstract decode(accessToken: string): Promise<AuthTokenPayload>;
+  abstract decode(idToken: string): Promise<AuthTokenPayload>;
 
   /**
    * Initiates the password reset flow for a user.

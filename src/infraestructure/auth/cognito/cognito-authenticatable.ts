@@ -122,16 +122,16 @@ export class CognitoAuthenticatable implements Authenticatable {
    * persisted, or exposed.
    * @param options.region - The region where the authentication service
    * is hosted.
+   *
+   * App client id/secret apply only to Cognito API fields and SECRET_HASH; SDK
+   * calls use the default AWS credential chain (runtime IAM role or env/profile
+   * locally). That principal needs cognito-idp permissions on this pool.
    */
   constructor(private readonly options: CognitoOptions) {
     this.cognitoUri = `https://cognito-idp.${options.region}.amazonaws.com/${options.clientPoolId}`;
     this.jwksClient = new JwksClient({ jwksUri: `${this.cognitoUri}/.well-known/jwks.json` });
     this.cognitoClient = new CognitoIdentityProviderClient({
       region: options.region,
-      credentials: {
-        accessKeyId: options.clientId,
-        secretAccessKey: options.clientSecret,
-      },
     });
   }
 
@@ -207,7 +207,6 @@ export class CognitoAuthenticatable implements Authenticatable {
       });
 
       await this.cognitoClient.send(command);
-      console.log('command sent', command);
     } catch (exception) {
       throw ErrorMapper.map({ error: exception, fallback: new ConfirmSignupError(exception) });
     }
@@ -221,12 +220,12 @@ export class CognitoAuthenticatable implements Authenticatable {
    * - validating token shape,
    * - normalizing provider-specific claims into a domain payload.
    *
-   * @param accessToken - A JWT token string (access or ID token).
+   * @param idToken - A JWT token string (ID token).
    * @returns A normalized payload extracted from the token.
    */
-  async decode(accessToken: string): Promise<AuthTokenPayload> {
+  async decode(idToken: string): Promise<AuthTokenPayload> {
     try {
-      const decodedHeader = jwt.decode(accessToken, { complete: true }) as {
+      const decodedHeader = jwt.decode(idToken, { complete: true }) as {
         header?: { kid?: string };
       } | null;
 
@@ -236,7 +235,7 @@ export class CognitoAuthenticatable implements Authenticatable {
       }
 
       const key = await this.jwksClient.getSigningKey(kid);
-      const decodedToken = jwt.verify(accessToken, key.getPublicKey(), {
+      const decodedToken = jwt.verify(idToken, key.getPublicKey(), {
         algorithms: ['RS256'],
         issuer: this.cognitoUri,
       }) as JwtPayload;
@@ -459,9 +458,6 @@ export class CognitoAuthenticatable implements Authenticatable {
   // Private methods
 
   private hashForUsername(username: string): string {
-    console.log('username', username);
-    console.log('clientSecret', this.options.clientSecret);
-    console.log('clientId', this.options.clientId);
     return crypto
       .createHmac('sha256', this.options.clientSecret)
       .update(username + this.options.clientId)

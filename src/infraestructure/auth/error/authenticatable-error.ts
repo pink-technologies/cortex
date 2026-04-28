@@ -32,9 +32,13 @@ export abstract class AuthenticatableError extends Error {
   abstract readonly code: string;
 
   /**
-   * The underlying error that caused this authentication error.
+   * The underlying error that caused this authentication failure.
+   *
+   * This value is intended for internal use only (logging,
+   * tracing, diagnostics) and must not be exposed directly
+   * to API consumers.
    */
-  readonly cause?: unknown;
+  readonly cause?: ErrorOptions;
 
   // Constructor
 
@@ -46,9 +50,9 @@ export abstract class AuthenticatableError extends Error {
    * such as credentials, tokens, or confirmation codes.
    *
    * @param message - A human-readable description of the authentication error.
-   * @param cause - The underlying error that caused this authentication error.
+   * @param options - Optional {@link ErrorOptions} forwarded to the native `Error` constructor (typically `{ cause }`).
    */
-  constructor(message: string, cause?: unknown) {
+  protected constructor(message: string, cause?: ErrorOptions) {
     super(message);
 
     this.cause = cause;
@@ -101,7 +105,7 @@ export class ChallengeRequiredError extends AuthenticatableError {
     public readonly challengeName: string,
     public readonly session: string,
   ) {
-    super('Additional challenge is required to complete authentication.', null);
+    super('Additional challenge is required to complete authentication.');
   }
 }
 
@@ -138,7 +142,7 @@ export class ConfirmForgotPasswordError extends AuthenticatableError {
    *   the invalid credentials error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('Failed to confirm the new password.', cause);
   }
 }
@@ -173,7 +177,7 @@ export class ConfirmSignupError extends AuthenticatableError {
    *   the invalid credentials error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('Failed to confirm sign-up.', cause);
   }
 }
@@ -212,7 +216,7 @@ export class DecodeTokenError extends AuthenticatableError {
    *   the invalid credentials error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('Failed to decode the token.', cause);
   }
 }
@@ -248,7 +252,7 @@ export class ForgotPasswordError extends AuthenticatableError {
    *   the new password required error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('Failed to initiate forgot password flow.', cause);
   }
 }
@@ -282,7 +286,7 @@ export class InvalidCredentialsError extends AuthenticatableError {
    *   the invalid credentials error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('The provided credentials are invalid.', cause);
   }
 }
@@ -311,7 +315,7 @@ export class ProviderUserAlreadyExistsError extends AuthenticatableError {
    * @param cause - The underlying provider error that triggered this failure.
    */
   constructor(cause: unknown = null) {
-    super('User already exists.', cause);
+    super('User already exists.', cause != null ? { cause } : undefined);
   }
 }
 
@@ -338,7 +342,7 @@ export class ProviderUserNotFoundError extends AuthenticatableError {
    *
    * @param cause - The underlying provider error that triggered this failure.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('User not found.', cause);
   }
 }
@@ -373,7 +377,7 @@ export class InvalidCodeError extends AuthenticatableError {
    *   the invalid code error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('The provided verification code is invalid or has expired.', cause);
   }
 }
@@ -408,7 +412,7 @@ export class InvalidParametersError extends AuthenticatableError {
    *   the invalid credentials error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('Invalid or malformed parameters.', cause);
   }
 }
@@ -442,7 +446,7 @@ export class InvalidPasswordError extends AuthenticatableError {
    *   the invalid credentials error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('The provided password is invalid.', cause);
   }
 }
@@ -489,7 +493,7 @@ export class NewPasswordRequiredError extends AuthenticatableError {
    *   the new password required error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('A new password is required.', cause);
   }
 }
@@ -525,7 +529,7 @@ export class RefreshTokenError extends AuthenticatableError {
    *   the sign-up error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('An error occurred during the refresh token process.', cause);
   }
 }
@@ -557,7 +561,7 @@ export class ResendConfirmationCodeError extends AuthenticatableError {
    *   internal use (logging, tracing, diagnostics) and must not be exposed
    *   to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('Failed to resend the confirmation code.', cause);
   }
 }
@@ -597,7 +601,7 @@ export class SignInError extends AuthenticatableError {
    *   the sign-in error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('An error occurred during sign-in.', cause);
   }
 }
@@ -630,7 +634,7 @@ export class SignUpError extends AuthenticatableError {
    *   the sign-up error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('An error occurred during sign-up.', cause);
   }
 }
@@ -660,7 +664,7 @@ export class UserIsNotConfirmedError extends AuthenticatableError {
    *   the user is not confirmed error. This value is intended for internal use
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
-  constructor(cause: unknown = null) {
+  constructor(cause: ErrorOptions) {
     super('The user account is not confirmed.', cause);
   }
 }
