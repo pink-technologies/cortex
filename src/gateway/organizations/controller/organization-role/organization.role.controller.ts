@@ -35,7 +35,7 @@ export class OrganizationRoleController {
    */
   constructor(
     private readonly organizationRoleService: OrganizationRolesService,
-  ) {}
+  ) { }
 
   // MARK: - Instance methods
 

@@ -24,7 +24,7 @@ export class OrganizationRolesService {
    */
   constructor(
     private readonly organizationRolesRepository: OrganizationRolesRepository,
-  ) {}
+  ) { }
 
   // MARK: - Instance methods
 

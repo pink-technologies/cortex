@@ -2,11 +2,11 @@
 // https://pink-tech.io/
 
 import { i18nValidationMessage } from 'nestjs-i18n';
-import { 
-  IsEmail, 
-  IsDefined, 
-  IsPhoneNumber, 
-  Matches 
+import {
+  IsEmail,
+  IsDefined,
+  IsPhoneNumber,
+  Matches
 } from 'class-validator';
 
 /**

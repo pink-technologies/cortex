@@ -34,7 +34,7 @@ export class UserController {
    * @param userService - Application service responsible for
    * orchestrating user-related operations such as lookup and updates.
    */
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   // MARK: - Instance methods
 

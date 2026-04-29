@@ -74,7 +74,7 @@ export class AuthenticationService {
     private readonly database: Database,
     private readonly userRepository: UserRepository,
     private readonly organizationsService: OrganizationsService,
-  ) {}
+  ) { }
 
   // MARK: - Instance methods
 
@@ -118,7 +118,6 @@ export class AuthenticationService {
    */
   async confirmSignUp(parameters: ConfirmSignUpParametersDto): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
-
     if (!user) throw new UserNotFoundError();
 
     await this.authenticatable.confirmSignUp({
@@ -203,7 +202,7 @@ export class AuthenticationService {
     parameters: ResendConfirmationCodeParametersDto,
   ): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
-    
+
     if (!user) throw new UnauthorizedError();
 
     return await this.authenticatable.resendConfirmationCode(parameters.email);

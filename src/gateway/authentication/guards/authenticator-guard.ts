@@ -6,9 +6,9 @@ import type { User } from '@/infraestructure/database';
 import type { Request } from 'express';
 import { UserRepository } from '@/gateway/users/repository/users.repository';
 import { getExceptionCode } from '@/shared/utils/exception-code.util';
-import { 
-  Authenticatable, 
-  type AuthTokenPayload 
+import {
+  Authenticatable,
+  type AuthTokenPayload
 } from '@/infraestructure/auth';
 import {
   CanActivate,
@@ -57,7 +57,7 @@ export class AuthenticatorGuard implements CanActivate {
     const token = this.getAuthorizationToken(request);
     const payload = await this.decodeAuthToken(token);
     const user = await this.resolveAuthenticatedUser(payload);
-  
+
     request.user = user;
     return true;
   }
@@ -68,14 +68,14 @@ export class AuthenticatorGuard implements CanActivate {
     const authHeader = request.headers.authorization ?? '';
     const match = authHeader.trim().match(/^Bearer\s+(.+)$/i);
     const token = match?.[1]?.trim();
-  
+
     if (!token) {
       throw new UnauthorizedException({
         code: 'AUTH_TOKEN_MISSING',
         message: this.i18n.authentication.invalidCredentials(),
       });
     }
-  
+
     return token;
   }
 
@@ -92,14 +92,14 @@ export class AuthenticatorGuard implements CanActivate {
 
   private async resolveAuthenticatedUser(payload: AuthTokenPayload): Promise<User> {
     const user = await this.userRepository.findById(payload.username);
-  
+
     if (!user) {
       throw new UnauthorizedException({
         code: 'INVALID_CREDENTIALS',
         message: this.i18n.authentication.invalidCredentials(),
       });
     }
-  
+
     return user;
   }
 }
