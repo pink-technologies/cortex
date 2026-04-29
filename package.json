@@ -22,6 +22,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1038.0",
     "@iarna/toml": "^2.2.5",
     "@nestjs/common": "^11.1.14",
     "@nestjs/config": "^4.0.3",
@@ -31,6 +32,8 @@
     "@prisma/client": "^7.4.1",
     "class-transformer": "^0.5.1",
     "ioredis": "^5.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.0.1",
     "nestjs-i18n": "^10.6.0",
     "openai": "^6.33.0",
     "pg": "^8.19.0",
