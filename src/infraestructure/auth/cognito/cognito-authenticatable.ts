@@ -231,7 +231,7 @@ export class CognitoAuthenticatable implements Authenticatable {
 
       const kid = decodedHeader?.header?.kid;
       if (!kid) {
-        throw new DecodeTokenError('Token header is missing the key id (kid).');
+        throw new DecodeTokenError(new Error('Token header is missing the key id (kid).' as string));
       }
 
       const key = await this.jwksClient.getSigningKey(kid);
@@ -327,7 +327,7 @@ export class CognitoAuthenticatable implements Authenticatable {
       };
     }
 
-    throw new RefreshTokenError('Token refresh failed: invalid response from provider.');
+    throw new RefreshTokenError(new Error('Token refresh failed: invalid response from provider.'));
   }
 
   /**
@@ -412,10 +412,10 @@ export class CognitoAuthenticatable implements Authenticatable {
         };
       }
 
-      throw new SignInError('Authentication failed: invalid response from provider.');
+      throw new SignInError(new Error('Authentication failed: invalid response from provider.'));
     }
 
-    throw new SignInError('Authentication failed: unsupported credential.');
+    throw new SignInError(new Error('Authentication failed: unsupported credential.'));
   }
 
   /**

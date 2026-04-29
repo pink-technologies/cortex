@@ -75,23 +75,23 @@ export class ErrorMapper {
    */
   static map({ error, fallback }: MapErrorParams): AuthenticatableError {
     if (error instanceof CodeMismatchException || error instanceof ExpiredCodeException) {
-      return new InvalidCodeError();
+      return new InvalidCodeError(error);
     }
 
     if (error instanceof InvalidParameterException) {
-      return new InvalidParametersError();
+      return new InvalidParametersError(error);
     }
 
     if (error instanceof InvalidPasswordException) {
-      return new InvalidPasswordError();
+      return new InvalidPasswordError(error);
     }
 
     if (error instanceof NotAuthorizedException) {
-      return new InvalidCredentialsError();
+      return new InvalidCredentialsError(error);
     }
 
     if (error instanceof PasswordResetRequiredException) {
-      return new NewPasswordRequiredError();
+      return new NewPasswordRequiredError(error);
     }
 
     if (error instanceof UsernameExistsException) {
@@ -103,7 +103,7 @@ export class ErrorMapper {
     }
 
     if (error instanceof UserNotConfirmedException) {
-      return new UserIsNotConfirmedError();
+      return new UserIsNotConfirmedError(error);
     }
 
     return fallback;

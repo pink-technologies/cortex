@@ -5,21 +5,22 @@ import path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
+import { AgentsModule } from './agents/agents.module';
+import { CapabilitiesModule } from './capabilities';
+import { StorageModule } from './infraestructure/storage/storage.module';
+import { I18nModule as CortexI18nModule } from './i18n';
+import { KernelModule } from './kernel/kernel.module';
+import { SkillsModule } from './skills/skills.module';
+import { UsersModule } from './gateway/users/users.module';
+import {
+  DatabaseExceptionFilter,
+  DatabaseModule,
+} from './infraestructure/database';
 import {
   AcceptLanguageResolver,
   I18nJsonLoader,
   I18nModule,
 } from 'nestjs-i18n';
-import { AgentsModule } from './agents/agents.module';
-import { CapabilitiesModule } from './capabilities';
-import {
-  DatabaseExceptionFilter,
-  DatabaseModule,
-} from './infraestructure/database';
-import { StorageModule } from './infraestructure/storage/storage.module';
-import { I18nModule as CortexI18nModule } from './i18n';
-import { KernelModule } from './kernel/kernel.module';
-import { SkillsModule } from './skills/skills.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { SkillsModule } from './skills/skills.module';
         watch: true,
       },
     }),
+    UsersModule,
     AgentsModule,
     CapabilitiesModule,
     DatabaseModule,

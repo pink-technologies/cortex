@@ -1,0 +1,6 @@
+{
+    "user_not_found": "User not found",
+    "user_status_unchanged": "User status is already set to the requested value",
+    "phone_registered": "This phone number is already registered",
+    "phone_not_registered": "This phone number is not registered"
+}

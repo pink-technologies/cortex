@@ -2,10 +2,9 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common';
-import { JobsService } from 'src/jobs/service/jobs.service';
 
 @Module({
-  imports: [JobsService],
+  imports: [],
   controllers: [],
   providers: [],
 })

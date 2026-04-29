@@ -55,7 +55,6 @@ export class I18nService {
      * Message displayed when a agent ID is required.
      */
     agentRequiredId: () => this.i18n.t('agents.agent_required_id'),
-
   };
 
   /**
@@ -91,7 +90,8 @@ export class I18nService {
      * Message displayed when a request cannot be processed
      * due to invalid input or business rule violations.
      */
-    requestCouldNotBeProcessed: () => this.i18n.t('common.request_could_not_be_processed'),
+    requestCouldNotBeProcessed: () =>
+      this.i18n.t('common.request_could_not_be_processed'),
 
     /**
      * Message displayed when the service is temporarily
@@ -107,34 +107,13 @@ export class I18nService {
     /**
      * Message displayed when the JSON response format is not valid.
      */
-    jsonResponseFormatError: () => this.i18n.t('common.json_response_format_error'),
+    jsonResponseFormatError: () =>
+      this.i18n.t('common.json_response_format_error'),
 
     /**
      * Message displayed when the insufficient quota.
      */
     insufficientQuota: () => this.i18n.t('common.insufficient_quota'),
-  };
-
-  /**
-   * Jobs, cross-domain localized messages.
-   *
-   * These messages are specific to the jobs domain.
-   */
-  readonly jobs = {
-    /**
-     * Message displayed when a job is not found.
-     */
-    jobNotFound: () => this.i18n.t('jobs.job_not_found'),
-
-    /**
-     * Message displayed when a job ID is not found.
-     */
-    jobIdNotFound: () => this.i18n.t('jobs.job_id_not_found'),
-
-    /**
-     * Message displayed when a job status update fails.
-     */
-    jobStatusUpdateFailed: () => this.i18n.t('jobs.job_status_update_failed'),
   };
 
   /**
@@ -145,7 +124,8 @@ export class I18nService {
      * Message displayed when a request cannot be processed
      * due to invalid input or business rule violations.
      */
-    skillAlreadyRegistered: () => this.i18n.t('skills.skill_already_registered'),
+    skillAlreadyRegistered: () =>
+      this.i18n.t('skills.skill_already_registered'),
 
     /**
      * Message displayed when the service is temporarily
@@ -160,30 +140,33 @@ export class I18nService {
   };
 
   /**
-   * Storage, cross-domain localized messages.
+   * User-related localized messages.
    *
-   * These messages are specific to the storage domain.
+   * These messages are used for user profile and account
+   * lookup flows.
    */
-  readonly storage = {
+  readonly user = {
     /**
-     * Message displayed when a storage delete fails.
+     * Message displayed when a requested user
+     * cannot be found.
      */
-    storageDeleteFailed: () => this.i18n.t('storage.storage_delete_failed'),
+    userNotFound: () => this.i18n.t('user.user_not_found'),
 
     /**
-     * Message displayed when a storage read fails.
+     * Message displayed when attempting to update a user status
+     * to the same value.
      */
-    storageReadFailed: () => this.i18n.t('storage.storage_read_failed'),
+    userStatusUnchanged: () => this.i18n.t('user.user_status_unchanged'),
 
     /**
-     * Message displayed when a storage write fails.
+     * Message displayed when a phone number is already registered.
      */
-    storageWriteFailed: () => this.i18n.t('storage.storage_write_failed'),
+    phoneRegistered: () => this.i18n.t('user.phone_registered'),
 
     /**
-     * Message displayed when a storage initialization fails.
+     * Message displayed when a phone number is not registered.
      */
-    storageInitializationFailed: () => this.i18n.t('storage.storage_initialization_failed'),
+    phoneNotRegistered: () => this.i18n.t('user.phone_not_registered'),
   };
 
   // MARK: - Constructor
@@ -194,5 +177,5 @@ export class I18nService {
    * @param i18n - The underlying i18n provider used to
    * resolve translation keys into localized strings.
    */
-  constructor(private readonly i18n: i18n) { }
+  constructor(private readonly i18n: i18n) {}
 }
