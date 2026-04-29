@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { ToolSeeder } from "./tool/tool.seeder";
 import { Database } from "src/infraestructure/database";
+import { OrganizationRoleSeeder } from "./organization-role/organization.role.seeder";
 
 /**
  * SeederMigration is responsible for orchestrating the execution of all individual database seeders.
@@ -26,7 +26,7 @@ export class SeederMigration {
      * @param database - The Database instance to use for seeding
      */
     static async prepare(database: Database) {
-        await new ToolSeeder(database).prepare();
+        await new OrganizationRoleSeeder(database).prepare();
     }
 
     /**
@@ -35,6 +35,6 @@ export class SeederMigration {
      * @param database - The Database instance to use for reverting
      */
     static async revert(database: Database) {
-        await new ToolSeeder(database).revert();
+        await new OrganizationRoleSeeder(database).revert();
     }
 }

@@ -94,10 +94,10 @@ export class Database extends PrismaClient implements OnModuleInit, OnModuleDest
    * @example
    * ```typescript
    * await this.database.withTransaction(async (tx) => {
-   *   const workspace = await this.workspacesRepository.create(params, { tx });
-   *   await this.rolesRepository.createWorkspaceRole(roleParams, { tx });
-   *   await this.rolesRepository.createWorkspaceMembership(memberParams, { tx });
-   *   return workspace;
+   *   const organization = await this.organizationsRepository.create(params, { tx });
+   *   await this.rolesRepository.createOrganizationRole(roleParams, { tx });
+   *   await this.rolesRepository.createOrganizationMembership(memberParams, { tx });
+   *   return organization;
    * });
    * ```
    */
