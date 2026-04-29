@@ -29,10 +29,13 @@ export class OrganizationRolesService {
      * Finds an organization role by its unique identifier.
      *
      * @param id - The unique identifier of the role.
+     * @param userId - The unique identifier of the user.
      * @returns The matching role or null if not found.
+     *
+     * @throws RoleNotFound when the role cannot be found.
      */
-    async findById(id: string): Promise<OrganizationRole> {
-        const role = await this.organizationRolesRepository.findById(id);
+    async findById(id: string, userId: string): Promise<OrganizationRole> {
+        const role = await this.organizationRolesRepository.findById(id, userId);
 
         if (!role) throw new RoleNotFound();
 
@@ -63,7 +66,7 @@ export class OrganizationRolesService {
      *
      * @returns A list of all organization roles.
      */
-    async retrieve(): Promise<OrganizationRole[]> {
-        return await this.organizationRolesRepository.retrieve();
+    async retrieve(userId: string): Promise<OrganizationRole[]> {
+        return await this.organizationRolesRepository.retrieve(userId);
     }
 }

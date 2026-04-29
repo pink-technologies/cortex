@@ -5,6 +5,7 @@ import { UserExceptionFilter } from '../filter/exception.filter';
 import { UserService } from '../service/user.service';
 import { UserResponseDto } from '../dtos/responses/user/user-response.dto';
 import { UpdateUserParametersDto } from '../dtos/parameters';
+import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
 import {
     Body,
     Controller,
@@ -13,6 +14,7 @@ import {
     Put,
     Req,
     UseFilters,
+    UseGuards,
 } from '@nestjs/common';
 
 /**
@@ -42,6 +44,7 @@ export class UserController {
      *
      * @returns The current user's profile.
      */
+    @UseGuards(AuthenticatorGuard)
     @HttpCode(200)
     @Get('me')
     async me(@Req() req: Request): Promise<UserResponseDto> {
@@ -59,6 +62,7 @@ export class UserController {
      * @param body - The profile fields to update.
      * @returns The updated user entity.
      */
+    @UseGuards(AuthenticatorGuard)
     @HttpCode(200)
     @Put('me')
     async update(

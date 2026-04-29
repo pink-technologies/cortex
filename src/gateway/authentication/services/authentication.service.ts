@@ -3,9 +3,11 @@
 
 import { UserStatus } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
-import { CreateUserParametersDto, UserRepository } from '@/users/index';
+import { UserRepository } from '@/gateway/users/repository/users.repository';
+import { CreateUserParametersDto } from '@/gateway/users/dtos/parameters';
 import { SignInResult } from './types/sign-in-result';
 import { AccessTokenPayload } from './types/access-token-payload';
+import { OrganizationsService } from '@/gateway/organizations/services/organizations/organizations.service';
 import {
   Authenticatable,
   AuthToken,
@@ -33,7 +35,6 @@ import {
   UserAlreadyRegisteredError,
   UserNotFoundError,
 } from './error/authentication-service-error';
-import { OrganizationsService } from '@/organizations';
 
 /**
  * Application service responsible for coordinating authentication operations.
@@ -111,11 +112,8 @@ export class AuthenticationService {
    */
   async confirmSignUp(parameters: ConfirmSignUpParametersDto): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
-    console.log('user', user);
     
     if (!user) throw new UserNotFoundError();
-
-    console.log('user not found', !user);
 
     await this.authenticatable.confirmSignUp({
       username: parameters.email,
@@ -218,6 +216,16 @@ export class AuthenticationService {
    */
   async refreshToken(parameters: RefreshTokenParametersDto): Promise<AuthToken> {
     const payload = await this.authenticatable.decode(parameters.idToken);
+    const email = payload.email.trim().toLowerCase();
+
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) throw new UnauthorizedError();
+
+    if (user.status === UserStatus.INACTIVE) throw new InactiveUserError();
+
+    if (user.status === UserStatus.PENDING_CONFIRMATION)
+      throw new PendingUserConfirmationError();
 
     const refreshTokenParameters: RefreshTokenParameters = {
       username: payload.username,
@@ -283,7 +291,6 @@ export class AuthenticationService {
   async signUp(parameters: SignupParametersDto): Promise<void> {
     const email = parameters.email.trim().toLowerCase();
     const phone = parameters.phone.trim();
-    console.log('phone', phone);
     const [existingUser, isPhoneRegistered] = await Promise.all([
       this.userRepository.findByEmail(email),
       this.userRepository.isPhoneRegistered(phone),
@@ -291,7 +298,7 @@ export class AuthenticationService {
 
     if (existingUser) {
       if (existingUser.status === UserStatus.ACTIVE)
-        throw new UserAlreadyRegisteredError('The user already exists');
+        throw new UserAlreadyRegisteredError();
 
       if (existingUser.status === UserStatus.PENDING_CONFIRMATION) {
         await this.authenticatable.resendConfirmationCode(email);
@@ -300,7 +307,7 @@ export class AuthenticationService {
     }
 
     if (isPhoneRegistered)
-      throw new PhoneAlreadyRegisteredError('Phone number is already registered.');
+      throw new PhoneAlreadyRegisteredError();
 
 
     const createUserParameters: CreateUserParametersDto = {
@@ -315,8 +322,10 @@ export class AuthenticationService {
     try {
       await this.authenticatable.signUp({ username: email, password: parameters.password });
     } catch (error) {
+      await this.userRepository.deleteById(user.id);
+
       if (error instanceof ProviderUserAlreadyExistsError) {
-        throw new UserAlreadyRegisteredError('The user already exists');
+        throw new UserAlreadyRegisteredError();
       }
 
       if (error instanceof ProviderUserNotFoundError) {

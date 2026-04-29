@@ -23,6 +23,30 @@ export abstract class AuthenticationServiceError extends Error {
    * authentication service error.
    */
   abstract readonly code: string;
+
+  /**
+   * The underlying error that caused this authentication service error.
+   *
+   * This value is intended for internal use only (logging,
+   * tracing, diagnostics) and must not be exposed directly
+   * to API consumers.
+   */
+  readonly cause?: ErrorOptions;
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link AuthenticationServiceError} instance.
+   *
+   * @param message - A human-readable description of the authentication service error.
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(message: string, cause?: ErrorOptions) {
+    super(message);
+
+    this.cause = cause;
+    this.name = new.target.name;
+  }
 }
 
 /**
@@ -45,6 +69,17 @@ export class InactiveUserError extends AuthenticationServiceError {
    * user account errors.
    */
   readonly code = 'INACTIVE_USER';
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link InactiveUserError} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('The user account is inactive.', cause);
+  }
 }
 
 /**
@@ -68,6 +103,17 @@ export class PendingUserConfirmationError extends AuthenticationServiceError {
    * pending account confirmation errors.
    */
   readonly code = 'PENDING_CONFIRMATION';
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link PendingUserConfirmationError} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('The user account is pending confirmation.', cause);
+  }
 }
 
 /**
@@ -85,6 +131,17 @@ export class PhoneAlreadyRegisteredError extends AuthenticationServiceError {
    * registration conflicts.
    */
   readonly code = 'PHONE_ALREADY_REGISTERED';
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link PhoneAlreadyRegisteredError} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('The phone number is already registered.', cause);
+  }
 }
 
 export class UnauthorizedError extends AuthenticationServiceError {
@@ -95,6 +152,17 @@ export class UnauthorizedError extends AuthenticationServiceError {
    * registration conflicts.
    */
   readonly code = 'UNAUTHORIZED';
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link UnauthorizedError} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('Unauthorized.', cause);
+  }
 }
 
 /**
@@ -113,6 +181,17 @@ export class UserAlreadyRegisteredError extends AuthenticationServiceError {
    * A machine-readable error code identifying duplicate user errors.
    */
   readonly code = 'USER_ALREADY_EXISTS';
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link UserAlreadyRegisteredError} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('The user already exists.', cause);
+  }
 }
 
 /**
@@ -132,4 +211,15 @@ export class UserNotFoundError extends AuthenticationServiceError {
    * A machine-readable error code identifying user-not-found errors.
    */
   readonly code = 'USER_NOT_FOUND';
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link UserNotFoundError} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('The user not found.', cause);
+  }
 }

@@ -1,9 +1,15 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { LLM, LLMMessage, LLMOptions, LLMResponse, StreamEvent } from '@/llm/llm';
 import { OpenAIProvider } from '@/llm/provider/llm-provider';
 import OpenAI from 'openai';
+import type { 
+    LLM, 
+    LLMMessage, 
+    LLMOptions, 
+    LLMResponse, 
+    StreamEvent 
+} from '@/llm/llm';
 import { 
     mapFromOpenAIChatCompletion,
     mapFromOpenAIError, 

@@ -23,6 +23,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
+import type { Response } from 'express';
+
 import {
   InactiveUserError,
   PendingUserConfirmationError,
@@ -45,6 +47,9 @@ import {
  * - normalize error messages returned to API consumers,
  * - allow already-formed {@link HttpException} instances to pass through unchanged.
  *
+ * Responses are written via {@link ArgumentsHost} (HTTP context) so the filter
+ * ends the request in one place without re-throwing into Nest’s exception chain.
+ *
  * This filter is intended to be used in the authentication boundary
  * (e.g. auth controllers or globally when auth errors may propagate).
  */
@@ -59,41 +64,68 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
    * localized, user-facing messages in a consistent and
    * domain-aware manner.
    */
-  constructor(private readonly i18n: I18nService) { }
+  constructor(private readonly i18n: I18nService) {}
 
   // MARK: - ExceptionFilter
 
-  catch(exception: unknown) {
+  catch(exception: unknown, host: ArgumentsHost): void {
+    const response = host.switchToHttp().getResponse<Response>();
     const i18n = this.i18n;
 
     if (exception instanceof ConfirmSignupError) {
-      throw new BadRequestException(i18n.authentication.confirmSignUpFailed(), {
-        cause: exception,
-      });
+      this.sendHttpError(
+        response,
+        new BadRequestException(i18n.authentication.confirmSignUpFailed(), { cause: exception }),
+      );
+      return;
     }
 
     if (exception instanceof InvalidParametersError || exception instanceof InvalidPasswordError) {
-      throw new BadRequestException(i18n.common.requestCouldNotBeProcessed(), { cause: exception });
+      this.sendHttpError(
+        response,
+        new BadRequestException(i18n.common.requestCouldNotBeProcessed(), { cause: exception }),
+      );
+      return;
     }
 
     if (exception instanceof NewPasswordRequiredError) {
-      throw new ForbiddenException(i18n.authentication.newPasswordRequired(), { cause: exception });
+      this.sendHttpError(
+        response,
+        new ForbiddenException(i18n.authentication.newPasswordRequired(), { cause: exception }),
+      );
+      return;
     }
 
     if (exception instanceof UserIsNotConfirmedError) {
-      throw new ForbiddenException(i18n.authentication.accountNotConfirmed(), { cause: exception });
+      this.sendHttpError(
+        response,
+        new ForbiddenException(i18n.authentication.accountNotConfirmed(), { cause: exception }),
+      );
+      return;
     }
 
     if (exception instanceof InactiveUserError) {
-      throw new UnauthorizedException(i18n.authentication.inactiveUser(), { cause: exception });
+      this.sendHttpError(
+        response,
+        new UnauthorizedException(i18n.authentication.inactiveUser(), { cause: exception }),
+      );
+      return;
     }
 
     if (exception instanceof PendingUserConfirmationError) {
-      throw new UnauthorizedException(i18n.authentication.verifyYourAccount(), { cause: exception });
+      this.sendHttpError(
+        response,
+        new UnauthorizedException(i18n.authentication.verifyYourAccount(), { cause: exception }),
+      );
+      return;
     }
 
     if (exception instanceof PhoneAlreadyRegisteredError) {
-      throw new UnauthorizedException(i18n.authentication.phoneNumberAlreadyRegistered(), { cause: exception });
+      this.sendHttpError(
+        response,
+        new UnauthorizedException(i18n.authentication.phoneNumberAlreadyRegistered(), { cause: exception }),
+      );
+      return;
     }
 
     if (
@@ -101,25 +133,45 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
       exception instanceof InvalidCredentialsError ||
       exception instanceof UnauthorizedError
     ) {
-      throw new UnauthorizedException(i18n.authentication.invalidCredentials(), {
-        cause: exception,
-      });
+      this.sendHttpError(
+        response,
+        new UnauthorizedException(i18n.authentication.invalidCredentials(), {
+          cause: exception,
+        }),
+      );
+      return;
     }
 
     if (exception instanceof UserAlreadyRegisteredError) {
-      throw new UnauthorizedException(i18n.authentication.userAlreadyExists(), { cause: exception });
+      this.sendHttpError(
+        response,
+        new UnauthorizedException(i18n.authentication.userAlreadyExists(), { cause: exception }),
+      );
+      return;
     }
 
     if (exception instanceof UserNotFoundError) {
-      throw new UnauthorizedException(i18n.authentication.userNotFound(), { cause: exception });
+      this.sendHttpError(
+        response,
+        new UnauthorizedException(i18n.authentication.userNotFound(), { cause: exception }),
+      );
+      return;
     }
 
     if (exception instanceof HttpException) {
-      throw exception;
+      this.sendHttpError(response, exception);
+      return;
     }
 
-    console.log('exception', exception);
+    this.sendHttpError(
+      response,
+      new InternalServerErrorException(i18n.common.serviceUnavailable(), { cause: exception }),
+    );
+  }
 
-    throw new InternalServerErrorException(i18n.common.serviceUnavailable(), { cause: exception });
+  // MARK: - Private Methods
+
+  private sendHttpError(response: Response, httpException: HttpException): void {
+    response.status(httpException.getStatus()).json(httpException.getResponse());
   }
 }

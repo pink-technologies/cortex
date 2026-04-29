@@ -111,6 +111,19 @@ export class UserRepository {
   }
 
   /**
+   * Permanently deletes a user row. Related {@link UserProfile} rows are removed
+   * by database cascade.
+   *
+   * Used to compensate when provider registration fails after a local user record
+   * was created (e.g. sign-up rollback).
+   */
+  async deleteById(userId: string): Promise<void> {
+    await this.database.user.delete({
+      where: { id: userId },
+    });
+  }
+
+  /**
    * Finds a user by email address.
    *
    * This method queries the user table by email, which is a unique identifier.

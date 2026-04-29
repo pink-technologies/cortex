@@ -11,6 +11,7 @@ import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
 import { KernelModule } from './kernel/kernel.module';
 import { SkillsModule } from './skills/skills.module';
+import { AuthenticationModule } from './gateway/authentication';
 import { UsersModule } from './gateway/users/users.module';
 import {
   DatabaseExceptionFilter,
@@ -42,6 +43,7 @@ import {
       },
     }),
     UsersModule,
+    AuthenticationModule,
     AgentsModule,
     CapabilitiesModule,
     DatabaseModule,

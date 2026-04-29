@@ -159,7 +159,6 @@ export class AuthenticationController {
   @HttpCode(200)
   @Post('refresh-token')
   async refreshToken(
-    @Req() req: Request,
     @Body() parameters: RefreshTokenParametersDto,
   ): Promise<AuthenticationTokenResponseDto> {
     const token = await this.authenticationService.refreshToken(parameters);
