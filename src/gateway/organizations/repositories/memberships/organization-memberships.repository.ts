@@ -69,7 +69,6 @@ export class OrganizationMembershipsRepository {
     const database = options?.transaction ?? this.database;
     return database.organizationMembership.create({
       data: {
-        joinedAt: new Date(),
         roleId: parameters.roleId,
         status: MembershipStatus.ACTIVE,
         userId: parameters.userId,

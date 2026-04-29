@@ -5,6 +5,7 @@ import { Database, Organization } from "@/infraestructure/database";
 import { I18nService } from '@/i18n/i18n.service';
 import { RoleType } from "@prisma/client";
 import { Injectable } from "@nestjs/common";
+import { RoleNotFound } from "../error/organization.error";
 import {
     OrganizationMembershipsRepository,
     OrganizationRolesRepository,
@@ -87,9 +88,10 @@ export class OrganizationsService {
 
             const role = await this.organizationRolesRepository.findByRoleType(
                 RoleType.OWNER,
+                { transaction },
             );
 
-            if (!role) throw new Error('Owner role not found');
+            if (!role) throw new RoleNotFound();
 
             await this.organizationMembershipsRepository.create({
                 userId: parameters.ownerId,

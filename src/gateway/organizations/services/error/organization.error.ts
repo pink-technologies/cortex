@@ -23,6 +23,30 @@ export abstract class OrganizationServiceError extends Error {
    * organization service error.
    */
   abstract readonly code: string;
+
+  /**
+   * The underlying error that caused this organization service error.
+   *
+   * This value is intended for internal use only (logging,
+   * tracing, diagnostics) and must not be exposed directly
+   * to API consumers.
+   */
+  readonly cause?: ErrorOptions;
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link OrganizationServiceError} instance.
+   *
+   * @param message - A human-readable description of the organization service error.
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(message: string, cause?: ErrorOptions) {
+    super(message);
+
+    this.cause = cause;
+    this.name = new.target.name;
+  }
 }
 
 /**
@@ -38,4 +62,15 @@ export class RoleNotFound extends OrganizationServiceError {
    * A machine-readable error code identifying role-not-found errors.
    */
   readonly code = 'ROLE_NOT_FOUND';
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a new {@link RoleNotFound} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('Role not found.', cause);
+  }
 }

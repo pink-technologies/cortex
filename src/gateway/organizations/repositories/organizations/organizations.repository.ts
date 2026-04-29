@@ -3,7 +3,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { Database, type DatabaseTransaction, Organization } from '@/infraestructure/database';
-import { OrganizationStatus } from '@prisma/client';
+import { MembershipStatus, OrganizationStatus } from '@prisma/client';
 
 /**
  * Repository responsible for persisting and querying organization entities.
@@ -100,6 +100,7 @@ export class OrganizationsRepository {
    * Finds a organization by its unique identifier.
    *
    * @param id - The unique identifier of the organization.
+   * @param userId - The unique identifier of the user.
    * @returns The organization entity if found, or null if no organization exists with this id.
    *
    * @example
@@ -110,9 +111,18 @@ export class OrganizationsRepository {
    * }
    * ```
    */
-  async find(id: string) {
-    return this.database.organization.findUnique({
-      where: { id },
+  async find(id: string, userId: string) {
+    return this.database.organization.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        memberships: {
+          some: {
+            userId,
+            status: MembershipStatus.ACTIVE,
+          },
+        },
+      },
     });
   }
 
@@ -123,16 +133,26 @@ export class OrganizationsRepository {
    * across all organizations.
    *
    * @param slug - The slug identifier to search for.
-   * @returns The organization entity if found, or null if no organization exists with this slug.
+   * @param userId - The unique identifier of the user.
+   * @returns The organization entity if found and the user is a member of the organization, or null if no organization exists with this slug or the user is not a member of the organization.
    *
    * @example
    * ```typescript
    * const organization = await organizationsRepository.findBySlug('johns-organization');
    * ```
    */
-  async findBySlug(slug: string) {
-    return this.database.organization.findUnique({
-      where: { slug },
+  async findBySlug(slug: string, userId: string) {
+    return this.database.organization.findFirst({
+      where: {
+        slug,
+        deletedAt: null,
+        memberships: {
+          some: {
+            userId,
+            status: MembershipStatus.ACTIVE,
+          },
+        },
+      },
     });
   }
 }

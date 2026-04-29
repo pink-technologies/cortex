@@ -58,18 +58,6 @@ export class I18nService {
   };
 
   /**
-   * Chats, cross-domain localized messages.
-   *
-   * These messages are specific to the chats domain.
-   */
-  readonly chats = {
-    /**
-     * Message displayed when a chat is not found.
-     */
-    chatNotFound: () => this.i18n.t('chats.chat_not_found'),
-  };
-
-  /**
    * Common, cross-domain localized messages.
    *
    * These messages are generic and may be reused across

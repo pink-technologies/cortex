@@ -26,6 +26,20 @@ export class OrganizationRolesService {
     // MARK: - Instance methods
 
     /**
+     * Finds an organization role by its unique identifier.
+     *
+     * @param id - The unique identifier of the role.
+     * @returns The matching role or null if not found.
+     */
+    async findById(id: string): Promise<OrganizationRole> {
+        const role = await this.organizationRolesRepository.findById(id);
+
+        if (!role) throw new RoleNotFound();
+
+        return role;
+    }
+
+    /**
      * Finds an organization role by its role type within an organization.
      *
      * @param organizationId - The organization that owns the role.

@@ -2,6 +2,7 @@
 // https://pink-tech.io/
 
 import { I18nService } from '@/i18n/i18n.service';
+import { RoleNotFound } from '../services/error/organization.error';
 import {
     Catch,
     ExceptionFilter,
@@ -9,7 +10,6 @@ import {
     InternalServerErrorException,
     NotFoundException,
 } from '@nestjs/common';
-import { RoleNotFound } from '../services/error/organization.error';
 
 /**
  * Organization-specific exception filter.

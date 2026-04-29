@@ -2,6 +2,7 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
+import { RoleStatus } from '@prisma/client';
 import {
   Database,
   type DatabaseTransaction,
@@ -53,6 +54,16 @@ export class OrganizationRolesRepository {
   // MARK: - Instance methods
 
   /**
+   * Finds an organization role by its unique identifier.
+   *
+   * @param id - The unique identifier of the role.
+   * @returns The matching role or null if not found.
+   */
+  async findById(id: string): Promise<OrganizationRole | null> {
+    return await this.database.organizationRole.findFirst({ where: { id, deletedAt: null } });
+  }
+
+  /**
    * Finds an organization role by `type` within a specific organization.
    *
    * `organizationId` is required: the same `RoleType` exists once per organization.
@@ -60,14 +71,20 @@ export class OrganizationRolesRepository {
    *
    * @param organizationId - The organization that owns the role.
    * @param roleType - The `RoleType` enum value to match.
+   * @param options - Optional transaction. Pass when inside
+   *   {@link Database.withTransaction}.
    * @returns The organization role entity if found, or null otherwise.
    */
   async findByRoleType(
     roleType: RoleType,
+    options?: { transaction?: DatabaseTransaction },
   ): Promise<OrganizationRole | null> {
-    return this.database.organizationRole.findFirst({
+    const database = options?.transaction ?? this.database;
+
+    return await database.organizationRole.findFirst({
       where: {
         type: roleType,
+        deletedAt: null,
       },
     });
   }
@@ -78,6 +95,14 @@ export class OrganizationRolesRepository {
    * @returns A list of all organization roles.
    */
   async retrieve(): Promise<OrganizationRole[]> {
-    return this.database.organizationRole.findMany();
+    return this.database.organizationRole.findMany({
+      where: {
+        status: RoleStatus.ACTIVE,
+        deletedAt: null,
+      },
+      orderBy: {
+        key: 'asc',
+      },
+    });
   }
 }
