@@ -48,7 +48,8 @@ export class AuthenticatorGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authHeader = request.headers.authorization ?? '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const match = authHeader.trim().match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim() || null;
 
     if (!token) {
       throw new UnauthorizedException('Authorization token is required.');

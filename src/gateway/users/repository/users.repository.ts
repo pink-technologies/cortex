@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Database, User } from '@/infraestructure/database';
+import { Database, DatabaseTransaction, User } from '@/infraestructure/database';
 import { UserStatus } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { UserNotFoundError } from '../service/error/user.error';
@@ -259,8 +259,13 @@ export class UserRepository {
    * await usersRepository.updateStatus(userId, UserStatus.Active);
    * ```
    */
-  async updateStatus(userId: string, status: UserStatus): Promise<User> {
-    return this.database.user.update({
+  async updateStatus(
+    userId: string, 
+    status: UserStatus, 
+    transaction?: DatabaseTransaction,
+  ): Promise<User> {
+    const database = transaction ?? this.database;
+    return database.user.update({
       where: { id: userId, deletedAt: null },
       data: { status },
       include: { profile: true },

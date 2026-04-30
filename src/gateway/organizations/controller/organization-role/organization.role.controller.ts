@@ -2,7 +2,6 @@
 // https://pink-tech.io/
 
 import type { OrganizationRole } from '@/infraestructure/database';
-import { OrganizationExceptionFilter } from '../../filter/exception.filter';
 import { OrganizationRolesService } from '../../services/roles/organization.roles.service';
 import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
 import {
@@ -11,7 +10,6 @@ import {
   HttpCode,
   Param,
   Req,
-  UseFilters,
   UseGuards,
 } from '@nestjs/common';
 
@@ -23,7 +21,6 @@ import {
  * {@link AuthenticationService}.
  */
 @Controller('organizations/roles')
-@UseFilters(OrganizationExceptionFilter)
 export class OrganizationRoleController {
   // MARK: - Constructor
 

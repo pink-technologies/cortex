@@ -1,7 +1,6 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AuthenticationExceptionFilter } from '../filter/exception.filter';
 import { AuthenticationService } from '../services/authentication.service';
 import {
   ConfirmForgotPasswordParametersDto,
@@ -17,13 +16,14 @@ import {
   SignInResponseDto,
   UserResponseDto,
 } from '../dtos/responses';
-import { 
-  Body, 
-  Controller, 
-  HttpCode, 
-  Post, 
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post,
   UseFilters,
 } from '@nestjs/common';
+import { AuthenticationExceptionFilter } from '../filter/authentication-exception.filter';
 
 /**
  * HTTP controller responsible for handling authentication-related requests.
@@ -31,6 +31,9 @@ import {
  * This controller acts as the transport-layer entry point for authentication
  * operations and delegates all business logic to the
  * {@link AuthenticationService}.
+ *
+ * Maps authentication domain and infrastructure errors to HTTP via
+ * {@link AuthenticationExceptionFilter} at this transport boundary.
  */
 @Controller('/auth')
 @UseFilters(AuthenticationExceptionFilter)

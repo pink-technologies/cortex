@@ -1,11 +1,16 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Database, Organization } from "@/infraestructure/database";
 import { I18nService } from '@/i18n/i18n.service';
 import { RoleType } from "@prisma/client";
 import { Injectable } from "@nestjs/common";
 import { RoleNotFound } from "../error/organization.error";
+import { toOrganizationHttpException } from "../../mapper/organization-error.mapper";
+import {
+    Database,
+    type DatabaseTransaction,
+    Organization,
+} from "@/infraestructure/database";
 import {
     OrganizationMembershipsRepository,
     OrganizationRolesRepository,
@@ -77,31 +82,45 @@ export class OrganizationsService {
      * {@link CreateOrganizationParameters}) and delegates to the repository.
      *
      * @param parameters - The parameters required to create the organization.
+     * @param options - Optional existing transaction to participate in.
      * @returns The newly created organization entity.
      */
-    async create(parameters: CreateOrganizationParameters): Promise<Organization> {
-        return await this.database.withTransaction(async (transaction) => {
-            const organization = await this.organizationsRepository.create(
-                this.i18nService.organizations.organizationName(parameters.name),
-                { transaction }
-            );
-
-            const role = await this.organizationRolesRepository.findByRoleType(
-                RoleType.OWNER,
-                { transaction },
-            );
-
-            if (!role) throw new RoleNotFound();
-
-            await this.organizationMembershipsRepository.create({
-                userId: parameters.ownerId,
-                roleId: role.id,
-                organizationId: organization.id,
-            }, {
-                transaction,
-            });
-
-            return organization;
-        });
+    async create(
+        parameters: CreateOrganizationParameters,
+        transaction?: DatabaseTransaction,
+    ): Promise<Organization> {
+        try {
+            const executeTransaction = async (transaction: DatabaseTransaction): Promise<Organization> => {
+                const organization = await this.organizationsRepository.create(
+                    this.i18nService.organizations.organizationName(parameters.name),
+                    { transaction }
+                );
+    
+                const role = await this.organizationRolesRepository.findByRoleType(
+                    RoleType.OWNER,
+                    { transaction },
+                );
+    
+                if (!role) throw new RoleNotFound();
+    
+                await this.organizationMembershipsRepository.create({
+                    userId: parameters.ownerId,
+                    roleId: role.id,
+                    organizationId: organization.id,
+                }, {
+                    transaction,    
+                });
+    
+                return organization;
+            }
+    
+            if (transaction) {
+                return executeTransaction(transaction);
+            }
+    
+            return this.database.withTransaction(executeTransaction);
+        } catch (error){
+            throw toOrganizationHttpException(error, this.i18nService);
+        }
     }
 }

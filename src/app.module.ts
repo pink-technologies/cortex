@@ -17,6 +17,7 @@ import {
   DatabaseExceptionFilter,
   DatabaseModule,
 } from './infraestructure/database';
+import { GlobalExceptionFilter } from './shared/filter/exception.filter';
 import {
   AcceptLanguageResolver,
   I18nJsonLoader,
@@ -57,12 +58,16 @@ import {
   providers: [
     {
       provide: APP_FILTER,
-      useFactory: () =>
-        new I18nValidationExceptionFilter({ detailedErrors: true }),
+      useClass: GlobalExceptionFilter,
     },
     {
       provide: APP_FILTER,
       useClass: DatabaseExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
+      useFactory: () =>
+        new I18nValidationExceptionFilter({ detailedErrors: true }),
     },
   ],
 })

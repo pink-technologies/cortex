@@ -6,6 +6,7 @@ import { DatabaseModule } from '@/infraestructure/database';
 import { Module } from '@nestjs/common';
 import { I18nModule } from '@/i18n/i18n.module';
 import { AuthenticationController } from './controller/authentication.controller';
+import { AuthenticationExceptionFilter } from './filter/authentication-exception.filter';
 import { AuthenticationService } from './services/authentication.service';
 import { UsersModule } from '@/gateway/users/users.module';
 import { OrganizationsModule } from '@/gateway/organizations/organization.module';
@@ -13,6 +14,6 @@ import { OrganizationsModule } from '@/gateway/organizations/organization.module
 @Module({
   controllers: [AuthenticationController],
   imports: [AuthModule, DatabaseModule, I18nModule, UsersModule, OrganizationsModule],
-  providers: [AuthenticationService],
+  providers: [AuthenticationService, AuthenticationExceptionFilter],
 })
 export class AuthenticationModule { }

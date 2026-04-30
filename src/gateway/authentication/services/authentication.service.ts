@@ -8,6 +8,7 @@ import { CreateUserParametersDto } from '@/gateway/users/dtos/parameters';
 import { SignInResult } from './types/sign-in-result';
 import { AccessTokenPayload } from './types/access-token-payload';
 import { OrganizationsService } from '@/gateway/organizations/services/organizations/organizations.service';
+import { Database } from '@/infraestructure/database';
 import {
   Authenticatable,
   AuthToken,
@@ -65,12 +66,15 @@ export class AuthenticationService {
    * @param userRepository - The repository for user data access operations.
    * This dependency is injected to abstract Prisma ORM details away from the service
    * and enable testability through mocking or alternative persistence implementations.
+   * @param database - Used to run multi-step persistence (e.g. confirm sign-up) atomically.
+   * @param organizationsService - The service for organization data access operations.
    */
   constructor(
     private readonly authenticatable: Authenticatable,
+    private readonly database: Database,
     private readonly userRepository: UserRepository,
     private readonly organizationsService: OrganizationsService,
-  ) { }
+  ) {}
 
   // MARK: - Instance methods
 
@@ -88,7 +92,9 @@ export class AuthenticationService {
    * @throws An error when the confirmation fails due to an invalid
    * code, expired code, invalid password, or an underlying provider failure.
    */
-  async confirmForgotPassword(parameters: ConfirmForgotPasswordParametersDto): Promise<void> {
+  async confirmForgotPassword(
+    parameters: ConfirmForgotPasswordParametersDto,
+  ): Promise<void> {
     return await this.authenticatable.confirmForgotPassword({
       username: parameters.email,
       newPassword: parameters.newPassword,
@@ -112,7 +118,7 @@ export class AuthenticationService {
    */
   async confirmSignUp(parameters: ConfirmSignUpParametersDto): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
-    
+
     if (!user) throw new UserNotFoundError();
 
     await this.authenticatable.confirmSignUp({
@@ -120,11 +126,13 @@ export class AuthenticationService {
       confirmationCode: parameters.confirmationCode,
     });
 
-    await this.userRepository.updateStatus(user.id, UserStatus.ACTIVE);
+    await this.database.withTransaction(async (transaction) => {
+      await this.userRepository.updateStatus(user.id, UserStatus.ACTIVE, transaction);
 
-    await this.organizationsService.create({
-      name: user.firstName,
-      ownerId: user.id,
+      await this.organizationsService.create(
+        { name: user.firstName, ownerId: user.id },
+        transaction,
+      );
     });
   }
 
@@ -163,7 +171,6 @@ export class AuthenticationService {
    */
   async forgotPassword(parameters: ForgotPasswordParametersDto): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
-
     if (!user) throw new UnauthorizedError();
 
     return await this.authenticatable.forgotPassword(parameters.email);
@@ -191,9 +198,10 @@ export class AuthenticationService {
    * @throws An error when the resend operation fails due
    * to provider errors, rate limiting, or invalid request state.
    */
-  async resendConfirmationCode(parameters: ResendConfirmationCodeParametersDto): Promise<void> {
+  async resendConfirmationCode(
+    parameters: ResendConfirmationCodeParametersDto,
+  ): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
-
     if (!user) throw new UnauthorizedError();
 
     return await this.authenticatable.resendConfirmationCode(parameters.email);
@@ -214,7 +222,9 @@ export class AuthenticationService {
    * @throws PendingUserConfirmationError when the user is not yet confirmed.
    * @throws An error when the provider rejects the refresh token.
    */
-  async refreshToken(parameters: RefreshTokenParametersDto): Promise<AuthToken> {
+  async refreshToken(
+    parameters: RefreshTokenParametersDto,
+  ): Promise<AuthToken> {
     const payload = await this.authenticatable.decode(parameters.idToken);
     const email = payload.email.trim().toLowerCase();
 
@@ -252,21 +262,26 @@ export class AuthenticationService {
    * @throws An error when authentication fails due to provider errors
    * or other mapped authentication failures.
    */
-  async signIn(credential: EmailAndPasswordCredentialDto): Promise<SignInResult> {
+  async signIn(
+    credential: EmailAndPasswordCredentialDto,
+  ): Promise<SignInResult> {
     const user = await this.userRepository.findByEmail(credential.email);
 
     if (!user) throw new UnauthorizedError();
 
     if (user.status === UserStatus.INACTIVE) throw new InactiveUserError();
 
-    if (user.status === UserStatus.PENDING_CONFIRMATION) throw new PendingUserConfirmationError();
+    if (user.status === UserStatus.PENDING_CONFIRMATION)
+      throw new PendingUserConfirmationError();
 
     const usernameAndPasswordCredential = new UsernameAndPasswordCredential(
       credential.email,
       credential.password,
     );
 
-    const token = await this.authenticatable.signIn(usernameAndPasswordCredential);
+    const token = await this.authenticatable.signIn(
+      usernameAndPasswordCredential,
+    );
 
     return { user, token };
   }
@@ -306,9 +321,7 @@ export class AuthenticationService {
       }
     }
 
-    if (isPhoneRegistered)
-      throw new PhoneAlreadyRegisteredError();
-
+    if (isPhoneRegistered) throw new PhoneAlreadyRegisteredError();
 
     const createUserParameters: CreateUserParametersDto = {
       email,
@@ -320,7 +333,10 @@ export class AuthenticationService {
     const user = await this.userRepository.create(createUserParameters);
 
     try {
-      await this.authenticatable.signUp({ username: email, password: parameters.password });
+      await this.authenticatable.signUp({
+        username: email,
+        password: parameters.password,
+      });
     } catch (error) {
       await this.userRepository.deleteById(user.id);
 
@@ -335,6 +351,9 @@ export class AuthenticationService {
       throw error;
     }
 
-    await this.userRepository.updateStatus(user.id, UserStatus.PENDING_CONFIRMATION);
+    await this.userRepository.updateStatus(
+      user.id,
+      UserStatus.PENDING_CONFIRMATION,
+    );
   }
 }

@@ -1,7 +1,6 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { UserExceptionFilter } from '../filter/exception.filter';
 import { UserService } from '../service/user.service';
 import { UserResponseDto } from '../dtos/responses/user/user-response.dto';
 import { UpdateUserParametersDto } from '../dtos/parameters';
@@ -25,7 +24,6 @@ import {
  * {@link UserService}.
  */
 @Controller('users')
-@UseFilters(UserExceptionFilter)
 export class UserController {
     // MARK: - Constructor
 
