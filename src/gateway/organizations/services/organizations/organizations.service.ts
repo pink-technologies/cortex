@@ -69,7 +69,7 @@ export class OrganizationsService {
     private readonly organizationMembershipsRepository: OrganizationMembershipsRepository,
     private readonly organizationRolesRepository: OrganizationRolesRepository,
     private readonly organizationsRepository: OrganizationsRepository,
-  ) {}
+  ) { }
 
   // MARK: - Instance methods
 

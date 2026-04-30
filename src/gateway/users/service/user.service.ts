@@ -18,10 +18,13 @@ export class UserService {
   /**
    * Creates a new {@link UserService}.
    *
+   * @param i18nService - The internationalization service used to resolve
+   * localized, user-facing messages in a consistent and
+   * domain-aware manner.
    * @param usersRepository - The repository responsible for user persistence
    * and lookup operations.
    */
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(private readonly userRepository: UserRepository) { }
 
   // MARK: - Instance methods
 
@@ -34,9 +37,9 @@ export class UserService {
   async findByEmail(email: string): Promise<User> {
     const user = await this.userRepository.findByEmail(email);
 
-      if (!user) throw new UserNotFoundError();
+    if (!user) throw new UserNotFoundError();
 
-      return user;
+    return user;
   }
 
   /**
@@ -48,10 +51,10 @@ export class UserService {
    * @throws HttpException when the user cannot be found.
    */
   async findById(userId: string): Promise<User> {
-      const user = await this.userRepository.findById(userId);
+    const user = await this.userRepository.findById(userId);
 
-      if (!user) throw new UserNotFoundError();
-  
+    if (!user) throw new UserNotFoundError();
+
     return user;
   }
 
@@ -66,11 +69,11 @@ export class UserService {
     userId: string,
     parameters: UpdateUserParametersDto,
   ): Promise<User> {
-      const user = await this.userRepository.findById(userId);
+    const user = await this.userRepository.findById(userId);
 
-      if (!user) throw new UserNotFoundError();
-  
-      return await this.userRepository.update(userId, parameters);
+    if (!user) throw new UserNotFoundError();
+
+    return await this.userRepository.update(userId, parameters);
   }
 
   /**
@@ -81,12 +84,12 @@ export class UserService {
    * @returns The updated user entity.
    */
   async updateStatus(userId: string, status: UserStatus): Promise<User> {
-      const user = await this.userRepository.findById(userId);
+    const user = await this.userRepository.findById(userId);
 
-      if (!user) throw new UserNotFoundError();
-  
-      if (user.status === status) throw new UserStatusUnchangedError();
-  
-      return await this.userRepository.updateStatus(userId, status);
+    if (!user) throw new UserNotFoundError();
+
+    if (user.status === status) throw new UserStatusUnchangedError();
+
+    return await this.userRepository.updateStatus(userId, status);
   }
 }

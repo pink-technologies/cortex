@@ -55,12 +55,7 @@ export class OrganizationRolesService {
    * @throws RoleNotFound when the role cannot be found.
    */
   async findByRoleType(roleType: RoleType): Promise<OrganizationRole> {
-    if (!Object.values(RoleType).includes(roleType)) {
-      throw new RoleNotFound();
-    }
-
-    const role =
-      await this.organizationRolesRepository.findByRoleType(roleType);
+    const role = await this.organizationRolesRepository.findByRoleType(roleType);
 
     if (!role) throw new RoleNotFound();
 

@@ -18,6 +18,7 @@ import {
   DatabaseExceptionFilter,
   DatabaseModule,
 } from './infraestructure/database';
+import { GlobalExceptionFilter } from './shared/filter/exception.filter';
 import {
   AcceptLanguageResolver,
   I18nJsonLoader,

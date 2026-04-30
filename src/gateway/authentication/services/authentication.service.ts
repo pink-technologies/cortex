@@ -170,7 +170,6 @@ export class AuthenticationService {
    */
   async forgotPassword(parameters: ForgotPasswordParametersDto): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
-
     if (!user) throw new UnauthorizedError();
 
     return await this.authenticatable.forgotPassword(parameters.email);
@@ -202,7 +201,6 @@ export class AuthenticationService {
     parameters: ResendConfirmationCodeParametersDto,
   ): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
-
     if (!user) throw new UnauthorizedError();
 
     return await this.authenticatable.resendConfirmationCode(parameters.email);

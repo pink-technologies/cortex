@@ -61,7 +61,7 @@ export class UserRepository {
    * @param database - The database client used to perform user operations.
    * Injected at runtime to support inversion of control and enable testability.
    */
-  constructor(private readonly database: Database) {}
+  constructor(private readonly database: Database) { }
 
   // MARK: - Instance methods
 

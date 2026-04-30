@@ -24,7 +24,6 @@ import {
  * {@link UserService}.
  */
 @Controller('users')
-@UseFilters(UserExceptionFilter)
 export class UserController {
   // MARK: - Constructor
 
