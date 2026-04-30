@@ -26,6 +26,83 @@ export class I18nService {
   // MARK: - Helpers
 
   /**
+   * Authentication-related localized messages.
+   *
+   * These messages are used for authentication and
+   * authorization flows such as sign-in, sign-up,
+   * account verification, and access restrictions.
+   */
+  readonly authentication = {
+    /**
+     * Message displayed when a user attempts to authenticate
+     * without having confirmed their account.
+     */
+    accountNotConfirmed: () =>
+      this.i18n.t('authentication.account_not_confirmed'),
+
+    /**
+     * Message displayed when a user needs to confirm their account
+     * before completing the sign-up or authentication process.
+     */
+    confirmSignUpFailed: () =>
+      this.i18n.t('authentication.confirm_sign_up_failed'),
+
+    /**
+     * Message displayed when an inactive or disabled
+     * user attempts to authenticate.
+     */
+    inactiveUser: () => this.i18n.t('authentication.inactive_user'),
+
+    /**
+     * Message displayed when authentication fails due
+     * to invalid credentials.
+     */
+    invalidCredentials: () => this.i18n.t('authentication.invalid_credentials'),
+
+    /**
+     * Message displayed when a new password is required
+     * to complete the authentication flow.
+     */
+    newPasswordRequired: () =>
+      this.i18n.t('authentication.new_password_required'),
+
+    /**
+     * Message displayed when a phone number is already
+     * registered to another user account.
+     */
+    phoneNumberAlreadyRegistered: () => {
+      return this.i18n.t('authentication.phone_number_already_registered');
+    },
+
+    /**
+     * Message displayed when user registration fails due to
+     * conflicting information (e.g., email or phone already registered).
+     *
+     * This is a generic message to prevent enumeration attacks
+     * while guiding users to verify their information.
+     */
+    signupFailed: () => this.i18n.t('authentication.signup_failed'),
+
+    /**
+     * Message displayed when a user attempts to register
+     * with an identifier that already exists.
+     */
+    userAlreadyExists: () => this.i18n.t('authentication.user_already_exists'),
+
+    /**
+     * Message displayed when a user cannot be found in the system
+     * during authentication or account lookup.
+     */
+    userNotFound: () => this.i18n.t('authentication.user_not_found'),
+
+    /**
+     * Message prompting the user to verify their account
+     * using a confirmation code or link.
+     */
+    verifyYourAccount: () => this.i18n.t('authentication.verify_your_account'),
+  };
+
+  /**
    * Agents, cross-domain localized messages.
    *
    * These messages are specific to the agents domain.
@@ -105,6 +182,28 @@ export class I18nService {
   };
 
   /**
+   * Jobs, cross-domain localized messages.
+   *
+   * These messages are specific to the jobs domain.
+   */
+  readonly jobs = {
+    /**
+     * Message displayed when a job is not found.
+     */
+    jobNotFound: () => this.i18n.t('jobs.job_not_found'),
+
+    /**
+     * Message displayed when a job ID is not found.
+     */
+    jobIdNotFound: () => this.i18n.t('jobs.job_id_not_found'),
+
+    /**
+     * Message displayed when a job status update fails.
+     */
+    jobStatusUpdateFailed: () => this.i18n.t('jobs.job_status_update_failed'),
+  };
+
+  /**
    * Skills, cross-domain localized messages.
    */
   readonly skills = {
@@ -125,6 +224,34 @@ export class I18nService {
      * Message displayed when a skill is not found.
      */
     skillNotFound: () => this.i18n.t('skills.skill_not_found'),
+  };
+
+  /**
+   * Storage, cross-domain localized messages.
+   *
+   * These messages are specific to the storage domain.
+   */
+  readonly storage = {
+    /**
+     * Message displayed when a storage delete fails.
+     */
+    storageDeleteFailed: () => this.i18n.t('storage.storage_delete_failed'),
+
+    /**
+     * Message displayed when a storage read fails.
+     */
+    storageReadFailed: () => this.i18n.t('storage.storage_read_failed'),
+
+    /**
+     * Message displayed when a storage write fails.
+     */
+    storageWriteFailed: () => this.i18n.t('storage.storage_write_failed'),
+
+    /**
+     * Message displayed when a storage initialization fails.
+     */
+    storageInitializationFailed: () =>
+      this.i18n.t('storage.storage_initialization_failed'),
   };
 
   /**

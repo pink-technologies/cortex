@@ -2,8 +2,15 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common';
-import { Database, type DatabaseTransaction, Organization } from '@/infraestructure/database';
-import { MembershipStatus, OrganizationStatus } from '@prisma/client';
+import { 
+  Database, 
+  type DatabaseTransaction, 
+  Organization,
+} from '@/infraestructure/database';
+import { 
+  MembershipStatus, 
+  OrganizationStatus,
+} from '@prisma/client';
 
 /**
  * Repository responsible for persisting and querying organization entities.

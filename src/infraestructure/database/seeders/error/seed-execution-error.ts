@@ -8,7 +8,11 @@
  * diagnostics while keeping a stable error type for CLI consumers.
  */
 export class SeedExecutionError extends Error {
-  readonly cause?: unknown;
+
+  /**
+   * The underlying error that triggered the seed failure.
+   */
+  readonly cause?: ErrorOptions;
 
   // MARK: - Constructor
 
@@ -16,9 +20,9 @@ export class SeedExecutionError extends Error {
    * Creates a new {@link SeedExecutionError}.
    *
    * @param message - The human-readable error message describing the failure.
-   * @param cause - The underlying error that triggered the seed failure.
+   * @param options - Optional {@link ErrorOptions} forwarded to the native `Error` constructor (typically `{ cause }`).
    */
-  constructor(message: string, cause?: unknown) {
+  constructor(message: string, cause?: ErrorOptions) {
     super(message);
     this.cause = cause;
     this.name = new.target.name;

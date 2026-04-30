@@ -1,17 +1,16 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { RoleType } from '@prisma/client';
 import type { OrganizationRole } from '@/infraestructure/database';
-import { OrganizationExceptionFilter } from '../../filter/exception.filter';
 import { OrganizationRolesService } from '../../services/roles/organization.roles.service';
+import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
 import {
   Controller,
   Get,
   HttpCode,
   Param,
-  ParseEnumPipe,
-  UseFilters,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 
 /**
@@ -22,16 +21,14 @@ import {
  * {@link AuthenticationService}.
  */
 @Controller('organizations/roles')
-@UseFilters(OrganizationExceptionFilter)
 export class OrganizationRoleController {
   // MARK: - Constructor
 
   /**
    * Creates a new {@link OrganizationRoleController}.
    *
-   * @param authenticationService - Application service responsible for
-   * orchestrating authentication-related operations such as sign-in,
-   * sign-up, token refresh, and password recovery.
+   * @param organizationRoleService - Application service responsible for
+   * managing organization roles.
    */
   constructor(
     private readonly organizationRoleService: OrganizationRolesService,
@@ -61,40 +58,47 @@ export class OrganizationRoleController {
    * - Invalid identifier format
    * - Unauthorized or forbidden access
    */
+  @UseGuards(AuthenticatorGuard)
   @HttpCode(200)
   @Get(':id')
-  async findById(@Param('id') id: string): Promise<OrganizationRole> {
-    return await this.organizationRoleService.findById(id);
+  async findById(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ): Promise<OrganizationRole> {
+    const user = (req as any).user;
+
+    return await this.organizationRoleService.findById(id, user.id);
   }
 
   /**
-   * Confirms a newly registered user account.
+   * Retrieves all organization roles associated with the authenticated user.
    *
-   * This endpoint verifies the confirmation code provided by the user
-   * and completes the account activation process. The code is typically
-   * delivered to the user through email or another registered contact method
-   * during sign-up.
+   * This endpoint returns the list of roles that belong to the currently
+   * authenticated user. The user is resolved from the request context,
+   * typically populated by an authentication middleware or guard.
    *
    * Security considerations:
-   * - The response does not disclose whether the account exists.
-   * - Error responses are intentionally generic to prevent account enumeration.
-   * - The operation may be rate-limited to prevent brute-force attempts.
+   * - Requires a valid authenticated session or token.
+   * - The user context is extracted from the request object.
+   * - No sensitive data beyond authorized roles is exposed.
    *
-   * A successful confirmation returns **204 No Content** with an empty body.
+   * A successful response returns **200 OK** with a list of organization roles.
    *
-   * @param parameters Validated data required to confirm the account.
-   * Typically includes the account identifier (e.g., email or username)
-   * and the confirmation code.
+   * @param req The incoming HTTP request containing the authenticated user context.
    *
-   * @throws HttpException If confirmation fails due to:
-   * - Invalid or expired confirmation code
-   * - Invalid request state (e.g., account already confirmed)
-   * - Rate limiting or security restrictions
-   * - Upstream authentication provider errors
+   * @returns A list of organization roles associated with the user.
+   *
+   * @throws HttpException If retrieval fails due to:
+   * - Unauthorized or missing authentication
+   * - Internal server errors
+   * - Upstream service failures
    */
+  @UseGuards(AuthenticatorGuard)
   @HttpCode(200)
   @Get()
-  async retrieve(): Promise<OrganizationRole[]> {
-    return await this.organizationRoleService.retrieve();
+  async retrieve(@Req() req: Request): Promise<OrganizationRole[]> {
+    const user = (req as any).user;
+
+    return await this.organizationRoleService.retrieve(user.id);
   }
 }

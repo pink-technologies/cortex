@@ -1,0 +1,23 @@
+{
+  "account_not_confirmed": "La cuenta del usuario no está confirmada",
+  "confirm_sign_up_failed": "No pudimos confirmar tu registro. Por favor verifica el código de verificación e inténtalo nuevamente",
+  "inactive_user": "Este usuario está inactivo. Por favor, contacte al soporte",
+  "invalid_credentials": "Las credenciales proporcionadas no son válidas",
+  "new_password_required": "Se requiere una nueva contraseña",
+  "phone_number_already_registered": "El número de teléfono ya está registrado",
+  "signup_failed": "No pudimos completar su registro. Por favor, verifique su información e intente de nuevo",
+  "user_already_exists": "El usuario ya existe",
+  "user_not_found": "Usuario no encontrado",
+  "verify_your_account": "Por favor, verifique su cuenta usando el código enviado a su correo electrónico",
+  "confirmation_code_required": "El código de verificación es requerido",
+  "email_address_required": "El correo electrónico es requerido",
+  "email_address_invalid": "Por favor, ingrese un correo electrónico válido.",
+  "password_required": "La contraseña es requerida",
+  "password_invalid": "La contraseña debe tener al menos 8 caracteres y incluir mayúsculas, minúsculas, números y caracteres especiales.",
+  "id_token_required": "El token ID es requerido",
+  "refresh_token_required": "El token de refresco es requerido",
+  "first_name_required": "El nombre es requerido",
+  "last_name_required": "El apellido es requerido",
+  "phone_required": "El número de teléfono es requerido",
+  "phone_invalid": "Por favor, ingrese un número de teléfono válido"
+}

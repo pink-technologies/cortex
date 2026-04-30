@@ -11,15 +11,18 @@ import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
 import { KernelModule } from './kernel/kernel.module';
 import { SkillsModule } from './skills/skills.module';
+import { AuthenticationModule } from './gateway/authentication';
 import { UsersModule } from './gateway/users/users.module';
 import {
   DatabaseExceptionFilter,
   DatabaseModule,
 } from './infraestructure/database';
+import { GlobalExceptionFilter } from './shared/filter/exception.filter';
 import {
   AcceptLanguageResolver,
   I18nJsonLoader,
   I18nModule,
+  I18nValidationExceptionFilter,
 } from 'nestjs-i18n';
 
 @Module({
@@ -42,6 +45,7 @@ import {
       },
     }),
     UsersModule,
+    AuthenticationModule,
     AgentsModule,
     CapabilitiesModule,
     DatabaseModule,
@@ -54,7 +58,16 @@ import {
   providers: [
     {
       provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
       useClass: DatabaseExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
+      useFactory: () =>
+        new I18nValidationExceptionFilter({ detailedErrors: true }),
     },
   ],
 })

@@ -9,7 +9,10 @@ import { capabilitySchema } from "../schema/capability.schema";
 import { STORAGE, type Storage } from "@/infraestructure/storage";
 import { Capability } from "../capability";
 import { BUNDLED_CAPABILITIES_ROOT } from "../capability.tokens";
-import { CapabilityAlreadyRegisteredError, CapabilityFileLoadError } from "./error/error";
+import { 
+    CapabilityAlreadyRegisteredError, 
+    CapabilityFileLoadError 
+} from "./error/error";
 
 /**
  * Loads capabilities from TOML files under the directory injected as {@link BUNDLED_CAPABILITIES_ROOT}
