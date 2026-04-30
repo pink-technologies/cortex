@@ -22,7 +22,7 @@ import {
  * operations and delegates all business logic to the
  * {@link UserService}.
  */
-@Controller()
+@Controller('users')
 @UseFilters(UserExceptionFilter)
 export class UserController {
     // MARK: - Constructor
@@ -43,7 +43,7 @@ export class UserController {
      * @returns The current user's profile.
      */
     @HttpCode(200)
-    @Get('users/me')
+    @Get('me')
     async me(@Req() req: Request): Promise<UserResponseDto> {
         const user = (req as any).user;
 
@@ -60,7 +60,7 @@ export class UserController {
      * @returns The updated user entity.
      */
     @HttpCode(200)
-    @Put('users/me')
+    @Put('me')
     async update(
         @Req() req: Request,
         @Body() body: UpdateUserParametersDto

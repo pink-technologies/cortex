@@ -2,7 +2,6 @@
 // https://pink-tech.io/
 
 import { User, UserStatus } from '@/infraestructure/database';
-import { I18nService } from '@/i18n/i18n.service';
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from '../repository/users.repository';
 import { UpdateUserParametersDto } from '../dtos/parameters';

@@ -58,18 +58,6 @@ export class I18nService {
   };
 
   /**
-   * Chats, cross-domain localized messages.
-   *
-   * These messages are specific to the chats domain.
-   */
-  readonly chats = {
-    /**
-     * Message displayed when a chat is not found.
-     */
-    chatNotFound: () => this.i18n.t('chats.chat_not_found'),
-  };
-
-  /**
    * Common, cross-domain localized messages.
    *
    * These messages are generic and may be reused across
@@ -137,6 +125,30 @@ export class I18nService {
      * Message displayed when a skill is not found.
      */
     skillNotFound: () => this.i18n.t('skills.skill_not_found'),
+  };
+
+  /**
+   * Organization-related localized messages.
+   *
+   * These messages are used for organization creation, management,
+   * and membership flows.
+   */
+  readonly organizations = {
+    /**
+     * Message displayed when a requested organization role
+     * cannot be found.
+     */
+    roleNotFound: () => this.i18n.t('organizations.role_not_found'),
+
+    /**
+     * Message that includes the organization name (e.g. for confirmation
+     * or display). Accepts a dynamic name via interpolation.
+     *
+     * @param name - The organization name to interpolate into the message.
+     * @returns The localized string with the name inserted.
+     */
+    organizationName: (name: string) =>
+      this.i18n.t('organizations.organization_name', { args: { name } }),
   };
 
   /**
