@@ -21,6 +21,7 @@ import {
   AcceptLanguageResolver,
   I18nJsonLoader,
   I18nModule,
+  I18nValidationExceptionFilter,
 } from 'nestjs-i18n';
 
 @Module({
@@ -54,6 +55,11 @@ import {
   ],
   controllers: [],
   providers: [
+    {
+      provide: APP_FILTER,
+      useFactory: () =>
+        new I18nValidationExceptionFilter({ detailedErrors: true }),
+    },
     {
       provide: APP_FILTER,
       useClass: DatabaseExceptionFilter,

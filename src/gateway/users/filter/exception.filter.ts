@@ -2,7 +2,10 @@
 // https://pink-tech.io/
 
 import { I18nService } from '@/i18n/i18n.service';
-import { UserNotFoundError, UserStatusUnchangedError } from '../service/error/user.error';
+import { 
+    UserNotFoundError, 
+    UserStatusUnchangedError,
+} from '../service/error/user.error';
 import {
     BadRequestException,
     Catch,
@@ -28,7 +31,7 @@ import {
  * This filter is intended to be used in the user boundary
  * (e.g. user controllers or globally when user errors may propagate).
  */
-@Catch()
+@Catch(UserNotFoundError, UserStatusUnchangedError)
 export class UserExceptionFilter implements ExceptionFilter {
     // MARK: - Constructor
 

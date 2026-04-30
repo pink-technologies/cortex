@@ -2,6 +2,7 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common';
+import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
 import { AuthModule } from '@/infraestructure/auth/auth.module';
 import { DatabaseModule } from '@/infraestructure/database';
 import { I18nModule } from '@/i18n/i18n.module';
@@ -13,6 +14,6 @@ import { UserService } from './service/user.service';
   controllers: [UserController],
   imports: [AuthModule, DatabaseModule, I18nModule],
   exports: [UserRepository, UserService],
-  providers: [UserRepository, UserService],
+  providers: [AuthenticatorGuard, UserRepository, UserService],
 })
 export class UsersModule { }

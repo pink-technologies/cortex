@@ -1,7 +1,6 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Body, Controller, HttpCode, Post, Req, UseFilters } from '@nestjs/common';
 import { AuthenticationExceptionFilter } from '../filter/exception.filter';
 import { AuthenticationService } from '../services/authentication.service';
 import {
@@ -18,6 +17,13 @@ import {
   SignInResponseDto,
   UserResponseDto,
 } from '../dtos/responses';
+import { 
+  Body, 
+  Controller, 
+  HttpCode, 
+  Post, 
+  UseFilters,
+} from '@nestjs/common';
 
 /**
  * HTTP controller responsible for handling authentication-related requests.
@@ -200,10 +206,12 @@ export class AuthenticationController {
    * and delegates the authentication process to the
    * {@link AuthenticationService}.
    *
+   * A successful operation returns **200 OK** with the user and token bundle.
+   *
    * @param credential - The email-and-password credential payload.
-   * @returns A normalized authentication session bundle on success.
+   * @returns A normalized authentication session bundle.
    */
-  @HttpCode(201)
+  @HttpCode(200)
   @Post('sign-in')
   async signIn(@Body() credential: EmailAndPasswordCredentialDto): Promise<SignInResponseDto> {
     const response = await this.authenticationService.signIn(credential);

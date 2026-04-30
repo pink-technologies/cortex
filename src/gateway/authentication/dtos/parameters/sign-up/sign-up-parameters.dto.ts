@@ -1,7 +1,13 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { IsDefined, IsEmail, IsPhoneNumber, Matches } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
+import { 
+  IsEmail, 
+  IsDefined, 
+  IsPhoneNumber, 
+  Matches 
+} from 'class-validator';
 
 /**
  * Data Transfer Object representing the parameters required to
@@ -24,11 +30,11 @@ export class SignupParametersDto {
    * This value must be a valid email format and is expected to be
    * normalized (e.g. lowercased and trimmed) before further processing.
    */
-  @IsDefined({ message: 'Email address is required.' })
+  @IsDefined({ message: i18nValidationMessage('authentication.email_address_required') })
   @IsEmail(
     {},
     {
-      message: 'Please enter a valid email address.',
+      message: i18nValidationMessage('authentication.email_address_invalid'),
     },
   )
   email: string;
@@ -40,7 +46,7 @@ export class SignupParametersDto {
    * and may be stored or further processed by the application
    * after successful sign-up.
    */
-  @IsDefined({ message: 'The first name is required.' })
+  @IsDefined({ message: i18nValidationMessage('authentication.first_name_required') })
   firstName: string;
 
   /**
@@ -50,7 +56,7 @@ export class SignupParametersDto {
    * and may be stored or further processed by the application
    * after successful sign-up.
    */
-  @IsDefined({ message: 'The last name is required.' })
+  @IsDefined({ message: i18nValidationMessage('authentication.last_name_required') })
   lastName: string;
 
   /**
@@ -66,10 +72,10 @@ export class SignupParametersDto {
    * This value is highly sensitive and must never be logged,
    * persisted, or returned in any response.
    */
-  @IsDefined({ message: 'The password is required.' })
+  @IsDefined({ message: i18nValidationMessage('authentication.password_required') })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$@!%*#+=()^?&])[A-Za-z\d$@!%*#+=()^?&]{8,}$/, {
     message:
-      'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.',
+      i18nValidationMessage('authentication.password_invalid'),
   })
   password: string;
 
@@ -80,7 +86,7 @@ export class SignupParametersDto {
    * for account recovery, verification, or multi-factor
    * authentication flows.
    */
-  @IsDefined({ message: 'The phone number is required.' })
-  @IsPhoneNumber(undefined, { message: 'Please enter a valid phone number.' })
+  @IsDefined({ message: i18nValidationMessage('authentication.phone_required') })
+  @IsPhoneNumber(undefined, { message: i18nValidationMessage('authentication.phone_invalid') })
   phone: string;
 }

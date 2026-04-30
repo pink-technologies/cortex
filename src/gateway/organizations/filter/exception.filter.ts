@@ -27,7 +27,7 @@ import {
  * This filter is intended to be used in the organization boundary
  * (e.g. organization controllers or globally when organization errors may propagate).
  */
-@Catch()
+@Catch(RoleNotFound)
 export class OrganizationExceptionFilter implements ExceptionFilter {
     // MARK: - Constructor
 

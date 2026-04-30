@@ -1,7 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { IsEmail, IsDefined } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
+import { 
+  IsEmail, 
+  IsDefined 
+} from 'class-validator';
 
 /**
  * Data Transfer Object representing credentials supplied for
@@ -24,11 +28,11 @@ export class EmailAndPasswordCredentialDto {
    * normalized (e.g. lowercased and trimmed) by the application
    * before further processing.
    */
-  @IsDefined({ message: 'Email address is required.' })
+  @IsDefined({ message: i18nValidationMessage('authentication.email_address_required') })
   @IsEmail(
     {},
     {
-      message: 'Please enter a valid email address.',
+      message: i18nValidationMessage('authentication.email_address_invalid'),
     },
   )
   email: string;
@@ -36,6 +40,6 @@ export class EmailAndPasswordCredentialDto {
   /**
    * The plaintext password provided by the user.
    */
-  @IsDefined({ message: 'Password is required.' })
+  @IsDefined({ message: i18nValidationMessage('authentication.password_required') })
   password: string;
 }

@@ -2,5 +2,14 @@
     "user_not_found": "Usuario no encontrado",
     "user_status_unchanged": "El estado del usuario ya está establecido con el valor solicitado",
     "phone_registered": "Este número de teléfono ya está registrado",
-    "phone_not_registered": "Este número de teléfono no está registrado"
+    "phone_not_registered": "Este número de teléfono no está registrado",
+    "first_name_required": "El nombre es requerido",
+    "first_name_cannot_be_empty": "El nombre no puede estar vacío",
+    "first_name_must_contain_only_letters": "El nombre debe contener solo letras",
+    "last_name_required": "El apellido es requerido",
+    "last_name_cannot_be_empty": "El apellido no puede estar vacío",
+    "last_name_must_contain_only_letters": "El apellido debe contener solo letras",
+    "phone_required": "El número de teléfono es requerido",
+    "phone_cannot_be_empty": "El número de teléfono no puede estar vacío",
+    "phone_must_be_valid": "Por favor, ingrese un número de teléfono válido"
 }

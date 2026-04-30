@@ -17,7 +17,7 @@ import {
  *
  * This type defines the shape of data passed from the service to the repository
  * when creating a organization. The service typically receives a validated
- * {@link CreateOrganizationParametersDto} from the controller and maps it to this
+ * {@link CreateOrganizationParameters} from the controller and maps it to this
  * type (e.g. adding ownerId from the authenticated user context) before calling
  * the repository.
  *

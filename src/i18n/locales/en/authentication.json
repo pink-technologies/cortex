@@ -8,5 +8,16 @@
 	"signup_failed": "We couldn't complete your registration. Please verify your information and try again",
 	"user_already_exists": "The user already exists",
 	"user_not_found": "User not found",
-	"verify_your_account": "Please verify your account using the code sent to your email"
+	"verify_your_account": "Please verify your account using the code sent to your email",
+	"confirmation_code_required": "Confirmation code is required",
+	"email_address_required": "Email address is required",
+	"email_address_invalid": "Please enter a valid email address.",
+	"password_required": "The password is required",
+	"password_invalid": "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.",
+	"id_token_required": "ID token is required",
+	"refresh_token_required": "Refresh token is required",
+	"first_name_required": "First name is required",
+	"last_name_required": "Last name is required",
+	"phone_required": "Phone number is required",
+	"phone_invalid": "Please enter a valid phone number"
 }

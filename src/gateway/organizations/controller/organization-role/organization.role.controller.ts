@@ -1,21 +1,19 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { RoleType } from '@prisma/client';
 import type { OrganizationRole } from '@/infraestructure/database';
 import { OrganizationExceptionFilter } from '../../filter/exception.filter';
 import { OrganizationRolesService } from '../../services/roles/organization.roles.service';
+import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
 import {
   Controller,
   Get,
   HttpCode,
   Param,
-  ParseEnumPipe,
   Req,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
 
 /**
  * HTTP controller responsible for handling authentication-related requests.
@@ -70,7 +68,7 @@ export class OrganizationRoleController {
     @Param('id') id: string,
     @Req() req: Request,
   ): Promise<OrganizationRole> {
-    const user = (req as any).user.id;
+    const user = (req as any).user;
 
     return await this.organizationRoleService.findById(id, user.id);
   }
@@ -102,7 +100,7 @@ export class OrganizationRoleController {
   @HttpCode(200)
   @Get()
   async retrieve(@Req() req: Request): Promise<OrganizationRole[]> {
-    const user = (req as any).user.id;
+    const user = (req as any).user;
 
     return await this.organizationRoleService.retrieve(user.id);
   }

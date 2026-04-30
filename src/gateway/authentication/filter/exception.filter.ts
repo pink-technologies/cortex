@@ -44,8 +44,10 @@ import {
  * Responsibilities:
  * - map domain-level authentication errors to HTTP status codes,
  * - prevent leakage of provider or database implementation details,
- * - normalize error messages returned to API consumers,
- * - allow already-formed {@link HttpException} instances to pass through unchanged.
+ * - normalize error messages returned to API consumers.
+ *
+ * {@link I18nValidationException} and other HTTP errors are not listed in
+ * {@link Catch}; they are handled by global filters (e.g. i18n validation).
  *
  * Responses are written via {@link ArgumentsHost} (HTTP context) so the filter
  * ends the request in one place without re-throwing into Nest’s exception chain.
@@ -53,7 +55,21 @@ import {
  * This filter is intended to be used in the authentication boundary
  * (e.g. auth controllers or globally when auth errors may propagate).
  */
-@Catch()
+@Catch(
+  ConfirmSignupError,
+  InactiveUserError,
+  InvalidCodeError,
+  InvalidCredentialsError,
+  InvalidParametersError,
+  InvalidPasswordError,
+  NewPasswordRequiredError,
+  PendingUserConfirmationError,
+  PhoneAlreadyRegisteredError,
+  UnauthorizedError,
+  UserAlreadyRegisteredError,
+  UserIsNotConfirmedError,
+  UserNotFoundError,
+)
 export class AuthenticationExceptionFilter implements ExceptionFilter {
   // MARK: - Constructor
 
@@ -75,15 +91,22 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
     if (exception instanceof ConfirmSignupError) {
       this.sendHttpError(
         response,
-        new BadRequestException(i18n.authentication.confirmSignUpFailed(), { cause: exception }),
+        new BadRequestException(i18n.authentication.confirmSignUpFailed(), {
+          cause: exception,
+        }),
       );
       return;
     }
 
-    if (exception instanceof InvalidParametersError || exception instanceof InvalidPasswordError) {
+    if (
+      exception instanceof InvalidParametersError ||
+      exception instanceof InvalidPasswordError
+    ) {
       this.sendHttpError(
         response,
-        new BadRequestException(i18n.common.requestCouldNotBeProcessed(), { cause: exception }),
+        new BadRequestException(i18n.common.requestCouldNotBeProcessed(), {
+          cause: exception,
+        }),
       );
       return;
     }
@@ -91,7 +114,9 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
     if (exception instanceof NewPasswordRequiredError) {
       this.sendHttpError(
         response,
-        new ForbiddenException(i18n.authentication.newPasswordRequired(), { cause: exception }),
+        new ForbiddenException(i18n.authentication.newPasswordRequired(), {
+          cause: exception,
+        }),
       );
       return;
     }
@@ -99,7 +124,9 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
     if (exception instanceof UserIsNotConfirmedError) {
       this.sendHttpError(
         response,
-        new ForbiddenException(i18n.authentication.accountNotConfirmed(), { cause: exception }),
+        new ForbiddenException(i18n.authentication.accountNotConfirmed(), {
+          cause: exception,
+        }),
       );
       return;
     }
@@ -107,7 +134,9 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
     if (exception instanceof InactiveUserError) {
       this.sendHttpError(
         response,
-        new UnauthorizedException(i18n.authentication.inactiveUser(), { cause: exception }),
+        new UnauthorizedException(i18n.authentication.inactiveUser(), {
+          cause: exception,
+        }),
       );
       return;
     }
@@ -115,7 +144,9 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
     if (exception instanceof PendingUserConfirmationError) {
       this.sendHttpError(
         response,
-        new UnauthorizedException(i18n.authentication.verifyYourAccount(), { cause: exception }),
+        new UnauthorizedException(i18n.authentication.verifyYourAccount(), {
+          cause: exception,
+        }),
       );
       return;
     }
@@ -123,7 +154,10 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
     if (exception instanceof PhoneAlreadyRegisteredError) {
       this.sendHttpError(
         response,
-        new UnauthorizedException(i18n.authentication.phoneNumberAlreadyRegistered(), { cause: exception }),
+        new UnauthorizedException(
+          i18n.authentication.phoneNumberAlreadyRegistered(),
+          { cause: exception },
+        ),
       );
       return;
     }
@@ -145,7 +179,9 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
     if (exception instanceof UserAlreadyRegisteredError) {
       this.sendHttpError(
         response,
-        new UnauthorizedException(i18n.authentication.userAlreadyExists(), { cause: exception }),
+        new UnauthorizedException(i18n.authentication.userAlreadyExists(), {
+          cause: exception,
+        }),
       );
       return;
     }
@@ -153,7 +189,9 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
     if (exception instanceof UserNotFoundError) {
       this.sendHttpError(
         response,
-        new UnauthorizedException(i18n.authentication.userNotFound(), { cause: exception }),
+        new UnauthorizedException(i18n.authentication.userNotFound(), {
+          cause: exception,
+        }),
       );
       return;
     }
@@ -165,13 +203,20 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
 
     this.sendHttpError(
       response,
-      new InternalServerErrorException(i18n.common.serviceUnavailable(), { cause: exception }),
+      new InternalServerErrorException(i18n.common.serviceUnavailable(), {
+        cause: exception,
+      }),
     );
   }
 
   // MARK: - Private Methods
 
-  private sendHttpError(response: Response, httpException: HttpException): void {
-    response.status(httpException.getStatus()).json(httpException.getResponse());
+  private sendHttpError(
+    response: Response,
+    httpException: HttpException,
+  ): void {
+    response
+      .status(httpException.getStatus())
+      .json(httpException.getResponse());
   }
 }
