@@ -12,16 +12,16 @@ import { UserService } from './service/user.service';
 @Module({
   controllers: [UserController],
   imports: [
-    AuthModule, 
+    AuthModule,
     DatabaseModule,
   ],
   exports: [
-    UserRepository, 
+    UserRepository,
     UserService,
   ],
   providers: [
-    AuthenticatorGuard, 
-    UserRepository, 
+    AuthenticatorGuard,
+    UserRepository,
     UserService,
   ],
 })

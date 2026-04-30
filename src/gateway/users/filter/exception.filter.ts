@@ -44,7 +44,7 @@ export class UserExceptionFilter implements ExceptionFilter {
    * localized, user-facing messages in a consistent and
    * domain-aware manner.
    */
-  constructor(private readonly i18n: I18nService) {}
+  constructor(private readonly i18n: I18nService) { }
 
   // MARK: - ExceptionFilter
 

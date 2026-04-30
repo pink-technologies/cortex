@@ -51,13 +51,29 @@ import {
  * Responsibilities:
  * - map domain-level authentication errors to HTTP status codes,
  * - prevent leakage of provider or database implementation details,
- * - normalize error messages returned to API consumers,
- * - allow already-formed {@link HttpException} instances to pass through unchanged.
+ * - normalize error messages returned to API consumers.
+ *
+ * {@link I18nValidationException} and other HTTP errors are not listed in
+ * {@link Catch}; they are handled by global filters (e.g. i18n validation).
  *
  * This filter is intended to be used in the authentication boundary
  * (e.g. auth controllers or globally when auth errors may propagate).
  */
-@Catch()
+@Catch(
+  ConfirmSignupError,
+  InactiveUserError,
+  InvalidCodeError,
+  InvalidCredentialsError,
+  InvalidParametersError,
+  InvalidPasswordError,
+  NewPasswordRequiredError,
+  PendingUserConfirmationError,
+  PhoneAlreadyRegisteredError,
+  UnauthorizedError,
+  UserAlreadyRegisteredError,
+  UserIsNotConfirmedError,
+  UserNotFoundError,
+)
 export class AuthenticationExceptionFilter implements ExceptionFilter {
   // MARK: - Constructor
 

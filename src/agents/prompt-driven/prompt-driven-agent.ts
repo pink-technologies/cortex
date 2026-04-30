@@ -4,6 +4,11 @@
 import { ContentKind, MessageRole, TextContent } from '@/llm/llm';
 import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
 import { AgentConfiguration } from '../agent.config';
+import {
+  ContentKind,
+  MessageRole,
+  TextContent,
+} from '@/llm/llm';
 import type {
   Agent,
   AgentContext,
@@ -27,7 +32,7 @@ export class PromptDrivenAgent implements Agent {
    *   {@link LLM} port, and optional `delegateAgentIds`. Used for {@link Agent.id},
    *   {@link Agent.descriptor}, and {@link Agent.decide} (LLM call + prompt assembly).
    */
-  constructor(private readonly configuration: AgentConfiguration) {}
+  constructor(private readonly configuration: AgentConfiguration) { }
 
   // MARK: - Agent
 
