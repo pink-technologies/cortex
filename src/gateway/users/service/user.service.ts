@@ -18,9 +18,6 @@ export class UserService {
   /**
    * Creates a new {@link UserService}.
    *
-   * @param i18nService - The internationalization service used to resolve
-   * localized, user-facing messages in a consistent and
-   * domain-aware manner.
    * @param usersRepository - The repository responsible for user persistence
    * and lookup operations.
    */

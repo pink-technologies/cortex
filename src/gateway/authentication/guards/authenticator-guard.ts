@@ -68,14 +68,12 @@ export class AuthenticatorGuard implements CanActivate {
     const authHeader = request.headers.authorization ?? '';
     const match = authHeader.trim().match(/^Bearer\s+(.+)$/i);
     const token = match?.[1]?.trim();
-
     if (!token) {
       throw new UnauthorizedException({
         code: 'AUTH_TOKEN_MISSING',
         message: this.i18n.authentication.invalidCredentials(),
       });
     }
-
     return token;
   }
 
@@ -92,14 +90,12 @@ export class AuthenticatorGuard implements CanActivate {
 
   private async resolveAuthenticatedUser(payload: AuthTokenPayload): Promise<User> {
     const user = await this.userRepository.findById(payload.username);
-
     if (!user) {
       throw new UnauthorizedException({
         code: 'INVALID_CREDENTIALS',
         message: this.i18n.authentication.invalidCredentials(),
       });
     }
-
     return user;
   }
 }
