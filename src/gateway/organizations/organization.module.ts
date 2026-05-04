@@ -17,7 +17,11 @@ import {
 
 @Module({
   controllers: [OrganizationRoleController],
-  imports: [AuthModule, DatabaseModule, UsersModule],
+  imports: [
+    AuthModule, 
+    DatabaseModule, 
+    UsersModule,
+  ],
   exports: [
     OrganizationsService,
     OrganizationsRepository,

@@ -4,12 +4,14 @@
 import type { OrganizationRole } from '@/infraestructure/database';
 import { OrganizationRolesService } from '../../services/roles/organization.roles.service';
 import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
+import { OrganizationRoleExceptionFilter } from '../../filter/organization-role/exception.filter';
 import {
   Controller,
   Get,
   HttpCode,
   Param,
   Req,
+  UseFilters,
   UseGuards,
 } from '@nestjs/common';
 
@@ -21,6 +23,7 @@ import {
  * {@link AuthenticationService}.
  */
 @Controller('organizations/roles')
+@UseFilters(OrganizationRoleExceptionFilter)
 export class OrganizationRoleController {
   // MARK: - Constructor
 

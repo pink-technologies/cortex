@@ -1,6 +1,8 @@
 {
   "account_not_confirmed": "La cuenta del usuario no está confirmada",
   "confirm_sign_up_failed": "No pudimos confirmar tu registro. Por favor verifica el código de verificación e inténtalo nuevamente",
+  "confirm_forgot_password_failed": "No pudimos restablecer tu contraseña. Por favor verifica el código e inténtalo nuevamente",
+  "additional_verification_required": "Se requiere una verificación adicional para continuar",
   "inactive_user": "Este usuario está inactivo. Por favor, contacte al soporte",
   "invalid_credentials": "Las credenciales proporcionadas no son válidas",
   "new_password_required": "Se requiere una nueva contraseña",

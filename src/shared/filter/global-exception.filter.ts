@@ -3,7 +3,7 @@
 
 import { I18nService } from '@/i18n/i18n.service';
 import type { Response } from 'express';
-import { sendErrorResponse } from './http-error-response';
+import { getExceptionCode } from '@/shared/utils/exception-code.util';
 import {
   ArgumentsHost,
   Catch,
@@ -21,8 +21,9 @@ import {
  *
  * Behavior:
  * - Captures every exception not handled elsewhere in the request lifecycle.
- * - If the exception is an {@link HttpException}, it serializes it using the
- *   shared API error envelope ({@link sendErrorResponse}).
+ * - If the exception is an {@link HttpException}, it sends a JSON body with
+ *   `statusCode` plus either `message` (string body) or the exception’s object
+ *   response merged in.
  * - Module-specific filters (e.g. authentication) map domain errors to
  *   {@link HttpException} first; this filter does not contain domain mapping.
  * - If the exception is unknown or not an {@link HttpException}, it returns
@@ -44,7 +45,6 @@ import {
  */
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-
   // MARK: - Constructor
 
   /**
@@ -65,22 +65,36 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    * @param host - The arguments host.
    */
   catch(exception: unknown, host: ArgumentsHost): void {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-
-    const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    const http = host.switchToHttp();
+    const response = http.getResponse<Response>();
 
     if (exception instanceof HttpException) {
-      sendErrorResponse(response, exception);
+      const status = exception.getStatus();
+      const raw = exception.getResponse();
+
+      const basePayload =
+        typeof raw === 'string'
+          ? { message: raw }
+          : (raw as Record<string, unknown>);
+
+      const payload: Record<string, unknown> = {
+        statusCode: status,
+        code: basePayload.code,
+        message: basePayload.message,
+        timestamp: new Date().toISOString(),
+      };
+
+      response.status(status).send(payload);
       return;
     }
+
+    const status = HttpStatus.INTERNAL_SERVER_ERROR;
 
     response.status(status).send({
       statusCode: status,
       message: this.i18n.common.serviceUnavailable(),
+      code: getExceptionCode(exception),
+      timestamp: new Date().toISOString(),
     });
   }
 }

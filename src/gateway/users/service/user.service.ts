@@ -5,7 +5,6 @@ import { User, UserStatus } from '@/infraestructure/database';
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from '../repository/users.repository';
 import { UpdateUserParametersDto } from '../dtos/parameters';
-import { toUserHttpException } from '../mapper/user-error.mapper';
 import { I18nService } from '@/i18n/i18n.service';
 import {
   UserNotFoundError,
@@ -19,16 +18,10 @@ export class UserService {
   /**
    * Creates a new {@link UserService}.
    *
-   * @param i18nService - The internationalization service used to resolve
-   * localized, user-facing messages in a consistent and
-   * domain-aware manner.
    * @param usersRepository - The repository responsible for user persistence
    * and lookup operations.
    */
-  constructor(
-    private readonly i18nService: I18nService,
-    private readonly userRepository: UserRepository,
-  ) {}
+  constructor(private readonly userRepository: UserRepository) {}
 
   // MARK: - Instance methods
 
@@ -39,15 +32,11 @@ export class UserService {
    * @returns The matching user or null if not found.
    */
   async findByEmail(email: string): Promise<User> {
-    try {
     const user = await this.userRepository.findByEmail(email);
 
       if (!user) throw new UserNotFoundError();
 
       return user;
-    } catch (error) {
-      throw toUserHttpException(error, this.i18nService);
-    }
   }
 
   /**
@@ -59,15 +48,11 @@ export class UserService {
    * @throws HttpException when the user cannot be found.
    */
   async findById(userId: string): Promise<User> {
-    try {
       const user = await this.userRepository.findById(userId);
 
       if (!user) throw new UserNotFoundError();
   
-      return user;
-    } catch (error) {
-      throw toUserHttpException(error, this.i18nService);
-    }
+    return user;
   }
 
   /**
@@ -81,15 +66,11 @@ export class UserService {
     userId: string,
     parameters: UpdateUserParametersDto,
   ): Promise<User> {
-    try {
       const user = await this.userRepository.findById(userId);
 
       if (!user) throw new UserNotFoundError();
   
       return await this.userRepository.update(userId, parameters);
-    } catch (error) {
-      throw toUserHttpException(error, this.i18nService);
-    }
   }
 
   /**
@@ -100,7 +81,6 @@ export class UserService {
    * @returns The updated user entity.
    */
   async updateStatus(userId: string, status: UserStatus): Promise<User> {
-    try {
       const user = await this.userRepository.findById(userId);
 
       if (!user) throw new UserNotFoundError();
@@ -108,8 +88,5 @@ export class UserService {
       if (user.status === status) throw new UserStatusUnchangedError();
   
       return await this.userRepository.updateStatus(userId, status);
-    } catch (error) {
-      throw toUserHttpException(error, this.i18nService);
-    }
   }
 }

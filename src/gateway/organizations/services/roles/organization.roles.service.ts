@@ -6,7 +6,6 @@ import { RoleType } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { OrganizationRolesRepository } from '../../repositories';
 import { RoleNotFound } from '../error/organization.error';
-import { toOrganizationHttpException } from '../../mapper/organization-error.mapper';
 import { I18nService } from '@/i18n/i18n.service';
 
 /**
@@ -21,13 +20,9 @@ export class OrganizationRolesService {
   /**
    * Creates a new {@link OrganizationRoles}.
    *
-   * @param i18nService - The internationalization service used to resolve
-   * localized, user-facing messages in a consistent and
-   * domain-aware manner.
    * @param organizationRolesRepository - The repository responsible for querying organization role entities.
    */
   constructor(
-    private readonly i18nService: I18nService,
     private readonly organizationRolesRepository: OrganizationRolesRepository,
   ) {}
 
@@ -43,15 +38,11 @@ export class OrganizationRolesService {
    * @throws RoleNotFound when the role cannot be found.
    */
   async findById(id: string, userId: string): Promise<OrganizationRole> {
-    try {
-      const role = await this.organizationRolesRepository.findById(id, userId);
+    const role = await this.organizationRolesRepository.findById(id, userId);
 
-      if (!role) throw new RoleNotFound();
+    if (!role) throw new RoleNotFound();
 
-      return role;
-    } catch (error) {
-      throw toOrganizationHttpException(error, this.i18nService);
-    }
+    return role;
   }
 
   /**
@@ -64,34 +55,26 @@ export class OrganizationRolesService {
    * @throws RoleNotFound when the role cannot be found.
    */
   async findByRoleType(roleType: RoleType): Promise<OrganizationRole> {
-    try {
-      if (!Object.values(RoleType).includes(roleType)) {
-        throw new RoleNotFound();
-      }
-
-      const role =
-        await this.organizationRolesRepository.findByRoleType(roleType);
-
-      if (!role) throw new RoleNotFound();
-
-      return role;
-    } catch (error) {
-      throw toOrganizationHttpException(error, this.i18nService);
+    if (!Object.values(RoleType).includes(roleType)) {
+      throw new RoleNotFound();
     }
+
+    const role =
+      await this.organizationRolesRepository.findByRoleType(roleType);
+
+    if (!role) throw new RoleNotFound();
+
+    return role;
   }
 
   /**
    * Retrieves all organization roles.
    *
-   * @returns A list of all organization roles.
+   * @param userId - The unique identifier of the user.
    *
-   * @throws HttpException when the roles cannot be retrieved.
+   * @returns A list of all organization roles.
    */
   async retrieve(userId: string): Promise<OrganizationRole[]> {
-    try {
-      return await this.organizationRolesRepository.retrieve(userId);
-    } catch (error) {
-      throw toOrganizationHttpException(error, this.i18nService);
-    }
+    return await this.organizationRolesRepository.retrieve(userId);
   }
 }

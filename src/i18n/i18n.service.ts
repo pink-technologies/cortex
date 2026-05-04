@@ -48,6 +48,20 @@ export class I18nService {
       this.i18n.t('authentication.confirm_sign_up_failed'),
 
     /**
+     * Message displayed when confirming a password reset fails
+     * (e.g. invalid or expired code).
+     */
+    confirmForgotPasswordFailed: () =>
+      this.i18n.t('authentication.confirm_forgot_password_failed'),
+
+    /**
+     * Message displayed when sign-in requires an extra step
+     * (e.g. MFA or provider challenge).
+     */
+    additionalVerificationRequired: () =>
+      this.i18n.t('authentication.additional_verification_required'),
+
+    /**
      * Message displayed when an inactive or disabled
      * user attempts to authenticate.
      */

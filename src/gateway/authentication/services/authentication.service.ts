@@ -171,6 +171,7 @@ export class AuthenticationService {
    */
   async forgotPassword(parameters: ForgotPasswordParametersDto): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
+
     if (!user) throw new UnauthorizedError();
 
     return await this.authenticatable.forgotPassword(parameters.email);
@@ -202,6 +203,7 @@ export class AuthenticationService {
     parameters: ResendConfirmationCodeParametersDto,
   ): Promise<void> {
     const user = await this.userRepository.findByEmail(parameters.email);
+    
     if (!user) throw new UnauthorizedError();
 
     return await this.authenticatable.resendConfirmationCode(parameters.email);
@@ -333,10 +335,12 @@ export class AuthenticationService {
     const user = await this.userRepository.create(createUserParameters);
 
     try {
-      await this.authenticatable.signUp({
+      const result = await this.authenticatable.signUp({
         username: email,
         password: parameters.password,
       });
+
+      await this.userRepository.makeCognitoSub(user.id, result.cognitoSub);
     } catch (error) {
       await this.userRepository.deleteById(user.id);
 

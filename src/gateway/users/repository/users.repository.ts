@@ -1,7 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Database, DatabaseTransaction, User } from '@/infraestructure/database';
+import {
+  Database,
+  DatabaseTransaction,
+  User,
+} from '@/infraestructure/database';
 import { UserStatus } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { UserNotFoundError } from '../service/error/user.error';
@@ -191,6 +195,20 @@ export class UserRepository {
   }
 
   /**
+   * Makes a user a cognito sub.
+   *
+   * @param userId - The user ID to make a cognito sub.
+   * @param cognitoSub - The cognito sub to make the user.
+   */
+  async makeCognitoSub(userId: string, cognitoSub: string): Promise<User> {
+    return this.database.user.update({
+      where: { id: userId },
+      data: { cognitoSub },
+      include: { profile: true },
+    });
+  }
+
+  /**
    * Updates a user record with the provided fields.
    *
    * @param userId - The unique identifier of the user to update.
@@ -260,8 +278,8 @@ export class UserRepository {
    * ```
    */
   async updateStatus(
-    userId: string, 
-    status: UserStatus, 
+    userId: string,
+    status: UserStatus,
     transaction?: DatabaseTransaction,
   ): Promise<User> {
     const database = transaction ?? this.database;

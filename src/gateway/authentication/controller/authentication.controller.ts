@@ -23,7 +23,7 @@ import {
   Post,
   UseFilters,
 } from '@nestjs/common';
-import { AuthenticationExceptionFilter } from '../filter/authentication-exception.filter';
+import { AuthenticationExceptionFilter } from '../filter/exception.filter';
 
 /**
  * HTTP controller responsible for handling authentication-related requests.

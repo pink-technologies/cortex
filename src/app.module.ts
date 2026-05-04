@@ -13,11 +13,11 @@ import { KernelModule } from './kernel/kernel.module';
 import { SkillsModule } from './skills/skills.module';
 import { AuthenticationModule } from './gateway/authentication';
 import { UsersModule } from './gateway/users/users.module';
+import { GlobalExceptionFilter } from './shared/filter/global-exception.filter';
 import {
   DatabaseExceptionFilter,
   DatabaseModule,
 } from './infraestructure/database';
-import { GlobalExceptionFilter } from './shared/filter/exception.filter';
 import {
   AcceptLanguageResolver,
   I18nJsonLoader,

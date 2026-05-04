@@ -1,6 +1,8 @@
 {
 	"account_not_confirmed": "User account is not confirmed",
 	"confirm_sign_up_failed": "We couldn't confirm your registration. Please check the verification code and try again",
+	"confirm_forgot_password_failed": "We couldn't reset your password. Please check the verification code and try again",
+	"additional_verification_required": "Additional verification is required to continue",
 	"inactive_user": "This user is inactive. Please contact support",
 	"invalid_credentials": "The provided credentials are invalid",
 	"new_password_required": "New password is required",
