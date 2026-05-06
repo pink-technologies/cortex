@@ -1,6 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { i18nValidationMessage } from 'nestjs-i18n';
 import {
   IsDefined,
   IsNotEmpty,
@@ -16,28 +17,28 @@ export class UpdateUserParametersDto {
   /**
    * The user's given first name.
    */
-  @IsDefined({ message: 'First name is required.' })
-  @IsNotEmpty({ message: 'First name cannot be empty.' })
+  @IsDefined({ message: i18nValidationMessage('user.first_name_required') })
+  @IsNotEmpty({ message: i18nValidationMessage('user.first_name_cannot_be_empty') })
   @Matches(/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+$/, {
-    message: 'First name must contain only letters.',
+    message: i18nValidationMessage('user.first_name_must_contain_only_letters'),
   })
   firstName: string;
 
   /**
    * The user's last name.
    */
-  @IsDefined({ message: 'Last name is required.' })
-  @IsNotEmpty({ message: 'Last name cannot be empty.' })
+  @IsDefined({ message: i18nValidationMessage('user.last_name_required') })
+  @IsNotEmpty({ message: i18nValidationMessage('user.last_name_cannot_be_empty') })
   @Matches(/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+$/, {
-    message: 'Last name must contain only letters.',
+    message: i18nValidationMessage('user.last_name_must_contain_only_letters'),
   })
   lastName: string;
 
   /**
    * The user's phone number.
    */
-  @IsDefined({ message: 'Phone is required.' })
-  @IsNotEmpty({ message: 'Phone cannot be empty.' })
-  @IsPhoneNumber(undefined, { message: 'Please enter a valid phone number.' })
+  @IsDefined({ message: i18nValidationMessage('user.phone_required') })
+  @IsNotEmpty({ message: i18nValidationMessage('user.phone_cannot_be_empty') })
+  @IsPhoneNumber(undefined, { message: i18nValidationMessage('user.phone_must_be_valid') })
   phone: string;
 }

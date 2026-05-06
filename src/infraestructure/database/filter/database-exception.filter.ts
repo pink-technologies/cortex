@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { Prisma } from '@prisma/client';
+import { I18nService } from 'src/i18n';
 import {
     BadRequestException,
     ArgumentsHost,
@@ -10,8 +12,6 @@ import {
     InternalServerErrorException,
     NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { I18nService } from 'src/i18n';
 
 /**
  * Global exception filter that maps Prisma errors to HTTP exceptions.

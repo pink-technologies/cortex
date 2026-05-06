@@ -250,61 +250,58 @@ export class UsernameAndPasswordCredential extends Credential {
 /**
  * Defines the authentication contract exposed by an authentication provider.
  *
- * This interface represents a thin, provider-agnostic boundary used by the
- * application layer to perform common authentication and identity flows.
+ * This abstraction represents a provider-agnostic boundary used by the
+ * application layer to execute common authentication and identity flows.
  *
- * Implementations are responsible for:
- * - translating provider-specific failures into domain or application errors,
- * - preventing leakage of implementation-specific exceptions or details,
- * - ensuring secrets (passwords, tokens, codes) are never logged or persisted,
- * - applying consistent input normalization rules (e.g. username or email casing),
- * - maintaining a stable and uniform token decoding/parsing strategy.
+ * Implementations are responsible for encapsulating provider-specific behavior
+ * while exposing a consistent and stable interface to the rest of the system.
+ *
+ * Responsibilities include:
+ * - translating provider-specific responses into application-level results,
+ * - preventing leakage of implementation details or internal exceptions,
+ * - ensuring sensitive data (e.g. passwords, tokens, codes) is never logged or persisted,
+ * - applying consistent input normalization (e.g. username or email casing),
+ * - maintaining a uniform token structure and parsing strategy.
  */
 export abstract class Authenticatable {
   /**
-   * Confirms a password reset request by validating the confirmation code
-   * and setting a new password for the account.
+   * Confirms a password reset request and updates the account password.
    *
-   * This method completes the second step of the forgot-password flow.
-   * Upon successful execution, the account password is updated and the
-   * reset operation is finalized.
+   * This operation validates the provided confirmation code and, if successful,
+   * sets a new password for the specified account, completing the password
+   * reset flow.
    *
-   * This operation assumes that all input values have already been
-   * validated and normalized at the transport boundary.
+   * This method assumes that all inputs have already been validated and
+   * normalized at the transport or controller layer.
    *
-   * @param params - The parameters required to confirm the password reset.
-   * @param params.username - The account identifier associated with the reset request.
-   * @param params.newPassword - The new plaintext password to be set for the account.
-   * @param params.confirmationCode - The confirmation code issued during the password reset flow.
+   * @param params - Parameters required to confirm the password reset.
+   * @param params.username - Unique account identifier (e.g. email).
+   * @param params.newPassword - New plaintext password compliant with the
+   * provider's security and complexity requirements.
+   * @param params.confirmationCode - Verification code issued during the
+   * password reset flow.
    *
-   * @throws ConfirmForgotPasswordError when the confirmation fails due to an
-   * invalid or expired confirmation code, an invalid account state, or an
-   * underlying provider failure.
+   * @returns A promise that resolves when the password has been successfully updated.
    */
-  abstract confirmForgotPassword({
-    username,
-    newPassword,
-    confirmationCode,
-  }: ConfirmForgotPasswordParameters): Promise<void>;
+  abstract confirmForgotPassword({username, newPassword, confirmationCode}: ConfirmForgotPasswordParameters): Promise<void>;
 
   /**
-   * Confirms a pending user sign-up using a confirmation code.
+   * Confirms a pending user sign-up using a verification code.
    *
-   * This method completes the sign-up verification step by validating the
-   * provided confirmation code for the specified account. Upon successful
-   * confirmation, the account transitions into an active/confirmed state.
+   * This operation validates the provided confirmation code for the given
+   * account identifier and, if successful, transitions the account into
+   * a confirmed/active state.
    *
-   * This operation assumes that all input values have already been validated
-   * and normalized at the transport boundary.
+   * This method assumes that all inputs have already been validated and
+   * normalized at the transport or controller layer.
    *
-   * @param params - The parameters required to confirm the sign-up.
-   * @param params.username - The account identifier associated with the sign-up request.
-   * @param params.confirmationCode - The verification code issued during sign-up.
+   * @param params - Parameters required to confirm the sign-up.
+   * @param params.username - Unique account identifier (e.g. email).
+   * @param params.confirmationCode - Verification code issued during sign-up.
    *
-   * @throws ConfirmSignupError when the confirmation fails due to an invalid or
-   * expired code, an invalid account state, or an underlying provider failure.
+   * @returns A promise that resolves when the account has been successfully confirmed.
    */
-  abstract confirmSignUp({ username, confirmationCode }: ConfirmSignUpParameters): Promise<void>;
+  abstract confirmSignUp({username, confirmationCode}: ConfirmSignUpParameters): Promise<void>;
 
   /**
    * Decodes a JWT token into a normalized token payload.
@@ -330,47 +327,44 @@ export abstract class Authenticatable {
   abstract forgotPassword(username: string): Promise<void>;
 
   /**
-   * Refreshes authentication tokens using a previously issued refresh token.
+   * Refreshes authentication tokens using a valid refresh token.
    *
-   * This method requests a new authentication token bundle without requiring
+   * This operation requests a new authentication token bundle without requiring
    * the user to re-authenticate with primary credentials.
    *
-   * Upon successful execution, a new {@link AuthToken} instance is returned,
-   * containing updated access and identity tokens along with their expiration.
+   * If successful, a new {@link AuthToken} is returned containing updated
+   * access and identity tokens along with their expiration metadata.
    *
-   * This operation assumes that all input values have already been validated
-   * and normalized at the transport boundary.
+   * This method assumes that all inputs have already been validated and
+   * normalized at the transport or controller layer.
    *
-   * @param params - The parameters required to refresh authentication tokens.
-   * @param params.username - The account identifier associated with the refresh token.
-   * @param params.refreshToken - A valid refresh token previously issued during authentication.
+   * @param params - Parameters required to refresh authentication tokens.
+   * @param params.username - Unique account identifier associated with the token.
+   * @param params.refreshToken - Previously issued refresh token.
    *
-   * @returns A new normalized {@link AuthToken} bundle.
-   *
-   * @throws RefreshTokenError when the refresh token is expired, revoked,
-   * or otherwise invalid, or when an underlying provider failure occurs.
+   * @returns A promise that resolves with a new {@link AuthToken} bundle.
    */
-  abstract refreshToken({ username, refreshToken }: RefreshTokenParameters): Promise<AuthToken>;
+  abstract refreshToken({username, refreshToken}: RefreshTokenParameters): Promise<AuthToken>;
 
   /**
-   * Resends an account confirmation code to the user.
+   * Requests a new confirmation code for a user account.
    *
-   * This method triggers the delivery of a new confirmation code
-   * associated with the account identifier provided.
+   * This operation triggers the delivery of a new confirmation code
+   * associated with the provided account identifier (e.g. email or phone),
+   * typically used during the sign-up confirmation flow.
    *
-   * Typical use cases include:
-   * - the original confirmation code expired,
-   * - the user did not receive the initial code,
-   * - the user requested a new code during the sign-up flow.
+   * Common scenarios include expired codes, delivery issues,
+   * or explicit user requests to resend the code.
    *
-   * This operation must not disclose whether the account exists
-   * or whether it is already confirmed.
+   * Implementations must ensure that this operation does not reveal
+   * whether the account exists or its current confirmation status.
    *
-   * @param username - The account identifier associated with the
-   * confirmation request (e.g. email).
+   * This method assumes that all inputs have already been validated
+   * and normalized at the transport or controller layer.
    *
-   * @throws AuthenticatableError when the operation fails due to
-   * provider errors, rate limiting, or invalid request state.
+   * @param username - Unique account identifier (e.g. email).
+   *
+   * @returns A promise that resolves when the request has been processed.
    */
   abstract resendConfirmationCode(username: string): Promise<void>;
 
@@ -386,26 +380,25 @@ export abstract class Authenticatable {
   abstract signIn(credential: Credential): Promise<AuthToken>;
 
   /**
-   * Initiates a user sign-up operation using the provided credentials.
+   * Registers a new user account with the authentication provider.
    *
-   * This method creates a new user account in a pending or unconfirmed state,
-   * depending on the authentication provider configuration.
+   * This operation creates a user in an unconfirmed or pending state,
+   * depending on the provider configuration (e.g. email or phone verification).
    *
-   * Upon successful execution, the account is created and any required
-   * verification or confirmation flow is initiated.
+   * If the registration succeeds, a unique identifier (`cognitoSub`) is returned.
+   * This identifier represents the user in the identity provider and should be
+   * persisted in your system for future reference.
    *
-   * This operation assumes that all input values have already been validated
-   * and normalized at the transport boundary.
+   * This method assumes that all inputs have already been validated and
+   * normalized at the transport or controller layer.
    *
-   * @param params - The parameters required to initiate the sign-up.
-   * @param params.username - The account identifier to be registered.
-   * @param params.password - The plaintext password for the new account.
+   * @param params - Sign-up parameters.
+   * @param params.username - Unique identifier for the user (e.g. email).
+   * @param params.password - Plaintext password compliant with the provider's
+   * security and complexity requirements.
    *
-   * @throws UserAlreadyExistsError when an account with the given identifier
-   * already exists.
-   * @throws InvalidPasswordError when the provided password does not meet
-   * required security or complexity rules.
-   * @throws SignUpError for any other sign-up failure.
+   * @returns A promise that resolves with the authentication provider user ID.
+   * @returns.cognitoSub - Unique identifier assigned by the identity provider.
    */
-  abstract signUp({ username, password }: SignupParameters): Promise<void>;
+  abstract signUp({username, password}: SignupParameters): Promise<{ cognitoSub: string }>;
 }

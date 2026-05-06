@@ -2,5 +2,14 @@
     "user_not_found": "User not found",
     "user_status_unchanged": "User status is already set to the requested value",
     "phone_registered": "This phone number is already registered",
-    "phone_not_registered": "This phone number is not registered"
+    "phone_not_registered": "This phone number is not registered",
+    "first_name_required": "First name is required",
+    "first_name_cannot_be_empty": "First name cannot be empty",
+    "first_name_must_contain_only_letters": "First name must contain only letters",
+    "last_name_required": "Last name is required",
+    "last_name_cannot_be_empty": "Last name cannot be empty",
+    "last_name_must_contain_only_letters": "Last name must contain only letters",
+    "phone_required": "Phone is required",
+    "phone_cannot_be_empty": "Phone cannot be empty",
+    "phone_must_be_valid": "Please enter a valid phone number"
 }

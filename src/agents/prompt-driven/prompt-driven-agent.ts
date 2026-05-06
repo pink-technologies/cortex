@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { ContentKind, MessageRole, type TextContent } from '@/llm/llm';
+import { ContentKind, MessageRole, TextContent } from '@/llm/llm';
 import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
 import { AgentConfiguration } from '../agent.config';
 import type {

@@ -57,10 +57,19 @@ export class OrganizationRolesRepository {
    * Finds an organization role by its unique identifier.
    *
    * @param id - The unique identifier of the role.
+   * @param userId - The unique identifier of the user.
    * @returns The matching role or null if not found.
    */
-  async findById(id: string): Promise<OrganizationRole | null> {
-    return await this.database.organizationRole.findFirst({ where: { id, deletedAt: null } });
+  async findById(id: string, userId: string): Promise<OrganizationRole | null> {
+    return await this.database.organizationRole.findFirst({ 
+      where: { 
+        id, 
+        deletedAt: null, 
+        members: { some: { userId } 
+      } 
+    } 
+  }
+);
   }
 
   /**
@@ -92,13 +101,15 @@ export class OrganizationRolesRepository {
   /**
    * Retrieves all organization roles.
    *
+   * @param userId - The unique identifier of the user.
    * @returns A list of all organization roles.
    */
-  async retrieve(): Promise<OrganizationRole[]> {
+  async retrieve(userId: string): Promise<OrganizationRole[]> {
     return this.database.organizationRole.findMany({
       where: {
         status: RoleStatus.ACTIVE,
         deletedAt: null,
+        members: { some: { userId } },
       },
       orderBy: {
         key: 'asc',

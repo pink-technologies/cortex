@@ -440,7 +440,7 @@ export class CognitoAuthenticatable implements Authenticatable {
    * required security or complexity rules.
    * @throws SignUpError for any other sign-up failure.
    */
-  async signUp({ username, password }: SignupParameters): Promise<void> {
+  async signUp({ username, password }: SignupParameters): Promise<{cognitoSub: string}> {
     try {
       const command = new SignUpCommand({
         ClientId: this.options.clientId,
@@ -449,7 +449,15 @@ export class CognitoAuthenticatable implements Authenticatable {
         SecretHash: this.hashForUsername(username),
       });
 
-      await this.cognitoClient.send(command);
+      const response = await this.cognitoClient.send(command);
+
+      if (!response.UserSub) {
+        throw new SignUpError(new Error('Cognito sign-up failed: no user sub returned.'));
+      }
+
+      return {
+        cognitoSub: response.UserSub,
+      };
     } catch (exception) {
       throw ErrorMapper.map({ error: exception, fallback: new SignUpError(exception) });
     }
