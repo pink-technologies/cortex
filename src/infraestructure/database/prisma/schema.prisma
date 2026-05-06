@@ -10,10 +10,20 @@ datasource db {
   provider = "postgresql"
 }
 
-enum MembershipStatus {
-  ACTIVE
-  INVITED
-  SUSPENDED
+enum IntegrationProvider {
+  SLACK
+  TRELLO
+  QUALITY
+  UNKNOWN
+}
+
+enum IntegrationStatus {
+  PENDING
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  REVOKED
+  UNKNOWN
 }
 
 enum InvitationStatus {
@@ -21,6 +31,12 @@ enum InvitationStatus {
   ACCEPTED
   REVOKED
   EXPIRED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
 }
 
 enum PermissionScope {
@@ -64,9 +80,9 @@ enum UserStatus {
 }
 
 model Invitation {
-  id             String    @id @default(uuid())
+  id             String           @id @default(uuid())
   acceptedAt     DateTime?
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime         @default(now())
   email          String
   expiresAt      DateTime?
   invitedById    String?
@@ -74,10 +90,10 @@ model Invitation {
   revokedAt      DateTime?
   roleId         String?
   status         InvitationStatus
-  token          String      @unique
-  updatedAt      DateTime?    @updatedAt
+  token          String           @unique
+  updatedAt      DateTime?        @updatedAt
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invitedBy    User?             @relation(fields: [invitedById], references: [id], onDelete: SetNull)
   role         OrganizationRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
@@ -85,20 +101,31 @@ model Invitation {
   @@map("invitations")
 }
 
+model Integration {
+  id        String              @id @default(uuid())
+  createdAt DateTime            @default(now())
+  provider  IntegrationProvider
+  updatedAt DateTime?           @updatedAt
+
+  organizationIntegrations OrganizationIntegration[]
+
+  @@map("integrations")
+}
+
 model User {
-  id                 String                @id @default(uuid())
-  createdAt          DateTime              @default(now())
-  cognitoSub         String?
-  deletedAt          DateTime?
-  email              String
-  firstName          String
-  lastName           String
-  profile            UserProfile?
-  status             UserStatus
-  updatedAt          DateTime              @updatedAt
+  id         String       @id @default(uuid())
+  createdAt  DateTime     @default(now())
+  cognitoSub String?
+  deletedAt  DateTime?
+  email      String
+  firstName  String
+  lastName   String
+  profile    UserProfile?
+  status     UserStatus
+  updatedAt  DateTime     @updatedAt
 
   organizationMemberships OrganizationMembership[]
-  invitationsSent        Invitation[]
+  invitationsSent         Invitation[]
 
   @@unique([email], where: { deletedAt: null })
   @@unique([cognitoSub], where: { deletedAt: null })
@@ -107,16 +134,16 @@ model User {
 }
 
 model UserProfile {
-  id          String      @id @default(uuid())
-  createdAt    DateTime   @default(now())
-  deletedAt    DateTime?
-  locale       String?
+  id                String    @id @default(uuid())
+  createdAt         DateTime  @default(now())
+  deletedAt         DateTime?
+  locale            String?
   profilePictureUrl String?
-  phoneNumber  String?
-  phoneVerifiedAt DateTime?
-  timezone     String?
-  userId       String
-  updatedAt    DateTime?  @updatedAt
+  phoneNumber       String?
+  phoneVerifiedAt   DateTime?
+  timezone          String?
+  userId            String
+  updatedAt         DateTime? @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -126,50 +153,56 @@ model UserProfile {
 }
 
 model Organization {
-  id                  String                @id @default(uuid())
-  createdAt           DateTime             @default(now())
-  deletedAt           DateTime?
-  name                String
-  slug                String
-  profile OrganizationProfile?
-  status OrganizationStatus
-  updatedAt           DateTime?             @updatedAt
+  id        String               @id @default(uuid())
+  createdAt DateTime             @default(now())
+  deletedAt DateTime?
+  name      String
+  slug      String
+  profile   OrganizationProfile?
+  status    OrganizationStatus
+  updatedAt DateTime?            @updatedAt
 
-  memberships  OrganizationMembership[]
-  invitations  Invitation[]
+  memberships              OrganizationMembership[]
+  invitations              Invitation[]
+  organizationIntegrations OrganizationIntegration[]
 
   @@unique([slug], where: { deletedAt: null })
   @@index([deletedAt])
   @@map("organizations")
 }
 
-model OrganizationProfile {
-  id     String    @id @default(uuid())
-  createdAt DateTime @default(now())
-  deletedAt DateTime?
-  logoUrl String?
+model OrganizationIntegration {
+  id             String            @id @default(uuid())
+  name           String
+  version        String
+  status         IntegrationStatus
+  config         Json?
+  createdAt      DateTime          @default(now())
+  secretRef      String?
   organizationId String
-  updatedAt DateTime? @updatedAt
+  integrationId  String
+  updatedAt      DateTime?         @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId])
-  @@map("organization_profiles")
+  @@unique([organizationId, integrationId])
+  @@map("organization_integrations")
 }
 
 model OrganizationMembership {
-  id              String @id @default(uuid())
-  createdAt       DateTime @default(now())
-  joinedAt        DateTime?
-  organizationId  String
-  roleId          String
-  status          MembershipStatus
-  userId          String
-  updatedAt       DateTime? @updatedAt
+  id             String           @id @default(uuid())
+  createdAt      DateTime         @default(now())
+  joinedAt       DateTime?
+  organizationId String
+  roleId         String
+  status         MembershipStatus
+  userId         String
+  updatedAt      DateTime?        @updatedAt
 
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role          OrganizationRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         OrganizationRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   @@unique([userId, organizationId])
   @@index([organizationId])
@@ -177,26 +210,40 @@ model OrganizationMembership {
   @@map("organization_memberships")
 }
 
+model OrganizationProfile {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
+  logoUrl        String?
+  organizationId String
+  updatedAt      DateTime? @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId])
+  @@map("organization_profiles")
+}
+
 model OrganizationRole {
-  id          String     @id @default(uuid())
-  createdAt   DateTime  @default(now())
-  deletedAt   DateTime?
-  key         String
-  status      RoleStatus
-  type        RoleType
-  updatedAt   DateTime? @updatedAt
-  
-  members      OrganizationMembership[]
-  permissions  OrganizationRolePermission[]
-  invitations  Invitation[]
+  id        String     @id @default(uuid())
+  createdAt DateTime   @default(now())
+  deletedAt DateTime?
+  key       String
+  status    RoleStatus
+  type      RoleType
+  updatedAt DateTime?  @updatedAt
+
+  members     OrganizationMembership[]
+  permissions OrganizationRolePermission[]
+  invitations Invitation[]
 
   @@unique([key], where: { deletedAt: null })
   @@map("organization_roles")
 }
 
 model OrganizationRolePermission {
-  id           String   @id @default(uuid())
-  assignedAt   DateTime @default(now())
+  id           String    @id @default(uuid())
+  assignedAt   DateTime  @default(now())
   permissionId String
   roleId       String
   updatedAt    DateTime? @updatedAt
@@ -209,17 +256,17 @@ model OrganizationRolePermission {
 }
 
 model Permission {
-  id          String           @id @default(uuid())
+  id          String             @id @default(uuid())
   category    PermissionCategory @default(GLOBAL)
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime           @default(now())
   deletedAt   DateTime?
   description String
   name        String
   key         String
   scope       PermissionScope
   status      PermissionStatus
-  updatedAt   DateTime? @updatedAt
-  
+  updatedAt   DateTime?          @updatedAt
+
   organizationRolePermissions OrganizationRolePermission[]
 
   @@unique([key], where: { deletedAt: null })

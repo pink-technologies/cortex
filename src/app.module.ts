@@ -12,6 +12,7 @@ import { I18nModule as CortexI18nModule } from './i18n';
 import { KernelModule } from './kernel/kernel.module';
 import { SkillsModule } from './skills/skills.module';
 import { AuthenticationModule } from './gateway/authentication';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { UsersModule } from './gateway/users/users.module';
 import { GlobalExceptionFilter } from './shared/filter/global-exception.filter';
 import {
@@ -52,6 +53,7 @@ import {
     StorageModule,
     CortexI18nModule,
     SkillsModule,
+    IntegrationsModule,
     KernelModule,
   ],
   controllers: [],
