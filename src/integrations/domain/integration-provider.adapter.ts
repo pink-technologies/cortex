@@ -1,7 +1,25 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { IntegrationProvider } from "@prisma/client"
+/**
+ * The provider of the integration.
+ */
+export enum IntegrationProvider {
+    /**
+     * The Trello provider.
+     */
+    TRELLO = "TRELLO",
+
+    /**
+     * The Quality provider.
+     */
+    QUALITY = "QUALITY",
+
+    /**
+     * The unknown provider.
+     */
+    UNKNOWN = "UNKNOWN",
+}
 
 /**
  * Adapter responsible for integrating with a specific integration provider.

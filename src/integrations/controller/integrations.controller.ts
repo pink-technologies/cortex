@@ -1,29 +1,33 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Body, Controller, HttpCode, Post, Req, UseGuards } from "@nestjs/common";
 import { IntegrationConnectionService } from "../service/integration-connection.service";
-import { OrganizationIntegrationResponseDto } from "../domain/dtos/response/organization-integration.response.dto";
 import {
-    CreateOrganizationIntegrationParametersDto
-} from "../domain/dtos/parameters/connect/create-organization-integration.parameters.dto";
+    CreateIntegrationParametersDto,
+} from "../domain/dtos/parameters/create-integration.parameters.dto";
+import {
+    Body,
+    Controller,
+    HttpCode,
+    Post,
+} from "@nestjs/common";
 
 /**
- * HTTP controller responsible for handling user-related requests.
+ * HTTP controller responsible for handling integration-related requests.
  *
- * This controller acts as the transport-layer entry point for authentication
+ * This controller acts as the transport-layer entry point for integration
  * operations and delegates all business logic to the
- * {@link UserService}.
+ * {@link IntegrationConnectionService}.
  */
 @Controller('integrations')
 export class IntegrationsController {
     // MARK: - Constructor
 
     /**
-     * Creates a new {@link UserController}.
+     * Creates a new {@link IntegrationsController}.
      *
-     * @param userService - Application service responsible for
-     * orchestrating user-related operations such as lookup and updates.
+     * @param integrationConnectionService - Application service responsible for
+     * orchestrating integration-related operations such as creation.
      */
     constructor(
         private readonly integrationConnectionService: IntegrationConnectionService,
@@ -32,15 +36,14 @@ export class IntegrationsController {
     // MARK: - Instance methods
 
     /**
-     * Retrieves the current user's profile.
+     * Creates an integration.
      *
-     * @param req - The request object.
-     * @param parameters - The parameters for the integration connection.
-     * @returns The connected integration entity.
+     * @param parameters - The parameters for the integration creation.
+     * @returns The result of the integration creation.
      */
-    @HttpCode(200)
-    @Post('connect')
-    async connect(@Body() parameters: CreateOrganizationIntegrationParametersDto): Promise<OrganizationIntegrationResponseDto> {
-        return this.integrationConnectionService.connectIntegration(parameters);
+    @HttpCode(204)
+    @Post('create')
+    async create(@Body() parameters: CreateIntegrationParametersDto): Promise<void> {
+        await this.integrationConnectionService.createIntegration(parameters);
     }
 }

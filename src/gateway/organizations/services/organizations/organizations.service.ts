@@ -117,9 +117,9 @@ export class OrganizationsService {
     };
 
     if (transaction) {
-      return this.database.withTransaction(executeTransaction);
+      return executeTransaction(transaction);
     }
 
-    return executeTransaction(this.database);
+    return this.database.withTransaction(executeTransaction);
   }
 }

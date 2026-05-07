@@ -1,26 +1,23 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AwsSecretsManagerAdapter } from "@/infraestructure/secret/manager/secret-manager-adapter";
-import { IntegrationAdapterRegistry } from "../registry/integration-adapter.registry";
-import { IntegrationStatus } from "@prisma/client";
-import { OrganizationIntegrationRepository } from "../domain/repository/organization-integration/organization-integration.repository";
-import { OrganizationIntegrationResponseDto } from "../domain/dtos/response/organization-integration.response.dto";
-import {
-    CreateOrganizationIntegrationParametersDto
-} from "../domain/dtos/parameters/connect/create-organization-integration.parameters.dto"
 import { Injectable } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import { AwsSecretStorageService } from "@/infraestructure/storage/secret/aws-secret-storage.service";
+import { IntegrationAdapterRegistry } from "../registry/integration-adapter.registry";
+import {
+    CreateIntegrationParametersDto
+} from "../domain/dtos/parameters/create-integration.parameters.dto"
 
 /**
- * Service responsible for connecting an integration to an organization.
+ * Service responsible for creating an integration.
  */
 @Injectable()
 export class IntegrationConnectionService {
     // MARK: - Private properties
 
     private readonly registry: IntegrationAdapterRegistry;
-    private readonly repository: OrganizationIntegrationRepository;
-    private readonly secretManager: AwsSecretsManagerAdapter;
+    private readonly storage: AwsSecretStorageService;
 
     // MARK: - Constructor
 
@@ -28,50 +25,30 @@ export class IntegrationConnectionService {
      * Creates a new {@link IntegrationConnectionService}.
      *
      * @param registry - The registry of integration adapters.
-     * @param repository - The repository of integrations.
-     * @param secretManager - The secret manager.
+     * @param storage - The secret storage service.
      */
-    constructor(
-        registry: IntegrationAdapterRegistry,
-        repository: OrganizationIntegrationRepository,
-        secretManager: AwsSecretsManagerAdapter,
-    ) {
+    constructor(registry: IntegrationAdapterRegistry, storage: AwsSecretStorageService) {
         this.registry = registry;
-        this.repository = repository;
-        this.secretManager = secretManager;
+        this.storage = storage;
     }
 
     // MARK: - Instance methods
 
     /**
-     * Connects an integration to an organization.
+     * Creates an integration.
      *
-     * @param parameters - The parameters for the integration connection.
-     * @returns The connected integration entity.
+     * @param parameters - The parameters for the integration creation.
+     * @returns The created integration.
      */
-    async connectIntegration(parameters: CreateOrganizationIntegrationParametersDto): Promise<OrganizationIntegrationResponseDto> {
+    async createIntegration(parameters: CreateIntegrationParametersDto): Promise<void> {
         const adapter = this.registry.get(parameters.provider);
 
         adapter.validateInput(parameters.input);
 
         await adapter.testConnection(parameters.input);
 
-        const payload = await this.secretManager.create({
-            name: `integration-${parameters.organizationId}-${parameters.integrationId}-${parameters.provider}`,
-            value: parameters.input,
-        });
+        const namespace = `integration-${parameters.provider}-${randomUUID()}`;
 
-        const organizationIntegration = await this.repository.create(
-            parameters.organizationId,
-            parameters.integrationId,
-            parameters.name,
-            IntegrationStatus.CONNECTED,
-            parameters.input,
-            payload.secretRef,
-        );
-
-        console.log(organizationIntegration);
-
-        return OrganizationIntegrationResponseDto.from(organizationIntegration);
+        await this.storage.write<Record<string, unknown>>(parameters.input, namespace);
     }
 }

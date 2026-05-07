@@ -2,16 +2,12 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common'
-import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard'
-import { OrganizationMembershipsRepository } from '@/gateway/organizations/repositories/memberships/organization-memberships.repository'
 import { UsersModule } from '@/gateway/users/users.module'
 import { AuthModule } from '@/infraestructure/auth/auth.module'
 import { DatabaseModule } from '@/infraestructure/database'
-import { SecretManagerModule } from '@/infraestructure/secret/secret-manager.module'
+import { StorageModule } from '@/infraestructure/storage/storage.module'
 import { TrelloIntegrationAdapter } from './adapters/trello-integration-adapter'
 import { IntegrationsController } from './controller/integrations.controller'
-import { IntegrationRepository } from './domain/repository/integration/integration.repository'
-import { OrganizationIntegrationRepository } from './domain/repository/organization-integration/organization-integration.repository'
 import { IntegrationAdapterRegistry } from './registry/integration-adapter.registry'
 import { IntegrationConnectionService } from './service/integration-connection.service'
 
@@ -21,14 +17,10 @@ import { IntegrationConnectionService } from './service/integration-connection.s
   imports: [
     AuthModule,
     DatabaseModule,
-    SecretManagerModule,
+    StorageModule,
     UsersModule,
   ],
   providers: [
-    AuthenticatorGuard,
-    IntegrationRepository,
-    OrganizationIntegrationRepository,
-    OrganizationMembershipsRepository,
     TrelloIntegrationAdapter,
     {
       inject: [TrelloIntegrationAdapter],

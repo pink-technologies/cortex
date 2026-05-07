@@ -1,7 +1,13 @@
-import { IntegrationProvider } from "@prisma/client";
+// Copyright (c) 2026, PinkTech
+// https://pink-tech.io/
+
+import { IntegrationProvider } from "../domain/integration-provider.adapter";
 import { Injectable } from "@nestjs/common";
 import { IntegrationProviderAdapter } from "../domain/integration-provider.adapter";
 
+/**
+ * Registry of integration adapters.
+ */
 @Injectable()
 export class IntegrationAdapterRegistry {
     // MARK: - Properties

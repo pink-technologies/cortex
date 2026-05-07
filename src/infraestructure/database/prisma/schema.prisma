@@ -10,22 +10,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum IntegrationProvider {
-  SLACK
-  TRELLO
-  QUALITY
-  UNKNOWN
-}
-
-enum IntegrationStatus {
-  PENDING
-  CONNECTED
-  DISCONNECTED
-  ERROR
-  REVOKED
-  UNKNOWN
-}
-
 enum InvitationStatus {
   PENDING
   ACCEPTED
@@ -101,17 +85,6 @@ model Invitation {
   @@map("invitations")
 }
 
-model Integration {
-  id        String              @id @default(uuid())
-  createdAt DateTime            @default(now())
-  provider  IntegrationProvider
-  updatedAt DateTime?           @updatedAt
-
-  organizationIntegrations OrganizationIntegration[]
-
-  @@map("integrations")
-}
-
 model User {
   id         String       @id @default(uuid())
   createdAt  DateTime     @default(now())
@@ -162,32 +135,12 @@ model Organization {
   status    OrganizationStatus
   updatedAt DateTime?            @updatedAt
 
-  memberships              OrganizationMembership[]
-  invitations              Invitation[]
-  organizationIntegrations OrganizationIntegration[]
+  memberships OrganizationMembership[]
+  invitations Invitation[]
 
   @@unique([slug], where: { deletedAt: null })
   @@index([deletedAt])
   @@map("organizations")
-}
-
-model OrganizationIntegration {
-  id             String            @id @default(uuid())
-  name           String
-  version        String
-  status         IntegrationStatus
-  config         Json?
-  createdAt      DateTime          @default(now())
-  secretRef      String?
-  organizationId String
-  integrationId  String
-  updatedAt      DateTime?         @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, integrationId])
-  @@map("organization_integrations")
 }
 
 model OrganizationMembership {
