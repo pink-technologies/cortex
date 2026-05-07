@@ -1,11 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import * as crypto from 'crypto';
-import { Injectable } from '@nestjs/common';
-import { ErrorMapper } from './error-mapper';
-import jwt, { JwtPayload } from 'jsonwebtoken';
-import { JwksClient } from 'jwks-rsa';
+import * as crypto from 'crypto'
+import { Injectable } from '@nestjs/common'
+import { ErrorMapper } from './error-mapper'
+import jwt, { JwtPayload } from 'jsonwebtoken'
+import { JwksClient } from 'jwks-rsa'
 import {
   ChallengeRequiredError,
   ConfirmForgotPasswordError,
@@ -16,7 +16,7 @@ import {
   ResendConfirmationCodeError,
   SignInError,
   SignUpError,
-} from '../error/authenticatable-error';
+} from '../error/authenticatable-error'
 
 import {
   AuthenticationResultType,
@@ -28,7 +28,7 @@ import {
   InitiateAuthCommandOutput,
   ResendConfirmationCodeCommand,
   SignUpCommand,
-} from '@aws-sdk/client-cognito-identity-provider';
+} from '@aws-sdk/client-cognito-identity-provider'
 
 import {
   Authenticatable,
@@ -40,7 +40,7 @@ import {
   RefreshTokenParameters,
   SignupParameters,
   UsernameAndPasswordCredential,
-} from '../authenticatable';
+} from '../authenticatable'
 
 /**
  * Configuration options required to initialize the authentication client.
@@ -57,12 +57,12 @@ export type CognitoOptions = {
   /**
    * The identifier of the authentication client.
    */
-  clientId: string;
+  clientId: string
 
   /**
    * The identifier of the user pool associated with the client.
    */
-  clientPoolId: string;
+  clientPoolId: string
 
   /**
    * The secret associated with the authentication client.
@@ -70,13 +70,13 @@ export type CognitoOptions = {
    * This value must be treated as sensitive and must never be logged,
    * persisted, or exposed to clients.
    */
-  clientSecret: string;
+  clientSecret: string
 
   /**
    * The region where the authentication service is hosted.
    */
-  region: string;
-};
+  region: string
+}
 
 /**
  * A client that facilitates user authentication with Amazon Cognito.
@@ -93,9 +93,9 @@ export type CognitoOptions = {
 export class CognitoAuthenticatable implements Authenticatable {
   // Private Properties
 
-  private readonly cognitoClient: CognitoIdentityProviderClient;
-  private readonly cognitoUri: string;
-  private readonly jwksClient: JwksClient;
+  private readonly cognitoClient: CognitoIdentityProviderClient
+  private readonly cognitoUri: string
+  private readonly jwksClient: JwksClient
 
   // MARK: - Constructor
 
@@ -128,11 +128,13 @@ export class CognitoAuthenticatable implements Authenticatable {
    * locally). That principal needs cognito-idp permissions on this pool.
    */
   constructor(private readonly options: CognitoOptions) {
-    this.cognitoUri = `https://cognito-idp.${options.region}.amazonaws.com/${options.clientPoolId}`;
-    this.jwksClient = new JwksClient({ jwksUri: `${this.cognitoUri}/.well-known/jwks.json` });
+    this.cognitoUri = `https://cognito-idp.${options.region}.amazonaws.com/${options.clientPoolId}`
+    this.jwksClient = new JwksClient({
+      jwksUri: `${this.cognitoUri}/.well-known/jwks.json`,
+    })
     this.cognitoClient = new CognitoIdentityProviderClient({
       region: options.region,
-    });
+    })
   }
 
   // MARK: - Authenticatable
@@ -169,14 +171,14 @@ export class CognitoAuthenticatable implements Authenticatable {
         Password: newPassword,
         Username: username,
         SecretHash: this.hashForUsername(username),
-      });
+      })
 
-      await this.cognitoClient.send(command);
+      await this.cognitoClient.send(command)
     } catch (exception) {
       throw ErrorMapper.map({
         error: exception,
         fallback: new ConfirmForgotPasswordError(exception),
-      });
+      })
     }
   }
 
@@ -197,18 +199,24 @@ export class CognitoAuthenticatable implements Authenticatable {
    * @throws ConfirmSignupError when the confirmation fails due to an invalid or
    * expired code, an invalid account state, or an underlying provider failure.
    */
-  async confirmSignUp({ username, confirmationCode }: ConfirmSignUpParameters): Promise<void> {
+  async confirmSignUp({
+    username,
+    confirmationCode,
+  }: ConfirmSignUpParameters): Promise<void> {
     try {
       const command = new ConfirmSignUpCommand({
         ClientId: this.options.clientId,
         ConfirmationCode: confirmationCode,
         Username: username,
         SecretHash: this.hashForUsername(username),
-      });
+      })
 
-      await this.cognitoClient.send(command);
+      await this.cognitoClient.send(command)
     } catch (exception) {
-      throw ErrorMapper.map({ error: exception, fallback: new ConfirmSignupError(exception) });
+      throw ErrorMapper.map({
+        error: exception,
+        fallback: new ConfirmSignupError(exception),
+      })
     }
   }
 
@@ -226,27 +234,35 @@ export class CognitoAuthenticatable implements Authenticatable {
   async decode(idToken: string): Promise<AuthTokenPayload> {
     try {
       const decodedHeader = jwt.decode(idToken, { complete: true }) as {
-        header?: { kid?: string };
-      } | null;
+        header?: { kid?: string }
+      } | null
 
-      const kid = decodedHeader?.header?.kid;
+      const kid = decodedHeader?.header?.kid
       if (!kid) {
-        throw new DecodeTokenError(new Error('Token header is missing the key id (kid).' as string));
+        throw new DecodeTokenError(
+          new Error('Token header is missing the key id (kid).' as string),
+        )
       }
 
-      const key = await this.jwksClient.getSigningKey(kid);
+      const key = await this.jwksClient.getSigningKey(kid)
       const decodedToken = jwt.verify(idToken, key.getPublicKey(), {
         algorithms: ['RS256'],
         issuer: this.cognitoUri,
-      }) as JwtPayload;
+      }) as JwtPayload
 
       return {
         email: decodedToken.email,
-        username: decodedToken['cognito:username'] ?? decodedToken.username ?? decodedToken.sub,
+        username:
+          decodedToken['cognito:username'] ??
+          decodedToken.username ??
+          decodedToken.sub,
         exp: (decodedToken.exp ?? 0) * 1000,
-      };
+      }
     } catch (exception) {
-      throw ErrorMapper.map({ error: exception, fallback: new DecodeTokenError(exception) });
+      throw ErrorMapper.map({
+        error: exception,
+        fallback: new DecodeTokenError(exception),
+      })
     }
   }
 
@@ -264,11 +280,14 @@ export class CognitoAuthenticatable implements Authenticatable {
         ClientId: this.options.clientId,
         Username: username,
         SecretHash: this.hashForUsername(username),
-      });
+      })
 
-      await this.cognitoClient.send(command);
+      await this.cognitoClient.send(command)
     } catch (exception) {
-      throw ErrorMapper.map({ error: exception, fallback: new ForgotPasswordError(exception) });
+      throw ErrorMapper.map({
+        error: exception,
+        fallback: new ForgotPasswordError(exception),
+      })
     }
   }
 
@@ -293,41 +312,54 @@ export class CognitoAuthenticatable implements Authenticatable {
    * @throws RefreshTokenError when the refresh token is expired, revoked,
    * or otherwise invalid, or when an underlying provider failure occurs.
    */
-  async refreshToken({ username, refreshToken }: RefreshTokenParameters): Promise<AuthToken> {
-    var response: InitiateAuthCommandOutput;
+  async refreshToken({
+    username,
+    refreshToken,
+  }: RefreshTokenParameters): Promise<AuthToken> {
+    let response: InitiateAuthCommandOutput
 
     try {
       const parameters: Record<string, string> = {
         REFRESH_TOKEN: refreshToken,
         USERNAME: username,
-      };
+      }
 
-      parameters.SECRET_HASH = this.hashForUsername(username);
+      parameters.SECRET_HASH = this.hashForUsername(username)
 
       const command = new InitiateAuthCommand({
         AuthFlow: 'REFRESH_TOKEN_AUTH',
         AuthParameters: parameters,
         ClientId: this.options.clientId,
-      });
+      })
 
-      response = await this.cognitoClient.send(command);
+      response = await this.cognitoClient.send(command)
     } catch (exception) {
-      throw ErrorMapper.map({ error: exception, fallback: new RefreshTokenError(exception) });
+      throw ErrorMapper.map({
+        error: exception,
+        fallback: new RefreshTokenError(exception),
+      })
     }
 
-    if (response.AuthenticationResult && this.isValid(response.AuthenticationResult)) {
-      const expiresInSeconds = response.AuthenticationResult!.ExpiresIn!;
-      const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+    if (
+      response.AuthenticationResult &&
+      this.isValid(response.AuthenticationResult)
+    ) {
+      const expiresInSeconds = response.AuthenticationResult.ExpiresIn!
+      const expiresAt = new Date(
+        Date.now() + expiresInSeconds * 1000,
+      ).toISOString()
 
       return {
-        accessToken: response.AuthenticationResult!.AccessToken!,
+        accessToken: response.AuthenticationResult.AccessToken!,
         expiresIn: expiresAt,
-        idToken: response.AuthenticationResult!.IdToken!,
+        idToken: response.AuthenticationResult.IdToken!,
         refreshToken: refreshToken,
-      };
+      }
     }
 
-    throw new RefreshTokenError(new Error('Token refresh failed: invalid response from provider.'));
+    throw new RefreshTokenError(
+      new Error('Token refresh failed: invalid response from provider.'),
+    )
   }
 
   /**
@@ -356,14 +388,14 @@ export class CognitoAuthenticatable implements Authenticatable {
         ClientId: this.options.clientId,
         Username: username,
         SecretHash: this.hashForUsername(username),
-      });
+      })
 
-      await this.cognitoClient.send(command);
+      await this.cognitoClient.send(command)
     } catch (exception) {
       throw ErrorMapper.map({
         error: exception,
         fallback: new ResendConfirmationCodeError(exception),
-      });
+      })
     }
   }
 
@@ -378,7 +410,7 @@ export class CognitoAuthenticatable implements Authenticatable {
    */
   async signIn(credential: Credential): Promise<AuthToken> {
     if (credential instanceof UsernameAndPasswordCredential) {
-      var response: InitiateAuthCommandOutput;
+      let response: InitiateAuthCommandOutput
 
       try {
         const command = new InitiateAuthCommand({
@@ -389,33 +421,48 @@ export class CognitoAuthenticatable implements Authenticatable {
             PASSWORD: credential.password,
             SECRET_HASH: this.hashForUsername(credential.username),
           },
-        });
+        })
 
-        response = await this.cognitoClient.send(command);
+        response = await this.cognitoClient.send(command)
       } catch (exception) {
-        throw ErrorMapper.map({ error: exception, fallback: new SignInError(exception) });
+        throw ErrorMapper.map({
+          error: exception,
+          fallback: new SignInError(exception),
+        })
       }
 
       if (response.ChallengeName && response.Session) {
-        throw new ChallengeRequiredError(response.ChallengeName!, response.Session!);
+        throw new ChallengeRequiredError(
+          response.ChallengeName,
+          response.Session,
+        )
       }
 
-      if (response.AuthenticationResult && this.isValid(response.AuthenticationResult)) {
-        const expiresInSeconds = response.AuthenticationResult!.ExpiresIn!;
-        const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+      if (
+        response.AuthenticationResult &&
+        this.isValid(response.AuthenticationResult)
+      ) {
+        const expiresInSeconds = response.AuthenticationResult.ExpiresIn!
+        const expiresAt = new Date(
+          Date.now() + expiresInSeconds * 1000,
+        ).toISOString()
 
         return {
-          accessToken: response.AuthenticationResult!.AccessToken!,
+          accessToken: response.AuthenticationResult.AccessToken!,
           expiresIn: expiresAt,
-          idToken: response.AuthenticationResult!.IdToken!,
-          refreshToken: response.AuthenticationResult!.RefreshToken!,
-        };
+          idToken: response.AuthenticationResult.IdToken!,
+          refreshToken: response.AuthenticationResult.RefreshToken!,
+        }
       }
 
-      throw new SignInError(new Error('Authentication failed: invalid response from provider.'));
+      throw new SignInError(
+        new Error('Authentication failed: invalid response from provider.'),
+      )
     }
 
-    throw new SignInError(new Error('Authentication failed: unsupported credential.'));
+    throw new SignInError(
+      new Error('Authentication failed: unsupported credential.'),
+    )
   }
 
   /**
@@ -440,26 +487,34 @@ export class CognitoAuthenticatable implements Authenticatable {
    * required security or complexity rules.
    * @throws SignUpError for any other sign-up failure.
    */
-  async signUp({ username, password }: SignupParameters): Promise<{cognitoSub: string}> {
+  async signUp({
+    username,
+    password,
+  }: SignupParameters): Promise<{ cognitoSub: string }> {
     try {
       const command = new SignUpCommand({
         ClientId: this.options.clientId,
         Username: username,
         Password: password,
         SecretHash: this.hashForUsername(username),
-      });
+      })
 
-      const response = await this.cognitoClient.send(command);
+      const response = await this.cognitoClient.send(command)
 
       if (!response.UserSub) {
-        throw new SignUpError(new Error('Cognito sign-up failed: no user sub returned.'));
+        throw new SignUpError(
+          new Error('Cognito sign-up failed: no user sub returned.'),
+        )
       }
 
       return {
         cognitoSub: response.UserSub,
-      };
+      }
     } catch (exception) {
-      throw ErrorMapper.map({ error: exception, fallback: new SignUpError(exception) });
+      throw ErrorMapper.map({
+        error: exception,
+        fallback: new SignUpError(exception),
+      })
     }
   }
 
@@ -469,10 +524,10 @@ export class CognitoAuthenticatable implements Authenticatable {
     return crypto
       .createHmac('sha256', this.options.clientSecret)
       .update(username + this.options.clientId)
-      .digest('base64');
+      .digest('base64')
   }
 
   private isValid(result: AuthenticationResultType): boolean {
-    return !!(result.AccessToken && result.IdToken && result.ExpiresIn);
+    return !!(result.AccessToken && result.IdToken && result.ExpiresIn)
   }
 }

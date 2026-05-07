@@ -22,7 +22,7 @@ export abstract class OrganizationServiceError extends Error {
    * A machine-readable error code identifying the type of
    * organization service error.
    */
-  abstract readonly code: string;
+  abstract readonly code: string
 
   /**
    * The underlying error that caused this organization service error.
@@ -31,7 +31,7 @@ export abstract class OrganizationServiceError extends Error {
    * tracing, diagnostics) and must not be exposed directly
    * to API consumers.
    */
-  readonly cause?: ErrorOptions;
+  readonly cause?: ErrorOptions
 
   // MARK: - Constructor
 
@@ -42,10 +42,10 @@ export abstract class OrganizationServiceError extends Error {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(message: string, cause?: ErrorOptions) {
-    super(message);
+    super(message)
 
-    this.cause = cause;
-    this.name = new.target.name;
+    this.cause = cause
+    this.name = new.target.name
   }
 }
 
@@ -61,7 +61,7 @@ export class RoleNotFound extends OrganizationServiceError {
   /**
    * A machine-readable error code identifying role-not-found errors.
    */
-  readonly code = 'ROLE_NOT_FOUND';
+  readonly code = 'ROLE_NOT_FOUND'
 
   // MARK: - Constructor
 
@@ -71,6 +71,6 @@ export class RoleNotFound extends OrganizationServiceError {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(cause?: ErrorOptions) {
-    super('Role not found.', cause);
+    super('Role not found.', cause)
   }
 }

@@ -19,7 +19,7 @@ export type CreateUserParametersDto = {
    * This value represents the user's personal profile information
    * and may be used for display or communication purposes.
    */
-  firstName: string;
+  firstName: string
 
   /**
    * The email address associated with the user account.
@@ -27,7 +27,7 @@ export type CreateUserParametersDto = {
    * This value is expected to be a valid email and normalized
    * (e.g. lowercased and trimmed) prior to persistence.
    */
-  email: string;
+  email: string
 
   /**
    * The user's family (last) name.
@@ -35,7 +35,7 @@ export type CreateUserParametersDto = {
    * This value represents the user's personal profile information
    * and may be used for display or communication purposes.
    */
-  lastName: string;
+  lastName: string
 
   /**
    * The user's phone number.
@@ -44,5 +44,5 @@ export type CreateUserParametersDto = {
    * or communication purposes and is expected to be normalized
    * before being stored.
    */
-  phone: string;
-};
+  phone: string
+}

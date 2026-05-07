@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { I18nService } from '@/i18n/i18n.service';
-import { getExceptionCode } from '@/shared/utils/exception-code.util';
+import { I18nService } from '@/i18n/i18n.service'
+import { getExceptionCode } from '@/shared/utils/exception-code.util'
 import {
   ChallengeRequiredError,
   ConfirmForgotPasswordError,
@@ -19,7 +19,7 @@ import {
   SignInError,
   SignUpError,
   UserIsNotConfirmedError,
-} from '@/infraestructure/auth/error/authenticatable-error';
+} from '@/infraestructure/auth/error/authenticatable-error'
 
 import {
   ArgumentsHost,
@@ -30,7 +30,7 @@ import {
   HttpException,
   InternalServerErrorException,
   UnauthorizedException,
-} from '@nestjs/common';
+} from '@nestjs/common'
 
 import {
   InactiveUserError,
@@ -39,7 +39,7 @@ import {
   UnauthorizedError,
   UserAlreadyRegisteredError,
   UserNotFoundError,
-} from '../services/error/authentication-service-error';
+} from '../services/error/authentication-service-error'
 
 /**
  * Authentication-specific exception filter.
@@ -68,7 +68,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
    * localized, user-facing messages in a consistent and
    * domain-aware manner.
    */
-  constructor(private readonly i18n: I18nService) { }
+  constructor(private readonly i18n: I18nService) {}
 
   // MARK: - ExceptionFilter
 
@@ -79,7 +79,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
    * @param host - The arguments host.
    */
   catch(exception: unknown, host: ArgumentsHost) {
-    const i18n = this.i18n;
+    const i18n = this.i18n
 
     if (exception instanceof ConfirmSignupError) {
       throw new BadRequestException(
@@ -88,7 +88,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.confirmSignUpFailed(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof ConfirmForgotPasswordError) {
@@ -98,7 +98,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.confirmForgotPasswordFailed(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof SignUpError) {
@@ -108,17 +108,20 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.signupFailed(),
         },
         { cause: exception },
-      );
+      )
     }
 
-    if (exception instanceof InvalidParametersError || exception instanceof InvalidPasswordError) {
+    if (
+      exception instanceof InvalidParametersError ||
+      exception instanceof InvalidPasswordError
+    ) {
       throw new BadRequestException(
         {
           code: getExceptionCode(exception),
           message: i18n.common.requestCouldNotBeProcessed(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof ForgotPasswordError) {
@@ -128,7 +131,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.common.requestCouldNotBeProcessed(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof NewPasswordRequiredError) {
@@ -138,7 +141,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.newPasswordRequired(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof UserIsNotConfirmedError) {
@@ -148,7 +151,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.accountNotConfirmed(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof ChallengeRequiredError) {
@@ -158,7 +161,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.additionalVerificationRequired(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof InactiveUserError) {
@@ -168,7 +171,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.invalidCredentials(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof PendingUserConfirmationError) {
@@ -178,7 +181,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.verifyYourAccount(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof PhoneAlreadyRegisteredError) {
@@ -188,7 +191,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.phoneNumberAlreadyRegistered(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (
@@ -206,7 +209,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.invalidCredentials(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof UserAlreadyRegisteredError) {
@@ -216,7 +219,7 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.userAlreadyExists(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof UserNotFoundError) {
@@ -226,13 +229,15 @@ export class AuthenticationExceptionFilter implements ExceptionFilter {
           message: i18n.authentication.userNotFound(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof HttpException) {
-      throw exception;
+      throw exception
     }
 
-    throw new InternalServerErrorException(i18n.common.serviceUnavailable(), { cause: exception });
+    throw new InternalServerErrorException(i18n.common.serviceUnavailable(), {
+      cause: exception,
+    })
   }
 }

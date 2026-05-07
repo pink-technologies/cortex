@@ -16,22 +16,22 @@
  * - prevent lower-level errors from leaking beyond the parse layer.
  */
 export class DecoderError extends Error {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * Machine-readable code for parser-layer failures.
-     */
-    readonly code = 'DECODER_ERROR';
+  /**
+   * Machine-readable code for parser-layer failures.
+   */
+  readonly code = 'DECODER_ERROR'
 
-    // MARK: - Constructor
+  // MARK: - Constructor
 
-    /**
-     * Creates a new {@link DecoderError}.
-     *
-     * @param message - The human-readable error message describing the failure.
-     * @param options - The options for the error.
-     */
-    constructor(message?: string, options?: { cause?: unknown }) {
-        super(message ?? 'Decode failed', options);
-    }
+  /**
+   * Creates a new {@link DecoderError}.
+   *
+   * @param message - The human-readable error message describing the failure.
+   * @param options - The options for the error.
+   */
+  constructor(message?: string, options?: { cause?: unknown }) {
+    super(message ?? 'Decode failed', options)
+  }
 }

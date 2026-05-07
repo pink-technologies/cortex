@@ -1,12 +1,12 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { OrganizationRole } from '@/infraestructure/database';
-import { RoleType } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
-import { OrganizationRolesRepository } from '../../repositories';
-import { RoleNotFound } from '../error/organization.error';
-import { I18nService } from '@/i18n/i18n.service';
+import { OrganizationRole } from '@/infraestructure/database'
+import { RoleType } from '@prisma/client'
+import { Injectable } from '@nestjs/common'
+import { OrganizationRolesRepository } from '../../repositories'
+import { RoleNotFound } from '../error/organization.error'
+import { I18nService } from '@/i18n/i18n.service'
 
 /**
  * Service responsible for managing organization roles.
@@ -38,11 +38,11 @@ export class OrganizationRolesService {
    * @throws RoleNotFound when the role cannot be found.
    */
   async findById(id: string, userId: string): Promise<OrganizationRole> {
-    const role = await this.organizationRolesRepository.findById(id, userId);
+    const role = await this.organizationRolesRepository.findById(id, userId)
 
-    if (!role) throw new RoleNotFound();
+    if (!role) throw new RoleNotFound()
 
-    return role;
+    return role
   }
 
   /**
@@ -56,15 +56,14 @@ export class OrganizationRolesService {
    */
   async findByRoleType(roleType: RoleType): Promise<OrganizationRole> {
     if (!Object.values(RoleType).includes(roleType)) {
-      throw new RoleNotFound();
+      throw new RoleNotFound()
     }
 
-    const role =
-      await this.organizationRolesRepository.findByRoleType(roleType);
+    const role = await this.organizationRolesRepository.findByRoleType(roleType)
 
-    if (!role) throw new RoleNotFound();
+    if (!role) throw new RoleNotFound()
 
-    return role;
+    return role
   }
 
   /**
@@ -75,6 +74,6 @@ export class OrganizationRolesService {
    * @returns A list of all organization roles.
    */
   async retrieve(userId: string): Promise<OrganizationRole[]> {
-    return await this.organizationRolesRepository.retrieve(userId);
+    return await this.organizationRolesRepository.retrieve(userId)
   }
 }

@@ -1,15 +1,15 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { ContentKind, MessageRole, TextContent } from '@/llm/llm';
-import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema';
-import { AgentConfiguration } from '../agent.config';
+import { ContentKind, MessageRole, TextContent } from '@/llm/llm'
+import { agentDecisionSchema } from '../schema/agent-decision/agent-decision.schema'
+import { AgentConfiguration } from '../agent.config'
 import type {
   Agent,
   AgentContext,
   AgentDecision,
   AgentDescriptor,
-} from '../agent';
+} from '../agent'
 
 /**
  * {@link Agent} whose {@link Agent.decide} calls the {@link LLM} port for one structured
@@ -33,20 +33,20 @@ export class PromptDrivenAgent implements Agent {
 
   /**
    * The id of the agent.
-   * 
+   *
    * @returns The id of the agent.
    */
   get id(): string {
-    return this.configuration.id;
+    return this.configuration.id
   }
 
   /**
    * The descriptor of the agent.
-   * 
+   *
    * @returns The descriptor of the agent.
    */
   get descriptor(): AgentDescriptor {
-    return this.configuration.descriptor;
+    return this.configuration.descriptor
   }
 
   /**
@@ -56,7 +56,7 @@ export class PromptDrivenAgent implements Agent {
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
   async decide(context: AgentContext): Promise<AgentDecision> {
-    const { llm, systemPrompt, model } = this.configuration;
+    const { llm, systemPrompt, model } = this.configuration
     const result = await llm.chat(
       [
         {
@@ -73,26 +73,26 @@ export class PromptDrivenAgent implements Agent {
         model,
         systemPrompt,
       },
-    );
+    )
 
     const assistantText = result.content
       .filter((block): block is TextContent => block.type === ContentKind.Text)
       .map((block) => block.text)
       .join('')
-      .trim();
+      .trim()
 
-    const raw = JSON.parse(assistantText) as unknown;
-    return agentDecisionSchema.parse(raw);
+    const raw = JSON.parse(assistantText) as unknown
+    return agentDecisionSchema.parse(raw)
   }
 
   // MARK: - Private methods
 
   private buildPrompt(context: AgentContext): string {
-    const { descriptor, delegateAgentIds } = this.configuration;
-    const delegates = delegateAgentIds ?? [];
-    const skills = descriptor.allowedSkillIds.join(', ') || 'none';
-    const capabilities = descriptor.capabilities.join(', ') || 'none';
-    const delegatesTo = delegates.join(', ') || 'none';
+    const { descriptor, delegateAgentIds } = this.configuration
+    const delegates = delegateAgentIds ?? []
+    const skills = descriptor.allowedSkillIds.join(', ') || 'none'
+    const capabilities = descriptor.capabilities.join(', ') || 'none'
+    const delegatesTo = delegates.join(', ') || 'none'
 
     return [
       `Execution id: ${context.executionId}`,
@@ -100,6 +100,6 @@ export class PromptDrivenAgent implements Agent {
       `Available skills: ${skills}`,
       `Available capabilities: ${capabilities}`,
       `Available delegates: ${delegatesTo}`,
-    ].join('\n\n');
+    ].join('\n\n')
   }
 }

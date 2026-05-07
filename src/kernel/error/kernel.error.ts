@@ -16,59 +16,59 @@
  * - prevent lower-level errors from leaking beyond the service layer.
  */
 export abstract class KernelServiceError extends Error {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * A machine-readable error code identifying the type of
-     * skill service error.
-     */
-    abstract readonly code: string;
+  /**
+   * A machine-readable error code identifying the type of
+   * skill service error.
+   */
+  abstract readonly code: string
 }
 
 /**
  * Thrown when an agent is not found.
  */
 export class KernelAgentNotFoundError extends KernelServiceError {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * Machine-readable code for agent not found errors.
-     */
-    readonly code = 'KERNEL_AGENT_NOT_FOUND';
+  /**
+   * Machine-readable code for agent not found errors.
+   */
+  readonly code = 'KERNEL_AGENT_NOT_FOUND'
 }
 
 /**
  * Thrown when an invalid decision type is encountered.
  */
 export class KernelInvalidDecisionTypeError extends KernelServiceError {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * Machine-readable code for invalid decision type errors.
-     */
-    readonly code = 'INVALID_DECISION_TYPE';
+  /**
+   * Machine-readable code for invalid decision type errors.
+   */
+  readonly code = 'INVALID_DECISION_TYPE'
 
-    // MARK: - Constructor
+  // MARK: - Constructor
 
-    /**
-     * Creates a new {@link KernelInvalidDecisionTypeError}.
-     *
-     * @param decisionType - The invalid decision type.
-     */
-    constructor(decisionType: string) {
-        super();
-        this.message = `Invalid decision type: ${decisionType}`;
-    }
+  /**
+   * Creates a new {@link KernelInvalidDecisionTypeError}.
+   *
+   * @param decisionType - The invalid decision type.
+   */
+  constructor(decisionType: string) {
+    super()
+    this.message = `Invalid decision type: ${decisionType}`
+  }
 }
 
 /**
  * Thrown when a skill decision type is not supported.
  */
 export class SkillDecisionTypeNotSupportedError extends KernelServiceError {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * Machine-readable code for skill decision type not supported errors.
-     */
-    readonly code = 'SKILL_DECISION_TYPE_NOT_SUPPORTED';
+  /**
+   * Machine-readable code for skill decision type not supported errors.
+   */
+  readonly code = 'SKILL_DECISION_TYPE_NOT_SUPPORTED'
 }

@@ -1,29 +1,29 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import path from 'path';
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { APP_FILTER } from '@nestjs/core';
-import { AgentsModule } from './agents/agents.module';
-import { CapabilitiesModule } from './capabilities';
-import { StorageModule } from './infraestructure/storage/storage.module';
-import { I18nModule as CortexI18nModule } from './i18n';
-import { KernelModule } from './kernel/kernel.module';
-import { SkillsModule } from './skills/skills.module';
-import { AuthenticationModule } from './gateway/authentication';
-import { UsersModule } from './gateway/users/users.module';
-import { GlobalExceptionFilter } from './shared/filter/global-exception.filter';
+import path from 'path'
+import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { APP_FILTER } from '@nestjs/core'
+import { AgentsModule } from './agents/agents.module'
+import { CapabilitiesModule } from './capabilities'
+import { StorageModule } from './infraestructure/storage/storage.module'
+import { I18nModule as CortexI18nModule } from './i18n'
+import { KernelModule } from './kernel/kernel.module'
+import { SkillsModule } from './skills/skills.module'
+import { AuthenticationModule } from './gateway/authentication'
+import { UsersModule } from './gateway/users/users.module'
+import { GlobalExceptionFilter } from './shared/filter/global-exception.filter'
 import {
   DatabaseExceptionFilter,
   DatabaseModule,
-} from './infraestructure/database';
+} from './infraestructure/database'
 import {
   AcceptLanguageResolver,
   I18nJsonLoader,
   I18nModule,
   I18nValidationExceptionFilter,
-} from 'nestjs-i18n';
+} from 'nestjs-i18n'
 
 @Module({
   imports: [
@@ -71,4 +71,4 @@ import {
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

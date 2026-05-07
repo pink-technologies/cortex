@@ -1,9 +1,9 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import * as TOML from '@iarna/toml';
-import { Injectable } from '@nestjs/common';
-import { DecoderError } from './error/error';
+import * as TOML from '@iarna/toml'
+import { Injectable } from '@nestjs/common'
+import { DecoderError } from './error/error'
 
 /**
  * Nest DI token for {@link Decoder}.
@@ -12,12 +12,12 @@ import { DecoderError } from './error/error';
  * parsers). Inject with `@Inject(DECODER) private readonly decoder: Decoder` so consumers depend
  * on the interface, not `TomlDecoder`.
  */
-export const DECODER = Symbol('DECODER');
+export const DECODER = Symbol('DECODER')
 
 /**
  * Decodable type for the decoder.
  */
-export type Decodable<T> = (value: unknown) => T;
+export type Decodable<T> = (value: unknown) => T
 
 /**
  * Decodes a TOML document string into a plain JavaScript value (objects, arrays, primitives).
@@ -26,21 +26,21 @@ export type Decodable<T> = (value: unknown) => T;
  * from `unknown` without this module depending on any particular schema library.
  */
 export interface Decoder {
-    /**
-     * Decodes `raw` and asserts the result as `T` (**no runtime check**—`T` exists only for TypeScript).
-     *
-     * Prefer {@link Decoder.decode} with a {@link TomlRefinement} when you want a verified `T`.
-     */
-    decode<T>(raw: string): T;
+  /**
+   * Decodes `raw` and asserts the result as `T` (**no runtime check**—`T` exists only for TypeScript).
+   *
+   * Prefer {@link Decoder.decode} with a {@link TomlRefinement} when you want a verified `T`.
+   */
+  decode<T>(raw: string): T
 
-    /**
-     * Decodes `raw` to a value, then runs `refine` so `T` is produced by **your** logic (Swift-style “bring your own Decodable”).
-     *
-     * @typeParam T - Output type; inferred from `refine`’s return type when possible.
-     * @param value - Full TOML document as UTF-8 text.
-     * @param fn - Maps `unknown` → `T`; may throw (e.g. Zod `parse`, custom validation).
-     */
-    decode<T>(value: string, fn: Decodable<T>): T;
+  /**
+   * Decodes `raw` to a value, then runs `refine` so `T` is produced by **your** logic (Swift-style “bring your own Decodable”).
+   *
+   * @typeParam T - Output type; inferred from `refine`’s return type when possible.
+   * @param value - Full TOML document as UTF-8 text.
+   * @param fn - Maps `unknown` → `T`; may throw (e.g. Zod `parse`, custom validation).
+   */
+  decode<T>(value: string, fn: Decodable<T>): T
 }
 
 /**
@@ -51,21 +51,21 @@ export interface Decoder {
  */
 @Injectable()
 export class TomlDecoder implements Decoder {
-    // MARK: - Decoder
+  // MARK: - Decoder
 
-    /**
-     * @inheritdoc
-     * @throws {@link DecoderError} when TOML syntax is invalid or the parser fails.
-     */
-    decode<T>(value: string, fn?: Decodable<T>): T {
-        let parsed: unknown;
+  /**
+   * @inheritdoc
+   * @throws {@link DecoderError} when TOML syntax is invalid or the parser fails.
+   */
+  decode<T>(value: string, fn?: Decodable<T>): T {
+    let parsed: unknown
 
-        try {
-            parsed = TOML.parse(value);
-        } catch (error) {
-            throw new DecoderError(undefined, { cause: error });
-        }
-
-        return fn ? fn(parsed) : (parsed as T);
+    try {
+      parsed = TOML.parse(value)
+    } catch (error) {
+      throw new DecoderError(undefined, { cause: error })
     }
+
+    return fn ? fn(parsed) : (parsed as T)
+  }
 }

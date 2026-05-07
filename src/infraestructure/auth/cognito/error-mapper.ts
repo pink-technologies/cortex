@@ -11,7 +11,7 @@ import {
   UsernameExistsException,
   UserNotConfirmedException,
   UserNotFoundException,
-} from '@aws-sdk/client-cognito-identity-provider';
+} from '@aws-sdk/client-cognito-identity-provider'
 
 import {
   AuthenticatableError,
@@ -23,7 +23,7 @@ import {
   ProviderUserAlreadyExistsError,
   ProviderUserNotFoundError,
   UserIsNotConfirmedError,
-} from '../error/authenticatable-error';
+} from '../error/authenticatable-error'
 
 /**
  * Parameters used to map a low-level authentication error into a
@@ -34,7 +34,7 @@ type MapErrorParams = {
    * The original error thrown by the authentication provider, SDK,
    * or underlying infrastructure.
    */
-  error: unknown;
+  error: unknown
 
   /**
    * Fallback error to be returned when the provided error cannot be
@@ -43,8 +43,8 @@ type MapErrorParams = {
    * This allows callers to explicitly control the default error
    * behavior for a given authentication operation.
    */
-  fallback: AuthenticatableError;
-};
+  fallback: AuthenticatableError
+}
 
 /**
  * Utility responsible for translating provider- or infrastructure-level
@@ -74,38 +74,41 @@ export class ErrorMapper {
    * @returns A normalized {@link AuthenticatableError} instance.
    */
   static map({ error, fallback }: MapErrorParams): AuthenticatableError {
-    if (error instanceof CodeMismatchException || error instanceof ExpiredCodeException) {
-      return new InvalidCodeError(error);
+    if (
+      error instanceof CodeMismatchException ||
+      error instanceof ExpiredCodeException
+    ) {
+      return new InvalidCodeError(error)
     }
 
     if (error instanceof InvalidParameterException) {
-      return new InvalidParametersError(error);
+      return new InvalidParametersError(error)
     }
 
     if (error instanceof InvalidPasswordException) {
-      return new InvalidPasswordError(error);
+      return new InvalidPasswordError(error)
     }
 
     if (error instanceof NotAuthorizedException) {
-      return new InvalidCredentialsError(error);
+      return new InvalidCredentialsError(error)
     }
 
     if (error instanceof PasswordResetRequiredException) {
-      return new NewPasswordRequiredError(error);
+      return new NewPasswordRequiredError(error)
     }
 
     if (error instanceof UsernameExistsException) {
-      return new ProviderUserAlreadyExistsError(error);
+      return new ProviderUserAlreadyExistsError(error)
     }
 
     if (error instanceof UserNotFoundException) {
-      return new ProviderUserNotFoundError(error);
+      return new ProviderUserNotFoundError(error)
     }
 
     if (error instanceof UserNotConfirmedException) {
-      return new UserIsNotConfirmedError(error);
+      return new UserIsNotConfirmedError(error)
     }
 
-    return fallback;
+    return fallback
   }
 }

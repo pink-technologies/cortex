@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from '@nestjs/common';
-import { I18nService as i18n } from 'nestjs-i18n';
+import { Injectable } from '@nestjs/common'
+import { I18nService as i18n } from 'nestjs-i18n'
 
 /**
  * Centralized internationalization (i18n) service.
@@ -85,7 +85,7 @@ export class I18nService {
      * registered to another user account.
      */
     phoneNumberAlreadyRegistered: () => {
-      return this.i18n.t('authentication.phone_number_already_registered');
+      return this.i18n.t('authentication.phone_number_already_registered')
     },
 
     /**
@@ -114,7 +114,7 @@ export class I18nService {
      * using a confirmation code or link.
      */
     verifyYourAccount: () => this.i18n.t('authentication.verify_your_account'),
-  };
+  }
 
   /**
    * Agents, cross-domain localized messages.
@@ -146,7 +146,7 @@ export class I18nService {
      * Message displayed when a agent ID is required.
      */
     agentRequiredId: () => this.i18n.t('agents.agent_required_id'),
-  };
+  }
 
   /**
    * Common, cross-domain localized messages.
@@ -193,7 +193,7 @@ export class I18nService {
      * Message displayed when the insufficient quota.
      */
     insufficientQuota: () => this.i18n.t('common.insufficient_quota'),
-  };
+  }
 
   /**
    * Jobs, cross-domain localized messages.
@@ -215,7 +215,7 @@ export class I18nService {
      * Message displayed when a job status update fails.
      */
     jobStatusUpdateFailed: () => this.i18n.t('jobs.job_status_update_failed'),
-  };
+  }
 
   /**
    * Skills, cross-domain localized messages.
@@ -238,7 +238,7 @@ export class I18nService {
      * Message displayed when a skill is not found.
      */
     skillNotFound: () => this.i18n.t('skills.skill_not_found'),
-  };
+  }
 
   /**
    * Storage, cross-domain localized messages.
@@ -266,7 +266,7 @@ export class I18nService {
      */
     storageInitializationFailed: () =>
       this.i18n.t('storage.storage_initialization_failed'),
-  };
+  }
 
   /**
    * Organization-related localized messages.
@@ -290,7 +290,7 @@ export class I18nService {
      */
     organizationName: (name: string) =>
       this.i18n.t('organizations.organization_name', { args: { name } }),
-  };
+  }
 
   /**
    * User-related localized messages.
@@ -320,7 +320,7 @@ export class I18nService {
      * Message displayed when a phone number is not registered.
      */
     phoneNotRegistered: () => this.i18n.t('user.phone_not_registered'),
-  };
+  }
 
   // MARK: - Constructor
 

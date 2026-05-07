@@ -1,26 +1,18 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AuthModule } from '@/infraestructure/auth/auth.module';
-import { DatabaseModule } from '@/infraestructure/database';
-import { Module } from '@nestjs/common';
-import { AuthenticationController } from './controller/authentication.controller';
-import { AuthenticationExceptionFilter } from './filter/exception.filter';
-import { AuthenticationService } from './services/authentication.service';
-import { UsersModule } from '@/gateway/users/users.module';
-import { OrganizationsModule } from '@/gateway/organizations/organization.module';
+import { AuthModule } from '@/infraestructure/auth/auth.module'
+import { DatabaseModule } from '@/infraestructure/database'
+import { Module } from '@nestjs/common'
+import { AuthenticationController } from './controller/authentication.controller'
+import { AuthenticationExceptionFilter } from './filter/exception.filter'
+import { AuthenticationService } from './services/authentication.service'
+import { UsersModule } from '@/gateway/users/users.module'
+import { OrganizationsModule } from '@/gateway/organizations/organization.module'
 
 @Module({
   controllers: [AuthenticationController],
-  imports: [
-    AuthModule,
-    DatabaseModule,
-    UsersModule,
-    OrganizationsModule,
-  ],
-  providers: [
-    AuthenticationService,
-    AuthenticationExceptionFilter,
-  ],
+  imports: [AuthModule, DatabaseModule, UsersModule, OrganizationsModule],
+  providers: [AuthenticationService, AuthenticationExceptionFilter],
 })
-export class AuthenticationModule { }
+export class AuthenticationModule {}

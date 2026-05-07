@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { z } from "zod";
+import { z } from 'zod'
 
 /**
  * Schema for the skill schema.
@@ -26,50 +26,50 @@ import { z } from "zod";
  * ```
  */
 export const skillSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    version: z.string(),
-    description: z.string(),
-    executor: z.string(),
-    tags: z.array(z.string()),
-    input: z.object({
-        schema: z.string(),
-    }),
-    output: z.object({
-        schema: z.string(),
-    }),
-    safety: z.object({
-        requires_confirmation: z.boolean(),
-    }),
-});
+  id: z.string(),
+  name: z.string(),
+  version: z.string(),
+  description: z.string(),
+  executor: z.string(),
+  tags: z.array(z.string()),
+  input: z.object({
+    schema: z.string(),
+  }),
+  output: z.object({
+    schema: z.string(),
+  }),
+  safety: z.object({
+    requires_confirmation: z.boolean(),
+  }),
+})
 
 /**
  * Type for the skill schema.
  */
-type SkillSchemaDto = z.infer<typeof skillSchema>;
+type SkillSchemaDto = z.infer<typeof skillSchema>
 
 /**
  * Class for the skill definition.
  */
 export class SkillSchema {
-    // MARK: - Constructor
+  // MARK: - Constructor
 
-    /**
-     * Creates a new instance of {@link CapabilitySchema}.
-     *
-     * @param schema - The agent schema.
-     */
-    private constructor(readonly schema: SkillSchemaDto) { }
+  /**
+   * Creates a new instance of {@link CapabilitySchema}.
+   *
+   * @param schema - The agent schema.
+   */
+  private constructor(readonly schema: SkillSchemaDto) {}
 
-    // MARK: - Static methods
+  // MARK: - Static methods
 
-    /**
-     * Wraps an already-validated {@link SkillSchemaDto} (e.g. `skillSchema.parse` on raw TOML).
-     *
-     * @param input - Validated skill definition.
-     * @returns A new instance of {@link SkillSchema}.
-     */
-    static from(input: SkillSchemaDto): SkillSchema {
-        return new SkillSchema(input);
-    }
+  /**
+   * Wraps an already-validated {@link SkillSchemaDto} (e.g. `skillSchema.parse` on raw TOML).
+   *
+   * @param input - Validated skill definition.
+   * @returns A new instance of {@link SkillSchema}.
+   */
+  static from(input: SkillSchemaDto): SkillSchema {
+    return new SkillSchema(input)
+  }
 }

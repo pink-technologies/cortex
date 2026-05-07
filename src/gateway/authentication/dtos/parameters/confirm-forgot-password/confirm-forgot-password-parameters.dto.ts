@@ -1,12 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { i18nValidationMessage } from 'nestjs-i18n';
-import { 
-  IsEmail, 
-  IsDefined, 
-  Matches 
-} from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n'
+import { IsEmail, IsDefined, Matches } from 'class-validator'
 
 /**
  * Data Transfer Object representing the parameters required to
@@ -29,8 +25,10 @@ export class ConfirmForgotPasswordParametersDto {
    * This code is used to validate the password reset request and is
    * typically time-bound and single-use.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.confirmation_code_required') })
-  confirmationCode: string;
+  @IsDefined({
+    message: i18nValidationMessage('authentication.confirmation_code_required'),
+  })
+  confirmationCode: string
 
   /**
    * The email address identifying the user account.
@@ -38,14 +36,16 @@ export class ConfirmForgotPasswordParametersDto {
    * This value must be a valid email format and is expected to be
    * normalized (e.g. lowercased and trimmed) before further processing.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.email_address_required') })
+  @IsDefined({
+    message: i18nValidationMessage('authentication.email_address_required'),
+  })
   @IsEmail(
     {},
     {
       message: i18nValidationMessage('authentication.email_address_invalid'),
     },
   )
-  email: string;
+  email: string
 
   /**
    * The new plaintext password provided by the user.
@@ -57,10 +57,14 @@ export class ConfirmForgotPasswordParametersDto {
    * - contains at least one numeric digit,
    * - contains at least one special character.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.password_required') })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$@!%*#+=()^?&])[A-Za-z\d$@!%*#+=()^?&]{8,}$/, {
-    message:
-      i18nValidationMessage('authentication.password_invalid'),
+  @IsDefined({
+    message: i18nValidationMessage('authentication.password_required'),
   })
-  newPassword: string;
+  @Matches(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$@!%*#+=()^?&])[A-Za-z\d$@!%*#+=()^?&]{8,}$/,
+    {
+      message: i18nValidationMessage('authentication.password_invalid'),
+    },
+  )
+  newPassword: string
 }

@@ -10,19 +10,19 @@
  * in logs and nested agent hops for this request.
  */
 export interface KernelResult {
-    /**
-     * Correlates this result with the originating execution (e.g. UUID/ULID from the entrypoint).
-     *
-     * Propagate to logs and nested calls so a single user request can be traced across
-     * agents, skills, and repositories.
-     */
-    readonly executionId: string;
+  /**
+   * Correlates this result with the originating execution (e.g. UUID/ULID from the entrypoint).
+   *
+   * Propagate to logs and nested calls so a single user request can be traced across
+   * agents, skills, and repositories.
+   */
+  readonly executionId: string
 
-    /**
-     * User-facing (or API-facing) reply text for this run.
-     *
-     * Typically the **respond** branch of {@link AgentDecision}; may also be an error
-     * or fallback string when the kernel cannot produce a richer result.
-     */
-    readonly message: string;
+  /**
+   * User-facing (or API-facing) reply text for this run.
+   *
+   * Typically the **respond** branch of {@link AgentDecision}; may also be an error
+   * or fallback string when the kernel cannot produce a richer result.
+   */
+  readonly message: string
 }

@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { IsDefined } from 'class-validator';
-import { i18nValidationMessage } from 'nestjs-i18n';
+import { IsDefined } from 'class-validator'
+import { i18nValidationMessage } from 'nestjs-i18n'
 
 /**
  * Data Transfer Object representing the parameters required to
@@ -22,8 +22,10 @@ export class RefreshTokenParametersDto {
    * This token is decoded to extract the provider username required
    * to refresh the session with Cognito.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.id_token_required') })
-  idToken: string;
+  @IsDefined({
+    message: i18nValidationMessage('authentication.id_token_required'),
+  })
+  idToken: string
 
   /**
    * The refresh token issued to the client during authentication.
@@ -31,6 +33,8 @@ export class RefreshTokenParametersDto {
    * This token is used to validate the session refresh request and is
    * typically time-bound and revocable.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.refresh_token_required') })
-  refreshToken: string;
+  @IsDefined({
+    message: i18nValidationMessage('authentication.refresh_token_required'),
+  })
+  refreshToken: string
 }

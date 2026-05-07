@@ -12,24 +12,24 @@
  * - `revert` safely removes only the data introduced by the seeder
  */
 export interface BaseSeeder {
-    /**
-     * Executes the seeding process.
-     *
-     * This method should insert the required records into the database.
-     * It is recommended to make this operation idempotent (e.g., using
-     * upserts or `skipDuplicates`) so it can be run multiple times safely.
-     *
-     * @returns A promise that resolves when the seeding process completes.
-     */
-    prepare(): Promise<void>;
+  /**
+   * Executes the seeding process.
+   *
+   * This method should insert the required records into the database.
+   * It is recommended to make this operation idempotent (e.g., using
+   * upserts or `skipDuplicates`) so it can be run multiple times safely.
+   *
+   * @returns A promise that resolves when the seeding process completes.
+   */
+  prepare(): Promise<void>
 
-    /**
-     * Reverts the seeding process.
-     *
-     * This method should remove or roll back the data inserted by {@link run}.
-     * It is typically used in development, testing, or rollback scenarios.
-     *
-     * @returns A promise that resolves when the revert operation completes.
-     */
-    revert(): Promise<void>;
+  /**
+   * Reverts the seeding process.
+   *
+   * This method should remove or roll back the data inserted by {@link run}.
+   * It is typically used in development, testing, or rollback scenarios.
+   *
+   * @returns A promise that resolves when the revert operation completes.
+   */
+  revert(): Promise<void>
 }

@@ -1,10 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { OrganizationRole } from '@/infraestructure/database';
-import { OrganizationRolesService } from '../../services/roles/organization.roles.service';
-import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
-import { OrganizationRoleExceptionFilter } from '../../filter/organization-role/exception.filter';
+import type { OrganizationRole } from '@/infraestructure/database'
+import { OrganizationRolesService } from '../../services/roles/organization.roles.service'
+import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard'
+import { OrganizationRoleExceptionFilter } from '../../filter/organization-role/exception.filter'
 import {
   Controller,
   Get,
@@ -13,7 +13,7 @@ import {
   Req,
   UseFilters,
   UseGuards,
-} from '@nestjs/common';
+} from '@nestjs/common'
 
 /**
  * HTTP controller responsible for handling authentication-related requests.
@@ -68,9 +68,9 @@ export class OrganizationRoleController {
     @Param('id') id: string,
     @Req() req: Request,
   ): Promise<OrganizationRole> {
-    const user = (req as any).user;
+    const user = (req as any).user
 
-    return await this.organizationRoleService.findById(id, user.id);
+    return await this.organizationRoleService.findById(id, user.id)
   }
 
   /**
@@ -100,8 +100,8 @@ export class OrganizationRoleController {
   @HttpCode(200)
   @Get()
   async retrieve(@Req() req: Request): Promise<OrganizationRole[]> {
-    const user = (req as any).user;
+    const user = (req as any).user
 
-    return await this.organizationRoleService.retrieve(user.id);
+    return await this.organizationRoleService.retrieve(user.id)
   }
 }

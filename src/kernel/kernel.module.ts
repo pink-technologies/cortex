@@ -1,10 +1,13 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Module } from '@nestjs/common';
-import { AgentsModule } from '@/agents/agents.module';
-import { DECISION_EXECUTOR, KernelDecisionExecutor } from './executor/decision-executor';
-import { Kernel } from './kernel';
+import { Module } from '@nestjs/common'
+import { AgentsModule } from '@/agents/agents.module'
+import {
+  DECISION_EXECUTOR,
+  KernelDecisionExecutor,
+} from './executor/decision-executor'
+import { Kernel } from './kernel'
 
 @Module({
   imports: [AgentsModule],
@@ -13,8 +16,8 @@ import { Kernel } from './kernel';
     {
       provide: DECISION_EXECUTOR,
       useClass: KernelDecisionExecutor,
-    }
+    },
   ],
   exports: [Kernel],
 })
-export class KernelModule { }
+export class KernelModule {}

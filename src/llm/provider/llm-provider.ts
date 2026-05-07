@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common'
 
 /**
  * Represents a generic identifier for a Large Language Model (LLM).
@@ -31,7 +31,7 @@ import { Injectable } from '@nestjs/common';
  * }
  * ```
  */
-export type LLMModel = string;
+export type LLMModel = string
 
 /**
  * Represents a base abstraction for a Large Language Model (LLM) provider.
@@ -72,7 +72,7 @@ export abstract class LLMProvider {
    *
    * Example: `'openai'`, `'anthropic'`
    */
-  abstract readonly name: string;
+  abstract readonly name: string
 
   /**
    * The list of models supported by this provider.
@@ -83,7 +83,7 @@ export abstract class LLMProvider {
    *
    * Example: `['gpt-4', 'gpt-4o']`
    */
-  protected abstract readonly supportedModels: readonly LLMModel[];
+  protected abstract readonly supportedModels: readonly LLMModel[]
 
   /**
    * Determines whether the given model is supported by this provider.
@@ -105,7 +105,7 @@ export abstract class LLMProvider {
    * ```
    */
   supports(model: LLMModel): boolean {
-    return this.supportedModels.includes(model);
+    return this.supportedModels.includes(model)
   }
 }
 
@@ -138,18 +138,18 @@ export class AnthropicProvider extends LLMProvider {
    * A unique identifier for the provider.
    *
    * This value is typically used for routing requests, logging, and
-   * selecting the appropriate provider at runtime.   
+   * selecting the appropriate provider at runtime.
    */
-  readonly name = 'anthropic';
+  readonly name = 'anthropic'
 
   /**
    * The list of models supported by this provider.
    *
    * This property defines which models can be used when interacting
    * with the provider. It is kept `protected` to prevent external
-   * mutation while allowing subclasses to define their capabilities.   
+   * mutation while allowing subclasses to define their capabilities.
    */
-  protected readonly supportedModels = ['claude-3', 'claude-3-opus'] as const;
+  protected readonly supportedModels = ['claude-3', 'claude-3-opus'] as const
 }
 
 /**
@@ -182,9 +182,9 @@ export class OpenAIProvider extends LLMProvider {
    * A unique identifier for the provider.
    *
    * This value is typically used for routing requests, logging, and
-   * selecting the appropriate provider at runtime.   
+   * selecting the appropriate provider at runtime.
    */
-  readonly name = 'openai';
+  readonly name = 'openai'
 
   /**
    * The list of models supported by this provider.
@@ -200,7 +200,7 @@ export class OpenAIProvider extends LLMProvider {
     'gpt-5.4-mini',
     'gpt-5.4-turbo',
     'gpt-4o-mini',
-  ];
+  ]
 }
 
 /**
@@ -209,4 +209,4 @@ export class OpenAIProvider extends LLMProvider {
 export const LLM_PROVIDERS = {
   openai: new OpenAIProvider(),
   anthropic: new AnthropicProvider(),
-} as const;
+} as const

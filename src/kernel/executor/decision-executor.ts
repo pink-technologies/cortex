@@ -1,22 +1,19 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Inject } from "@nestjs/common";
-import { KernelResult } from "../result/kernel-result";
-import { AgentDecisionType } from "@/agents/agent";
-import { ExecutionContext } from "@/shared/types/";
-import {
-  Agent,
-  type AgentDecision,
-} from "@/agents";
+import { Inject } from '@nestjs/common'
+import { KernelResult } from '../result/kernel-result'
+import { AgentDecisionType } from '@/agents/agent'
+import { ExecutionContext } from '@/shared/types/'
+import { Agent, type AgentDecision } from '@/agents'
 
-import type { Storage } from "@/infraestructure/storage/storage";
-import { STORAGE } from "@/infraestructure/storage";
-import { 
-  KernelAgentNotFoundError, 
-  KernelInvalidDecisionTypeError, 
-  SkillDecisionTypeNotSupportedError 
-} from "../error/kernel.error";
+import type { Storage } from '@/infraestructure/storage/storage'
+import { STORAGE } from '@/infraestructure/storage'
+import {
+  KernelAgentNotFoundError,
+  KernelInvalidDecisionTypeError,
+  SkillDecisionTypeNotSupportedError,
+} from '../error/kernel.error'
 
 /**
  * Nest DI token for {@link DecisionExecutor}.
@@ -24,7 +21,7 @@ import {
  * Bind to {@link KernelDecisionExecutor} (or a test double) where the kernel needs to
  * materialize {@link AgentDecision} into a {@link KernelResult}.
  */
-export const DECISION_EXECUTOR = Symbol('DECISION_EXECUTOR');
+export const DECISION_EXECUTOR = Symbol('DECISION_EXECUTOR')
 
 /**
  * Turns an {@link AgentDecision} into a {@link KernelResult} using the current
@@ -41,7 +38,10 @@ export interface DecisionExecutor {
    * @param context - Shared execution scope for this kernel run.
    * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
    */
-  execute(decision: AgentDecision, context: ExecutionContext): Promise<KernelResult>;
+  execute(
+    decision: AgentDecision,
+    context: ExecutionContext,
+  ): Promise<KernelResult>
 }
 
 /**
@@ -52,7 +52,6 @@ export interface DecisionExecutor {
  * until a non-delegate decision is produced (watch stack depth / cycles at the orchestration layer).
  */
 export class KernelDecisionExecutor implements DecisionExecutor {
-
   // MARK: - Constructor
 
   /**
@@ -63,48 +62,51 @@ export class KernelDecisionExecutor implements DecisionExecutor {
   constructor(
     @Inject(STORAGE)
     private readonly storage: Storage,
-  ) { }
+  ) {}
 
   // MARK: - DecisionExecutor
 
   /**
-    * Executes one decision step; may recurse when the decision is **delegate**.
-    *
-    * @param decision - Output of {@link Agent.decide} or a follow-up after delegation.
-    * @param context - Shared execution scope for this kernel run.
-    * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
-    */
-  async execute(decision: AgentDecision, context: ExecutionContext): Promise<KernelResult> {
+   * Executes one decision step; may recurse when the decision is **delegate**.
+   *
+   * @param decision - Output of {@link Agent.decide} or a follow-up after delegation.
+   * @param context - Shared execution scope for this kernel run.
+   * @returns Terminal {@link KernelResult} once a **respond** path is taken (or an error is thrown).
+   */
+  async execute(
+    decision: AgentDecision,
+    context: ExecutionContext,
+  ): Promise<KernelResult> {
     // TODO: Real implementation this is just a placeholder
     switch (decision.type) {
       case AgentDecisionType.Delegate: {
-        const agent = await this.storage.read<Agent>(decision.agentId);
+        const agent = await this.storage.read<Agent>(decision.agentId)
 
-        if (!agent) throw new KernelAgentNotFoundError();
+        if (!agent) throw new KernelAgentNotFoundError()
 
         const nextDecision = await agent.decide({
           executionId: context.executionId,
           message: context.message,
-        });
+        })
 
-        return this.execute(nextDecision, context);
+        return this.execute(nextDecision, context)
       }
 
       case AgentDecisionType.Respond:
         return {
           executionId: context.executionId,
           message: decision.response,
-        };
+        }
 
       case AgentDecisionType.UseSkill: {
-        throw new SkillDecisionTypeNotSupportedError();
+        throw new SkillDecisionTypeNotSupportedError()
       }
 
       default:
         return {
           executionId: context.executionId,
           message: new KernelInvalidDecisionTypeError(decision).message,
-        };
+        }
     }
   }
 }

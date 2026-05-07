@@ -16,37 +16,37 @@
  * - prevent lower-level errors from leaking beyond the service layer.
  */
 export abstract class UserServiceError extends Error {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * A machine-readable error code identifying the type of
-     * user service error.
-     */
-    abstract readonly code: string;
+  /**
+   * A machine-readable error code identifying the type of
+   * user service error.
+   */
+  abstract readonly code: string
 
-    /**
-     * The underlying error that caused this user service error.
-     *
-     * This value is intended for internal use only (logging,
-     * tracing, diagnostics) and must not be exposed directly
-     * to API consumers.
-     */
-    readonly cause?: ErrorOptions;
-    
-    // MARK: - Constructor
+  /**
+   * The underlying error that caused this user service error.
+   *
+   * This value is intended for internal use only (logging,
+   * tracing, diagnostics) and must not be exposed directly
+   * to API consumers.
+   */
+  readonly cause?: ErrorOptions
 
-    /**
-     * Creates a new {@link UserServiceError} instance.
-     *
-     * @param message - A human-readable description of the user service error.
-     * @param cause - The underlying error that triggered this failure.
-     */
-    constructor(message: string, cause?: ErrorOptions) {
-        super(message);
+  // MARK: - Constructor
 
-        this.cause = cause;
-        this.name = new.target.name;
-    }
+  /**
+   * Creates a new {@link UserServiceError} instance.
+   *
+   * @param message - A human-readable description of the user service error.
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(message: string, cause?: ErrorOptions) {
+    super(message)
+
+    this.cause = cause
+    this.name = new.target.name
+  }
 }
 
 /**
@@ -56,23 +56,23 @@ export abstract class UserServiceError extends Error {
  * be translated into a not-found response at the API boundary.
  */
 export class UserNotFoundError extends UserServiceError {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * A machine-readable error code identifying user-not-found errors.
-     */
-    readonly code = 'USER_NOT_FOUND';
+  /**
+   * A machine-readable error code identifying user-not-found errors.
+   */
+  readonly code = 'USER_NOT_FOUND'
 
-    // MARK: - Constructor
+  // MARK: - Constructor
 
-    /**
-     * Creates a new {@link UserNotFoundError} instance.
-     *
-     * @param cause - The underlying error that triggered this failure.
-     */
-    constructor(cause?: ErrorOptions) {
-        super('User not found.', cause);
-    }
+  /**
+   * Creates a new {@link UserNotFoundError} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('User not found.', cause)
+  }
 }
 
 /**
@@ -83,21 +83,21 @@ export class UserNotFoundError extends UserServiceError {
  * be translated into a bad-request response at the API boundary.
  */
 export class UserStatusUnchangedError extends UserServiceError {
-    // MARK: - Properties
+  // MARK: - Properties
 
-    /**
-     * A machine-readable error code identifying user-status-unchanged errors.
-     */
-    readonly code = 'USER_STATUS_UNCHANGED';
+  /**
+   * A machine-readable error code identifying user-status-unchanged errors.
+   */
+  readonly code = 'USER_STATUS_UNCHANGED'
 
-    // MARK: - Constructor
+  // MARK: - Constructor
 
-    /**
-     * Creates a new {@link UserStatusUnchangedError} instance.
-     *
-     * @param cause - The underlying error that triggered this failure.
-     */
-    constructor(cause?: ErrorOptions) {
-        super('User status unchanged.', cause);
-    }
+  /**
+   * Creates a new {@link UserStatusUnchangedError} instance.
+   *
+   * @param cause - The underlying error that triggered this failure.
+   */
+  constructor(cause?: ErrorOptions) {
+    super('User status unchanged.', cause)
+  }
 }

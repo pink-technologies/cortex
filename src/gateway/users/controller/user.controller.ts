@@ -1,11 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { UserService } from '../service/user.service';
-import { UserResponseDto } from '../dtos/responses/user/user-response.dto';
-import { UpdateUserParametersDto } from '../dtos/parameters';
-import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard';
-import { UserExceptionFilter } from '../filter/exception.filter';
+import { UserService } from '../service/user.service'
+import { UserResponseDto } from '../dtos/responses/user/user-response.dto'
+import { UpdateUserParametersDto } from '../dtos/parameters'
+import { AuthenticatorGuard } from '@/gateway/authentication/guards/authenticator-guard'
+import { UserExceptionFilter } from '../filter/exception.filter'
 import {
   Body,
   Controller,
@@ -15,7 +15,7 @@ import {
   Req,
   UseFilters,
   UseGuards,
-} from '@nestjs/common';
+} from '@nestjs/common'
 /**
  * HTTP controller responsible for handling user-related requests.
  *
@@ -47,11 +47,11 @@ export class UserController {
   @HttpCode(200)
   @Get('me')
   async me(@Req() req: Request): Promise<UserResponseDto> {
-    const user = (req as any).user;
+    const user = (req as any).user
 
-    const existingUser = await this.userService.findByEmail(user.email);
+    const existingUser = await this.userService.findByEmail(user.email)
 
-    return UserResponseDto.from(existingUser);
+    return UserResponseDto.from(existingUser)
   }
 
   /**
@@ -68,10 +68,10 @@ export class UserController {
     @Req() req: Request,
     @Body() body: UpdateUserParametersDto,
   ): Promise<UserResponseDto> {
-    const user = (req as any).user;
+    const user = (req as any).user
 
-    const updatedUser = await this.userService.update(user.id, body);
+    const updatedUser = await this.userService.update(user.id, body)
 
-    return UserResponseDto.from(updatedUser);
+    return UserResponseDto.from(updatedUser)
   }
 }

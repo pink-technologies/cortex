@@ -8,11 +8,10 @@
  * diagnostics while keeping a stable error type for CLI consumers.
  */
 export class SeedExecutionError extends Error {
-
   /**
    * The underlying error that triggered the seed failure.
    */
-  readonly cause?: ErrorOptions;
+  readonly cause?: ErrorOptions
 
   // MARK: - Constructor
 
@@ -23,8 +22,8 @@ export class SeedExecutionError extends Error {
    * @param options - Optional {@link ErrorOptions} forwarded to the native `Error` constructor (typically `{ cause }`).
    */
   constructor(message: string, cause?: ErrorOptions) {
-    super(message);
-    this.cause = cause;
-    this.name = new.target.name;
+    super(message)
+    this.cause = cause
+    this.name = new.target.name
   }
 }

@@ -1,16 +1,13 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from '@nestjs/common';
-import { 
-  Database, 
-  type DatabaseTransaction, 
+import { Injectable } from '@nestjs/common'
+import {
+  Database,
+  type DatabaseTransaction,
   Organization,
-} from '@/infraestructure/database';
-import { 
-  MembershipStatus, 
-  OrganizationStatus,
-} from '@prisma/client';
+} from '@/infraestructure/database'
+import { MembershipStatus, OrganizationStatus } from '@prisma/client'
 
 /**
  * Repository responsible for persisting and querying organization entities.
@@ -51,7 +48,7 @@ export class OrganizationsRepository {
    * @param database - The database client used to perform organization operations.
    * Injected at runtime to support inversion of control and enable testability.
    */
-  constructor(private readonly database: Database) { }
+  constructor(private readonly database: Database) {}
 
   // MARK: - Instance methods
 
@@ -84,15 +81,16 @@ export class OrganizationsRepository {
     name: string,
     options?: { transaction?: DatabaseTransaction },
   ): Promise<Organization> {
-    const database = options?.transaction ?? this.database;
+    const database = options?.transaction ?? this.database
     const slug = name
-      .split("'")[0].split("’")[0]
+      .split("'")[0]
+      .split('’')[0]
       .trim()
       .toLowerCase()
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]+/g, '-')
       .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+      .replace(/^-|-$/g, '')
 
     return database.organization.create({
       data: {
@@ -100,7 +98,7 @@ export class OrganizationsRepository {
         slug: slug,
         status: OrganizationStatus.ACTIVE,
       },
-    });
+    })
   }
 
   /**
@@ -130,7 +128,7 @@ export class OrganizationsRepository {
           },
         },
       },
-    });
+    })
   }
 
   /**
@@ -160,6 +158,6 @@ export class OrganizationsRepository {
           },
         },
       },
-    });
+    })
   }
 }

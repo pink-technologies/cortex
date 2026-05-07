@@ -8,8 +8,8 @@
  * after resolving which capability should act.
  */
 export interface Capability {
-    /**
-     * Stable key used in {@link CapabilityRegistry}.
-     */
-    readonly id: string;
+  /**
+   * Stable key used in {@link CapabilityRegistry}.
+   */
+  readonly id: string
 }

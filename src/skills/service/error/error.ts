@@ -22,7 +22,7 @@ export abstract class SkillsServiceError extends Error {
    * A machine-readable error code identifying the type of
    * skill service error.
    */
-  abstract readonly code: string;
+  abstract readonly code: string
 }
 
 /**
@@ -37,7 +37,7 @@ export class SkillAlreadyRegisteredError extends SkillsServiceError {
   /**
    * Machine-readable code for duplicate skill registration errors.
    */
-  readonly code = 'SKILL_ALREADY_REGISTERED';
+  readonly code = 'SKILL_ALREADY_REGISTERED'
 }
 
 /**
@@ -49,5 +49,5 @@ export class SkillFileLoadError extends SkillsServiceError {
   /**
    * Machine-readable code for skill file load errors.
    */
-  readonly code = 'SKILL_FILE_LOAD_ERROR';
+  readonly code = 'SKILL_FILE_LOAD_ERROR'
 }

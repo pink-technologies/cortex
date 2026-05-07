@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AuthenticationService } from '../services/authentication.service';
+import { AuthenticationService } from '../services/authentication.service'
 import {
   ConfirmForgotPasswordParametersDto,
   ConfirmSignUpParametersDto,
@@ -10,20 +10,14 @@ import {
   RefreshTokenParametersDto,
   ResendConfirmationCodeParametersDto,
   SignupParametersDto,
-} from '../dtos/parameters';
+} from '../dtos/parameters'
 import {
   AuthenticationTokenResponseDto,
   SignInResponseDto,
   UserResponseDto,
-} from '../dtos/responses';
-import {
-  Body,
-  Controller,
-  HttpCode,
-  Post,
-  UseFilters,
-} from '@nestjs/common';
-import { AuthenticationExceptionFilter } from '../filter/exception.filter';
+} from '../dtos/responses'
+import { Body, Controller, HttpCode, Post, UseFilters } from '@nestjs/common'
+import { AuthenticationExceptionFilter } from '../filter/exception.filter'
 
 /**
  * HTTP controller responsible for handling authentication-related requests.
@@ -47,7 +41,7 @@ export class AuthenticationController {
    * orchestrating authentication-related operations such as sign-in,
    * sign-up, token refresh, and password recovery.
    */
-  constructor(private readonly authenticationService: AuthenticationService) { }
+  constructor(private readonly authenticationService: AuthenticationService) {}
 
   // MARK: - Instance methods
 
@@ -83,7 +77,7 @@ export class AuthenticationController {
   async confirmForgotPassword(
     @Body() parameters: ConfirmForgotPasswordParametersDto,
   ): Promise<void> {
-    await this.authenticationService.confirmForgotPassword(parameters);
+    await this.authenticationService.confirmForgotPassword(parameters)
   }
 
   /**
@@ -116,7 +110,7 @@ export class AuthenticationController {
   async confirmSignUp(
     @Body() parameters: ConfirmSignUpParametersDto,
   ): Promise<void> {
-    await this.authenticationService.confirmSignUp(parameters);
+    await this.authenticationService.confirmSignUp(parameters)
   }
 
   /**
@@ -144,7 +138,7 @@ export class AuthenticationController {
   async forgotPassword(
     @Body() parameters: ForgotPasswordParametersDto,
   ): Promise<void> {
-    await this.authenticationService.forgotPassword(parameters);
+    await this.authenticationService.forgotPassword(parameters)
   }
 
   /**
@@ -170,9 +164,9 @@ export class AuthenticationController {
   async refreshToken(
     @Body() parameters: RefreshTokenParametersDto,
   ): Promise<AuthenticationTokenResponseDto> {
-    const token = await this.authenticationService.refreshToken(parameters);
+    const token = await this.authenticationService.refreshToken(parameters)
 
-    return AuthenticationTokenResponseDto.from(token);
+    return AuthenticationTokenResponseDto.from(token)
   }
 
   /**
@@ -199,7 +193,7 @@ export class AuthenticationController {
   async resendConfirmationCode(
     @Body() parameters: ResendConfirmationCodeParametersDto,
   ): Promise<void> {
-    await this.authenticationService.resendConfirmationCode(parameters);
+    await this.authenticationService.resendConfirmationCode(parameters)
   }
 
   /**
@@ -216,13 +210,15 @@ export class AuthenticationController {
    */
   @HttpCode(200)
   @Post('sign-in')
-  async signIn(@Body() credential: EmailAndPasswordCredentialDto): Promise<SignInResponseDto> {
-    const response = await this.authenticationService.signIn(credential);
+  async signIn(
+    @Body() credential: EmailAndPasswordCredentialDto,
+  ): Promise<SignInResponseDto> {
+    const response = await this.authenticationService.signIn(credential)
 
     return {
       user: UserResponseDto.from(response.user),
       token: AuthenticationTokenResponseDto.from(response.token),
-    };
+    }
   }
 
   /**
@@ -244,6 +240,6 @@ export class AuthenticationController {
   @HttpCode(204)
   @Post('sign-up')
   async signUp(@Body() parameters: SignupParametersDto): Promise<void> {
-    await this.authenticationService.signUp(parameters);
+    await this.authenticationService.signUp(parameters)
   }
 }

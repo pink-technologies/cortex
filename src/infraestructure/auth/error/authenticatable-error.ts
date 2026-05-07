@@ -29,7 +29,7 @@ export abstract class AuthenticatableError extends Error {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  abstract readonly code: string;
+  abstract readonly code: string
 
   /**
    * The underlying error that caused this authentication failure.
@@ -38,7 +38,7 @@ export abstract class AuthenticatableError extends Error {
    * tracing, diagnostics) and must not be exposed directly
    * to API consumers.
    */
-  readonly cause?: ErrorOptions;
+  readonly cause?: ErrorOptions
 
   // Constructor
 
@@ -53,10 +53,10 @@ export abstract class AuthenticatableError extends Error {
    * @param options - Optional {@link ErrorOptions} forwarded to the native `Error` constructor (typically `{ cause }`).
    */
   protected constructor(message: string, cause?: ErrorOptions) {
-    super(message);
+    super(message)
 
-    this.cause = cause;
-    this.name = new.target.name;
+    this.cause = cause
+    this.name = new.target.name
   }
 }
 
@@ -91,7 +91,7 @@ export class ChallengeRequiredError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'CHALLENGE_REQUIRED';
+  readonly code = 'CHALLENGE_REQUIRED'
 
   // Constructor
 
@@ -105,7 +105,7 @@ export class ChallengeRequiredError extends AuthenticatableError {
     public readonly challengeName: string,
     public readonly session: string,
   ) {
-    super('Additional challenge is required to complete authentication.');
+    super('Additional challenge is required to complete authentication.')
   }
 }
 
@@ -131,7 +131,7 @@ export class ConfirmForgotPasswordError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'CONFIRM_FORGOT_PASSWORD_ERROR';
+  readonly code = 'CONFIRM_FORGOT_PASSWORD_ERROR'
 
   // Constructor
 
@@ -143,7 +143,7 @@ export class ConfirmForgotPasswordError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('Failed to confirm the new password.', cause);
+    super('Failed to confirm the new password.', cause)
   }
 }
 
@@ -166,7 +166,7 @@ export class ConfirmSignupError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'CONFIRM_SIGNUP_ERROR';
+  readonly code = 'CONFIRM_SIGNUP_ERROR'
 
   // Constructor
 
@@ -178,7 +178,7 @@ export class ConfirmSignupError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('Failed to confirm sign-up.', cause);
+    super('Failed to confirm sign-up.', cause)
   }
 }
 
@@ -205,7 +205,7 @@ export class DecodeTokenError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'DECODE_TOKEN_ERROR';
+  readonly code = 'DECODE_TOKEN_ERROR'
 
   // Constructor
 
@@ -217,7 +217,7 @@ export class DecodeTokenError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('Failed to decode the token.', cause);
+    super('Failed to decode the token.', cause)
   }
 }
 
@@ -241,7 +241,7 @@ export class ForgotPasswordError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'FORGOT_PASSWORD_ERROR';
+  readonly code = 'FORGOT_PASSWORD_ERROR'
 
   // Constructor
 
@@ -253,7 +253,7 @@ export class ForgotPasswordError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('Failed to initiate forgot password flow.', cause);
+    super('Failed to initiate forgot password flow.', cause)
   }
 }
 
@@ -275,7 +275,7 @@ export class InvalidCredentialsError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'INVALID_CREDENTIALS';
+  readonly code = 'INVALID_CREDENTIALS'
 
   // Constructor
 
@@ -287,7 +287,7 @@ export class InvalidCredentialsError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('The provided credentials are invalid.', cause);
+    super('The provided credentials are invalid.', cause)
   }
 }
 
@@ -305,7 +305,7 @@ export class ProviderUserAlreadyExistsError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'USER_ALREADY_EXISTS';
+  readonly code = 'USER_ALREADY_EXISTS'
 
   // Constructor
 
@@ -315,7 +315,7 @@ export class ProviderUserAlreadyExistsError extends AuthenticatableError {
    * @param cause - The underlying provider error that triggered this failure.
    */
   constructor(cause: ErrorOptions) {
-    super('User already exists.', cause);
+    super('User already exists.', cause)
   }
 }
 
@@ -333,7 +333,7 @@ export class ProviderUserNotFoundError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'USER_NOT_FOUND';
+  readonly code = 'USER_NOT_FOUND'
 
   // Constructor
 
@@ -343,7 +343,7 @@ export class ProviderUserNotFoundError extends AuthenticatableError {
    * @param cause - The underlying provider error that triggered this failure.
    */
   constructor(cause: ErrorOptions) {
-    super('User not found.', cause);
+    super('User not found.', cause)
   }
 }
 
@@ -363,7 +363,7 @@ export class InvalidCodeError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'INVALID_CODE';
+  readonly code = 'INVALID_CODE'
 
   // Constructor
 
@@ -378,7 +378,7 @@ export class InvalidCodeError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('The provided verification code is invalid or has expired.', cause);
+    super('The provided verification code is invalid or has expired.', cause)
   }
 }
 
@@ -401,7 +401,7 @@ export class InvalidParametersError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'INVALID_PARAMETERS';
+  readonly code = 'INVALID_PARAMETERS'
 
   // Constructor
 
@@ -413,7 +413,7 @@ export class InvalidParametersError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('Invalid or malformed parameters.', cause);
+    super('Invalid or malformed parameters.', cause)
   }
 }
 
@@ -435,7 +435,7 @@ export class InvalidPasswordError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'INVALID_PASSWORD';
+  readonly code = 'INVALID_PASSWORD'
 
   // Constructor
 
@@ -447,7 +447,7 @@ export class InvalidPasswordError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('The provided password is invalid.', cause);
+    super('The provided password is invalid.', cause)
   }
 }
 
@@ -482,7 +482,7 @@ export class NewPasswordRequiredError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'NEW_PASSWORD_REQUIRED';
+  readonly code = 'NEW_PASSWORD_REQUIRED'
 
   // Constructor
 
@@ -494,7 +494,7 @@ export class NewPasswordRequiredError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('A new password is required.', cause);
+    super('A new password is required.', cause)
   }
 }
 
@@ -518,7 +518,7 @@ export class RefreshTokenError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'REFRESH_TOKEN_ERROR';
+  readonly code = 'REFRESH_TOKEN_ERROR'
 
   // Constructor
 
@@ -530,7 +530,7 @@ export class RefreshTokenError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('An error occurred during the refresh token process.', cause);
+    super('An error occurred during the refresh token process.', cause)
   }
 }
 
@@ -549,7 +549,7 @@ export class ResendConfirmationCodeError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'RESEND_CONFIRMATION_CODE_ERROR';
+  readonly code = 'RESEND_CONFIRMATION_CODE_ERROR'
 
   // Constructor
 
@@ -562,7 +562,7 @@ export class ResendConfirmationCodeError extends AuthenticatableError {
    *   to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('Failed to resend the confirmation code.', cause);
+    super('Failed to resend the confirmation code.', cause)
   }
 }
 
@@ -590,7 +590,7 @@ export class SignInError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'SIGN_IN_ERROR';
+  readonly code = 'SIGN_IN_ERROR'
 
   // Constructor
 
@@ -602,7 +602,7 @@ export class SignInError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('An error occurred during sign-in.', cause);
+    super('An error occurred during sign-in.', cause)
   }
 }
 
@@ -623,7 +623,7 @@ export class SignUpError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'SIGN_UP_ERROR';
+  readonly code = 'SIGN_UP_ERROR'
 
   // Constructor
 
@@ -635,7 +635,7 @@ export class SignUpError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('An error occurred during sign-up.', cause);
+    super('An error occurred during sign-up.', cause)
   }
 }
 
@@ -653,7 +653,7 @@ export class UserIsNotConfirmedError extends AuthenticatableError {
   /**
    * A machine-readable error code identifying the type of authentication error.
    */
-  readonly code = 'USER_NOT_CONFIRMED';
+  readonly code = 'USER_NOT_CONFIRMED'
 
   // Constructor
 
@@ -665,6 +665,6 @@ export class UserIsNotConfirmedError extends AuthenticatableError {
    *   (logging, tracing, diagnostics) and must not be exposed to clients.
    */
   constructor(cause: ErrorOptions) {
-    super('The user account is not confirmed.', cause);
+    super('The user account is not confirmed.', cause)
   }
 }

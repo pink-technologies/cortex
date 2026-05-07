@@ -2,4 +2,4 @@ export {
   AuthenticationTokenResponseDto,
   SignInResponseDto,
   UserResponseDto,
-} from './sign-in/sign-in-response.dto';
+} from './sign-in/sign-in-response.dto'

@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { ExecutionContext } from "@/shared/types";
+import { ExecutionContext } from '@/shared/types'
 
 /**
  * Pluggable unit that runs a **skill** — a named behavior the agent or orchestrator can
@@ -18,18 +18,18 @@ import { ExecutionContext } from "@/shared/types";
  * and dispatch at runtime.
  */
 export interface SkillExecutor<Input = unknown, Output = unknown> {
-    /**
-     * Stable identifier for this skill executor.
-     * Must be unique among skill executors in the same registry.
-     */
-    readonly id: string;
+  /**
+   * Stable identifier for this skill executor.
+   * Must be unique among skill executors in the same registry.
+   */
+  readonly id: string
 
-    /**
-     * Executes the skill for the given input and execution scope.
-     *
-     * @param input - Skill-specific input; shape matches `Input`.
-     * @param context - Shared run context (e.g. {@link ExecutionContext.executionId}, {@link ExecutionContext.message}).
-     * @returns The skill result; shape matches `Output`.
-     */
-    execute(input: Input, context: ExecutionContext): Promise<Output>;
+  /**
+   * Executes the skill for the given input and execution scope.
+   *
+   * @param input - Skill-specific input; shape matches `Input`.
+   * @param context - Shared run context (e.g. {@link ExecutionContext.executionId}, {@link ExecutionContext.message}).
+   * @returns The skill result; shape matches `Output`.
+   */
+  execute(input: Input, context: ExecutionContext): Promise<Output>
 }

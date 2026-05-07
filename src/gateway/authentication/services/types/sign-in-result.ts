@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AuthToken } from '@/infraestructure/auth';
-import { User } from '@/infraestructure/database';
+import { AuthToken } from '@/infraestructure/auth'
+import { User } from '@/infraestructure/database'
 
 /**
  * Result returned after a successful sign-in operation.
@@ -22,7 +22,7 @@ export type SignInResult = {
    * This token contains the credentials required to authorize
    * subsequent requests and manage token refresh.
    */
-  token: AuthToken;
+  token: AuthToken
 
   /**
    * The application-level user associated with the authenticated session.
@@ -31,5 +31,5 @@ export type SignInResult = {
    * application database and should be treated as the source of truth
    * for user-related data.
    */
-  user: User;
-};
+  user: User
+}

@@ -22,7 +22,7 @@ export abstract class AuthenticationServiceError extends Error {
    * A machine-readable error code identifying the type of
    * authentication service error.
    */
-  abstract readonly code: string;
+  abstract readonly code: string
 
   /**
    * The underlying error that caused this authentication service error.
@@ -31,7 +31,7 @@ export abstract class AuthenticationServiceError extends Error {
    * tracing, diagnostics) and must not be exposed directly
    * to API consumers.
    */
-  readonly cause?: ErrorOptions;
+  readonly cause?: ErrorOptions
 
   // MARK: - Constructor
 
@@ -42,10 +42,10 @@ export abstract class AuthenticationServiceError extends Error {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(message: string, cause?: ErrorOptions) {
-    super(message);
+    super(message)
 
-    this.cause = cause;
-    this.name = new.target.name;
+    this.cause = cause
+    this.name = new.target.name
   }
 }
 
@@ -68,7 +68,7 @@ export class InactiveUserError extends AuthenticationServiceError {
    * A machine-readable error code identifying inactive
    * user account errors.
    */
-  readonly code = 'INACTIVE_USER';
+  readonly code = 'INACTIVE_USER'
 
   // MARK: - Constructor
 
@@ -78,7 +78,7 @@ export class InactiveUserError extends AuthenticationServiceError {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(cause?: ErrorOptions) {
-    super('The user account is inactive.', cause);
+    super('The user account is inactive.', cause)
   }
 }
 
@@ -102,7 +102,7 @@ export class PendingUserConfirmationError extends AuthenticationServiceError {
    * A machine-readable error code identifying
    * pending account confirmation errors.
    */
-  readonly code = 'PENDING_CONFIRMATION';
+  readonly code = 'PENDING_CONFIRMATION'
 
   // MARK: - Constructor
 
@@ -112,7 +112,7 @@ export class PendingUserConfirmationError extends AuthenticationServiceError {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(cause?: ErrorOptions) {
-    super('The user account is pending confirmation.', cause);
+    super('The user account is pending confirmation.', cause)
   }
 }
 
@@ -130,7 +130,7 @@ export class PhoneAlreadyRegisteredError extends AuthenticationServiceError {
    * A machine-readable error code identifying phone number
    * registration conflicts.
    */
-  readonly code = 'PHONE_ALREADY_REGISTERED';
+  readonly code = 'PHONE_ALREADY_REGISTERED'
 
   // MARK: - Constructor
 
@@ -140,7 +140,7 @@ export class PhoneAlreadyRegisteredError extends AuthenticationServiceError {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(cause?: ErrorOptions) {
-    super('The phone number is already registered.', cause);
+    super('The phone number is already registered.', cause)
   }
 }
 
@@ -151,7 +151,7 @@ export class UnauthorizedError extends AuthenticationServiceError {
    * A machine-readable error code identifying phone number
    * registration conflicts.
    */
-  readonly code = 'UNAUTHORIZED';
+  readonly code = 'UNAUTHORIZED'
 
   // MARK: - Constructor
 
@@ -161,7 +161,7 @@ export class UnauthorizedError extends AuthenticationServiceError {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(cause?: ErrorOptions) {
-    super('Unauthorized.', cause);
+    super('Unauthorized.', cause)
   }
 }
 
@@ -180,7 +180,7 @@ export class UserAlreadyRegisteredError extends AuthenticationServiceError {
   /**
    * A machine-readable error code identifying duplicate user errors.
    */
-  readonly code = 'USER_ALREADY_EXISTS';
+  readonly code = 'USER_ALREADY_EXISTS'
 
   // MARK: - Constructor
 
@@ -190,7 +190,7 @@ export class UserAlreadyRegisteredError extends AuthenticationServiceError {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(cause?: ErrorOptions) {
-    super('The user already exists.', cause);
+    super('The user already exists.', cause)
   }
 }
 
@@ -210,7 +210,7 @@ export class UserNotFoundError extends AuthenticationServiceError {
   /**
    * A machine-readable error code identifying user-not-found errors.
    */
-  readonly code = 'USER_NOT_FOUND';
+  readonly code = 'USER_NOT_FOUND'
 
   // MARK: - Constructor
 
@@ -220,6 +220,6 @@ export class UserNotFoundError extends AuthenticationServiceError {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(cause?: ErrorOptions) {
-    super('The user not found.', cause);
+    super('The user not found.', cause)
   }
 }

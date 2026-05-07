@@ -12,12 +12,12 @@ export interface AuthToken {
    * This token is expected to be attached to outbound requests (e.g. via an
    * Authorization header) and validated by downstream services.
    */
-  accessToken: string;
+  accessToken: string
 
   /**
    * The exact date and time at which the access token expires (ISO 8601).
    */
-  expiresIn: string;
+  expiresIn: string
 
   /**
    * Token containing identity-related claims about the authenticated user.
@@ -26,7 +26,7 @@ export interface AuthToken {
    * (e.g. subject, email, roles) and should not be sent to protected APIs unless
    * explicitly required.
    */
-  idToken: string;
+  idToken: string
 
   /**
    * Long-lived token used to obtain new access and identity tokens without
@@ -35,7 +35,7 @@ export interface AuthToken {
    * This token must be handled with the highest level of care and should be
    * stored only in secure storage mechanisms.
    */
-  refreshToken: string;
+  refreshToken: string
 }
 
 /**
@@ -59,19 +59,19 @@ export interface AuthTokenPayload {
    * This value is treated as an identity attribute and should already be
    * normalized (e.g. lowercased) by the decoding layer.
    */
-  email: string;
+  email: string
 
   /**
    * The provider-specific username associated with the authenticated user.
    *
    * For Cognito, this maps to the `cognito:username` claim.
    */
-  username: string;
+  username: string
 
   /**
    * The token expiration time (milliseconds since epoch).
    */
-  exp: number;
+  exp: number
 }
 
 /**
@@ -88,7 +88,7 @@ export abstract class Credential {
    * This property helps the authentication provider identify how to process
    * the credential.
    */
-  abstract readonly type: string;
+  abstract readonly type: string
 }
 
 /**
@@ -108,7 +108,7 @@ export type ConfirmForgotPasswordParameters = {
    * This value is expected to be normalized (e.g. lowercased and trimmed)
    * before being passed to the authentication layer.
    */
-  username: string;
+  username: string
 
   /**
    * The new plaintext password to be set for the account.
@@ -117,15 +117,15 @@ export type ConfirmForgotPasswordParameters = {
    * and must never be logged, persisted, or exposed outside of the
    * authentication process.
    */
-  newPassword: string;
+  newPassword: string
 
   /**
    * The confirmation code issued as part of the password recovery flow.
    *
    * This code is typically time-bound and single-use.
    */
-  confirmationCode: string;
-};
+  confirmationCode: string
+}
 
 /**
  * Parameters required to confirm a pending user sign-up.
@@ -144,15 +144,15 @@ export type ConfirmSignUpParameters = {
    * This value is expected to be normalized (e.g. lowercased and trimmed)
    * before being passed to the authentication layer.
    */
-  username: string;
+  username: string
 
   /**
    * The confirmation code issued as part of the signUp flow.
    *
    * This code is typically time-bound and single-use.
    */
-  confirmationCode: string;
-};
+  confirmationCode: string
+}
 
 /**
  * Parameters required to refresh authentication tokens.
@@ -172,7 +172,7 @@ export type RefreshTokenParameters = {
    * This value is expected to be normalized (e.g. lowercased and trimmed)
    * before being passed to the authentication layer.
    */
-  username: string;
+  username: string
 
   /**
    * A valid refresh token previously issued during authentication.
@@ -180,8 +180,8 @@ export type RefreshTokenParameters = {
    * This value is highly sensitive and must never be logged, persisted,
    * or exposed outside of the authentication process.
    */
-  refreshToken: string;
-};
+  refreshToken: string
+}
 
 /**
  * Parameters required to initiate a user sign-up operation.
@@ -201,7 +201,7 @@ export type SignupParameters = {
    * normalized (e.g. lowercased and trimmed) before being passed to
    * the authentication layer.
    */
-  username: string;
+  username: string
 
   /**
    * The plaintext password to be associated with the account.
@@ -210,8 +210,8 @@ export type SignupParameters = {
    * and must never be logged, persisted, or exposed outside of the
    * authentication process.
    */
-  password: string;
-};
+  password: string
+}
 
 /**
  * Username + password credential.
@@ -229,7 +229,7 @@ export class UsernameAndPasswordCredential extends Credential {
    * This property helps the authentication provider identify how to process
    * the credential.
    */
-  readonly type = 'USERNAME_PASSWORD';
+  readonly type = 'USERNAME_PASSWORD'
 
   // Constructor
 
@@ -243,7 +243,7 @@ export class UsernameAndPasswordCredential extends Credential {
     public readonly username: string,
     public readonly password: string,
   ) {
-    super();
+    super()
   }
 }
 
@@ -283,7 +283,11 @@ export abstract class Authenticatable {
    *
    * @returns A promise that resolves when the password has been successfully updated.
    */
-  abstract confirmForgotPassword({username, newPassword, confirmationCode}: ConfirmForgotPasswordParameters): Promise<void>;
+  abstract confirmForgotPassword({
+    username,
+    newPassword,
+    confirmationCode,
+  }: ConfirmForgotPasswordParameters): Promise<void>
 
   /**
    * Confirms a pending user sign-up using a verification code.
@@ -301,7 +305,10 @@ export abstract class Authenticatable {
    *
    * @returns A promise that resolves when the account has been successfully confirmed.
    */
-  abstract confirmSignUp({username, confirmationCode}: ConfirmSignUpParameters): Promise<void>;
+  abstract confirmSignUp({
+    username,
+    confirmationCode,
+  }: ConfirmSignUpParameters): Promise<void>
 
   /**
    * Decodes a JWT token into a normalized token payload.
@@ -314,7 +321,7 @@ export abstract class Authenticatable {
    * @param idToken - A JWT token string (ID token).
    * @returns A normalized payload extracted from the token.
    */
-  abstract decode(idToken: string): Promise<AuthTokenPayload>;
+  abstract decode(idToken: string): Promise<AuthTokenPayload>
 
   /**
    * Initiates the password reset flow for a user.
@@ -324,7 +331,7 @@ export abstract class Authenticatable {
    *
    * @param username - The unique identifier of the account (commonly email).
    */
-  abstract forgotPassword(username: string): Promise<void>;
+  abstract forgotPassword(username: string): Promise<void>
 
   /**
    * Refreshes authentication tokens using a valid refresh token.
@@ -344,7 +351,10 @@ export abstract class Authenticatable {
    *
    * @returns A promise that resolves with a new {@link AuthToken} bundle.
    */
-  abstract refreshToken({username, refreshToken}: RefreshTokenParameters): Promise<AuthToken>;
+  abstract refreshToken({
+    username,
+    refreshToken,
+  }: RefreshTokenParameters): Promise<AuthToken>
 
   /**
    * Requests a new confirmation code for a user account.
@@ -366,7 +376,7 @@ export abstract class Authenticatable {
    *
    * @returns A promise that resolves when the request has been processed.
    */
-  abstract resendConfirmationCode(username: string): Promise<void>;
+  abstract resendConfirmationCode(username: string): Promise<void>
 
   /**
    * Signs in a user using a provided credential strategy.
@@ -377,7 +387,7 @@ export abstract class Authenticatable {
    * @param credential - A credential object describing the sign-in method.
    * @returns A token bundle returned by the provider (access/id/refresh tokens).
    */
-  abstract signIn(credential: Credential): Promise<AuthToken>;
+  abstract signIn(credential: Credential): Promise<AuthToken>
 
   /**
    * Registers a new user account with the authentication provider.
@@ -400,5 +410,8 @@ export abstract class Authenticatable {
    * @returns A promise that resolves with the authentication provider user ID.
    * @returns.cognitoSub - Unique identifier assigned by the identity provider.
    */
-  abstract signUp({username, password}: SignupParameters): Promise<{ cognitoSub: string }>;
+  abstract signUp({
+    username,
+    password,
+  }: SignupParameters): Promise<{ cognitoSub: string }>
 }

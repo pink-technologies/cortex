@@ -1,14 +1,14 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from '@nestjs/common';
-import { RoleStatus } from '@prisma/client';
+import { Injectable } from '@nestjs/common'
+import { RoleStatus } from '@prisma/client'
 import {
   Database,
   type DatabaseTransaction,
   type RoleType,
   OrganizationRole,
-} from '@/infraestructure/database';
+} from '@/infraestructure/database'
 
 /**
  * Input parameters required to create an organization role.
@@ -18,20 +18,20 @@ import {
  */
 export type CreateOrganizationRoleParameters = {
   /** The display name of the role. */
-  name: string;
+  name: string
 
   /** The unique key for the role within the organization. */
-  key: string;
+  key: string
 
   /** Whether this is a system-defined role. */
-  isSystem: boolean;
+  isSystem: boolean
 
   /** The system role key, if this is a system role. */
-  systemKey?: RoleType;
+  systemKey?: RoleType
 
   /** The unique identifier of the organization this role belongs to. */
-  organizationId: string;
-};
+  organizationId: string
+}
 
 /**
  * Repository responsible for persisting and querying organization role entities.
@@ -49,7 +49,7 @@ export class OrganizationRolesRepository {
    * @param database - The database client used to run transactions. Injected at
    * runtime to support inversion of control and enable testability.
    */
-  constructor(private readonly database: Database) { }
+  constructor(private readonly database: Database) {}
 
   // MARK: - Instance methods
 
@@ -61,15 +61,13 @@ export class OrganizationRolesRepository {
    * @returns The matching role or null if not found.
    */
   async findById(id: string, userId: string): Promise<OrganizationRole | null> {
-    return await this.database.organizationRole.findFirst({ 
-      where: { 
-        id, 
-        deletedAt: null, 
-        members: { some: { userId } 
-      } 
-    } 
-  }
-);
+    return await this.database.organizationRole.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        members: { some: { userId } },
+      },
+    })
   }
 
   /**
@@ -88,14 +86,14 @@ export class OrganizationRolesRepository {
     roleType: RoleType,
     options?: { transaction?: DatabaseTransaction },
   ): Promise<OrganizationRole | null> {
-    const database = options?.transaction ?? this.database;
+    const database = options?.transaction ?? this.database
 
     return await database.organizationRole.findFirst({
       where: {
         type: roleType,
         deletedAt: null,
       },
-    });
+    })
   }
 
   /**
@@ -114,6 +112,6 @@ export class OrganizationRolesRepository {
       orderBy: {
         key: 'asc',
       },
-    });
+    })
   }
 }

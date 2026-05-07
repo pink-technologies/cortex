@@ -1,13 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { i18nValidationMessage } from 'nestjs-i18n';
-import { 
-  IsEmail, 
-  IsDefined, 
-  IsPhoneNumber, 
-  Matches 
-} from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n'
+import { IsEmail, IsDefined, IsPhoneNumber, Matches } from 'class-validator'
 
 /**
  * Data Transfer Object representing the parameters required to
@@ -30,14 +25,16 @@ export class SignupParametersDto {
    * This value must be a valid email format and is expected to be
    * normalized (e.g. lowercased and trimmed) before further processing.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.email_address_required') })
+  @IsDefined({
+    message: i18nValidationMessage('authentication.email_address_required'),
+  })
   @IsEmail(
     {},
     {
       message: i18nValidationMessage('authentication.email_address_invalid'),
     },
   )
-  email: string;
+  email: string
 
   /**
    * The user's given (first) name.
@@ -46,8 +43,10 @@ export class SignupParametersDto {
    * and may be stored or further processed by the application
    * after successful sign-up.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.first_name_required') })
-  firstName: string;
+  @IsDefined({
+    message: i18nValidationMessage('authentication.first_name_required'),
+  })
+  firstName: string
 
   /**
    * The user's family (last) name.
@@ -56,8 +55,10 @@ export class SignupParametersDto {
    * and may be stored or further processed by the application
    * after successful sign-up.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.last_name_required') })
-  lastName: string;
+  @IsDefined({
+    message: i18nValidationMessage('authentication.last_name_required'),
+  })
+  lastName: string
 
   /**
    * The plaintext password provided by the user.
@@ -72,12 +73,16 @@ export class SignupParametersDto {
    * This value is highly sensitive and must never be logged,
    * persisted, or returned in any response.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.password_required') })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$@!%*#+=()^?&])[A-Za-z\d$@!%*#+=()^?&]{8,}$/, {
-    message:
-      i18nValidationMessage('authentication.password_invalid'),
+  @IsDefined({
+    message: i18nValidationMessage('authentication.password_required'),
   })
-  password: string;
+  @Matches(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$@!%*#+=()^?&])[A-Za-z\d$@!%*#+=()^?&]{8,}$/,
+    {
+      message: i18nValidationMessage('authentication.password_invalid'),
+    },
+  )
+  password: string
 
   /**
    * The user's phone number.
@@ -86,7 +91,11 @@ export class SignupParametersDto {
    * for account recovery, verification, or multi-factor
    * authentication flows.
    */
-  @IsDefined({ message: i18nValidationMessage('authentication.phone_required') })
-  @IsPhoneNumber(undefined, { message: i18nValidationMessage('authentication.phone_invalid') })
-  phone: string;
+  @IsDefined({
+    message: i18nValidationMessage('authentication.phone_required'),
+  })
+  @IsPhoneNumber(undefined, {
+    message: i18nValidationMessage('authentication.phone_invalid'),
+  })
+  phone: string
 }

@@ -8,10 +8,10 @@ export type AccessTokenPayload = {
   /**
    * Token expiration timestamp (ISO 8601).
    */
-  expiresIn: string;
+  expiresIn: string
 
   /**
    * Username representation used by the application (email).
    */
-  username: string;
-};
+  username: string
+}

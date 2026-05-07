@@ -22,7 +22,7 @@ export abstract class CapabilitiesServiceError extends Error {
    * A machine-readable error code identifying the type of
    * capability service error.
    */
-  abstract readonly code: string;
+  abstract readonly code: string
 }
 
 /**
@@ -37,7 +37,7 @@ export class CapabilityAlreadyRegisteredError extends CapabilitiesServiceError {
   /**
    * Machine-readable code for duplicate capability registration errors.
    */
-  readonly code = 'CAPABILITY_ALREADY_REGISTERED';
+  readonly code = 'CAPABILITY_ALREADY_REGISTERED'
 }
 
 /**
@@ -49,5 +49,5 @@ export class CapabilityFileLoadError extends CapabilitiesServiceError {
   /**
    * Machine-readable code for capability file load errors.
    */
-  readonly code = 'CAPABILITY_FILE_LOAD_ERROR';
+  readonly code = 'CAPABILITY_FILE_LOAD_ERROR'
 }

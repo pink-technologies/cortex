@@ -1,20 +1,20 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { I18nService } from '@/i18n/i18n.service';
-import { RoleType } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
-import { RoleNotFound } from '../error/organization.error';
+import { I18nService } from '@/i18n/i18n.service'
+import { RoleType } from '@prisma/client'
+import { Injectable } from '@nestjs/common'
+import { RoleNotFound } from '../error/organization.error'
 import {
   Database,
   type DatabaseTransaction,
   Organization,
-} from '@/infraestructure/database';
+} from '@/infraestructure/database'
 import {
   OrganizationMembershipsRepository,
   OrganizationRolesRepository,
   OrganizationsRepository,
-} from '../../repositories';
+} from '../../repositories'
 
 /**
  * Parameters required to create an organization.
@@ -34,15 +34,15 @@ export type CreateOrganizationParameters = {
    * This value represents the display name of the organization and is
    * typically shown to users in the application interface.
    */
-  name: string;
+  name: string
 
   /**
    * The user ID of the organization owner.
    *
    * This value is used to associate the organization with the user who created it.
    */
-  ownerId: string;
-};
+  ownerId: string
+}
 
 @Injectable()
 export class OrganizationsService {
@@ -93,14 +93,14 @@ export class OrganizationsService {
       const organization = await this.organizationsRepository.create(
         this.i18nService.organizations.organizationName(parameters.name),
         { transaction },
-      );
+      )
 
       const role = await this.organizationRolesRepository.findByRoleType(
         RoleType.OWNER,
         { transaction },
-      );
+      )
 
-      if (!role) throw new RoleNotFound();
+      if (!role) throw new RoleNotFound()
 
       await this.organizationMembershipsRepository.create(
         {
@@ -111,15 +111,15 @@ export class OrganizationsService {
         {
           transaction,
         },
-      );
+      )
 
-      return organization;
-    };
-
-    if (transaction) {
-      return this.database.withTransaction(executeTransaction);
+      return organization
     }
 
-    return executeTransaction(this.database);
+    if (transaction) {
+      return this.database.withTransaction(executeTransaction)
+    }
+
+    return executeTransaction(this.database)
   }
 }

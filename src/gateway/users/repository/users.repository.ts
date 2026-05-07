@@ -1,18 +1,14 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import {
-  Database,
-  DatabaseTransaction,
-  User,
-} from '@/infraestructure/database';
-import { UserStatus } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
-import { UserNotFoundError } from '../service/error/user.error';
+import { Database, DatabaseTransaction, User } from '@/infraestructure/database'
+import { UserStatus } from '@prisma/client'
+import { Injectable } from '@nestjs/common'
+import { UserNotFoundError } from '../service/error/user.error'
 import {
   CreateUserParametersDto,
   UpdateUserParametersDto,
-} from '../dtos/parameters';
+} from '../dtos/parameters'
 
 /**
  * Repository responsible for persisting and querying {@link User} entities.
@@ -111,7 +107,7 @@ export class UserRepository {
         },
         status: UserStatus.ACTIVE,
       },
-    });
+    })
   }
 
   /**
@@ -124,7 +120,7 @@ export class UserRepository {
   async deleteById(userId: string): Promise<void> {
     await this.database.user.delete({
       where: { id: userId },
-    });
+    })
   }
 
   /**
@@ -149,7 +145,7 @@ export class UserRepository {
     return this.database.user.findFirst({
       where: { email, deletedAt: null },
       include: { profile: true },
-    });
+    })
   }
 
   /**
@@ -162,7 +158,7 @@ export class UserRepository {
     return this.database.user.findFirst({
       where: { id: userId, deletedAt: null },
       include: { profile: true },
-    });
+    })
   }
 
   /**
@@ -189,9 +185,9 @@ export class UserRepository {
   async isPhoneRegistered(phone: string): Promise<boolean> {
     const count = await this.database.user.count({
       where: { profile: { phoneNumber: phone, deletedAt: null } },
-    });
+    })
 
-    return count > 0;
+    return count > 0
   }
 
   /**
@@ -205,7 +201,7 @@ export class UserRepository {
       where: { id: userId },
       data: { cognitoSub },
       include: { profile: true },
-    });
+    })
   }
 
   /**
@@ -222,9 +218,9 @@ export class UserRepository {
     return this.database.$transaction(async (database) => {
       const user = await database.user.findFirst({
         where: { id: userId, deletedAt: null },
-      });
+      })
 
-      if (!user) throw new UserNotFoundError();
+      if (!user) throw new UserNotFoundError()
 
       return database.user.update({
         where: {
@@ -241,8 +237,8 @@ export class UserRepository {
           },
         },
         include: { profile: true },
-      });
-    });
+      })
+    })
   }
 
   /**
@@ -282,11 +278,11 @@ export class UserRepository {
     status: UserStatus,
     transaction?: DatabaseTransaction,
   ): Promise<User> {
-    const database = transaction ?? this.database;
+    const database = transaction ?? this.database
     return database.user.update({
       where: { id: userId, deletedAt: null },
       data: { status },
       include: { profile: true },
-    });
+    })
   }
 }

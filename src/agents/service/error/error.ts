@@ -22,7 +22,7 @@ export abstract class AgentServiceError extends Error {
    * A machine-readable error code identifying the type of
    * agent service error.
    */
-  abstract readonly code: string;
+  abstract readonly code: string
 }
 
 /**
@@ -37,7 +37,7 @@ export class AgentAlreadyRegisteredError extends AgentServiceError {
   /**
    * Machine-readable code for duplicate agent registration errors.
    */
-  readonly code = 'AGENT_ALREADY_REGISTERED';
+  readonly code = 'AGENT_ALREADY_REGISTERED'
 }
 
 /**
@@ -49,7 +49,7 @@ export class AgentFileLoadError extends AgentServiceError {
   /**
    * Machine-readable code for agent load errors.
    */
-  readonly code = 'AGENT_FILE_LOAD_ERROR';
+  readonly code = 'AGENT_FILE_LOAD_ERROR'
 }
 
 /**
@@ -61,19 +61,19 @@ export class InvalidAgentRoleError extends AgentServiceError {
   /**
    * Machine-readable code for invalid agent role errors.
    */
-  readonly code = 'INVALID_AGENT_ROLE';
+  readonly code = 'INVALID_AGENT_ROLE'
 }
 
 /**
  * Thrown when more than one bundled agent is declared with role MAIN.
  */
 export class DuplicateMainAgentError extends AgentServiceError {
-  readonly code = 'DUPLICATE_MAIN_AGENT';
+  readonly code = 'DUPLICATE_MAIN_AGENT'
 }
 
 /**
  * Thrown when no MAIN orchestrator exists after load, or it was not persisted in storage.
  */
 export class NoEntryOrchestratorAgentError extends AgentServiceError {
-  readonly code = 'NO_ENTRY_ORCHESTRATOR_AGENT';
+  readonly code = 'NO_ENTRY_ORCHESTRATOR_AGENT'
 }

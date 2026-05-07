@@ -8,8 +8,8 @@
  * after resolving which skill should act.
  */
 export interface Skill {
-    /**
-     * Stable key used in {@link SkillRegistry}.
-     */
-    readonly id: string;
+  /**
+   * Stable key used in {@link SkillRegistry}.
+   */
+  readonly id: string
 }

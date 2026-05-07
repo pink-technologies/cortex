@@ -1,40 +1,40 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import OpenAI from "openai";
-import { 
-  Content, 
-  ContentKind, 
-  LLMMessage, 
-  LLMResponse, 
-  LLMToolDefinition, 
-  MessageRole, 
-  TextContent, 
-  ToolUseContent 
-} from "@/llm/llm"
-import { 
-  LLMAuthenticationError, 
-  LLMConnectionError, 
-  LLMEmptyResponseError, 
-  LLMError, 
-  LLMInvalidRequestError, 
-  LLMModelNotSupportedError, 
-  LLMPermissionDeniedError, 
-  LLMRateLimitError, 
-  LLMServiceUnavailableError, 
-  LLMTimeoutError, 
-  LLMToolCallNotSupportedError, 
-  LLMUnknownProviderError 
-} from "@/llm/error/error";
-import { 
-  ChatCompletion, 
-  ChatCompletionAssistantMessageParam, 
-  ChatCompletionMessageParam, 
-  ChatCompletionMessageToolCall, 
-  ChatCompletionTool, 
-  ChatCompletionToolMessageParam, 
-  ChatCompletionUserMessageParam
-} from "openai/resources"
+import OpenAI from 'openai'
+import {
+  Content,
+  ContentKind,
+  LLMMessage,
+  LLMResponse,
+  LLMToolDefinition,
+  MessageRole,
+  TextContent,
+  ToolUseContent,
+} from '@/llm/llm'
+import {
+  LLMAuthenticationError,
+  LLMConnectionError,
+  LLMEmptyResponseError,
+  LLMError,
+  LLMInvalidRequestError,
+  LLMModelNotSupportedError,
+  LLMPermissionDeniedError,
+  LLMRateLimitError,
+  LLMServiceUnavailableError,
+  LLMTimeoutError,
+  LLMToolCallNotSupportedError,
+  LLMUnknownProviderError,
+} from '@/llm/error/error'
+import {
+  ChatCompletion,
+  ChatCompletionAssistantMessageParam,
+  ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
+  ChatCompletionTool,
+  ChatCompletionToolMessageParam,
+  ChatCompletionUserMessageParam,
+} from 'openai/resources'
 
 /**
  * Converts a non-streaming OpenAI {@link ChatCompletion} into Cortex {@link LLMResponse}.
@@ -53,21 +53,26 @@ import {
  * @returns Normalized assistant payload; `content` may be empty if the model returned neither text nor tools.
  * @throws {@link LLMNoChoicesError} When `choices` is empty.
  */
-export function mapFromOpenAIChatCompletion(chatCompletion: ChatCompletion): LLMResponse {
-  if (chatCompletion.choices.length === 0) throw new LLMEmptyResponseError();
+export function mapFromOpenAIChatCompletion(
+  chatCompletion: ChatCompletion,
+): LLMResponse {
+  if (chatCompletion.choices.length === 0) throw new LLMEmptyResponseError()
 
   const choice = chatCompletion.choices[0]
   const content: Content[] = []
   const message = choice.message
 
   if (message.content !== null && message.content !== undefined) {
-    const textBlock: TextContent = { type: ContentKind.Text, text: message.content }
+    const textBlock: TextContent = {
+      type: ContentKind.Text,
+      text: message.content,
+    }
     content.push(textBlock)
   }
 
   if (message.tool_calls !== null && message.tool_calls !== undefined) {
     const toolUseContents = mapToToolUseContent(message.tool_calls)
-    
+
     content.push(...toolUseContents)
   }
 
@@ -108,142 +113,130 @@ export function mapFromOpenAIChatCompletion(chatCompletion: ChatCompletion): LLM
  */
 export function mapFromOpenAIError(error: unknown): LLMError {
   if (error instanceof OpenAI.APIConnectionTimeoutError) {
-      return new LLMTimeoutError(
-          'The LLM request timed out.',
-          {
-              cause: error,
-              provider: 'openai',              
-          }
-      )
+    return new LLMTimeoutError('The LLM request timed out.', {
+      cause: error,
+      provider: 'openai',
+    })
   }
 
   if (error instanceof OpenAI.APIConnectionError) {
-      return new LLMConnectionError(
-          'The LLM provider could not be reached.',
-          {
-              cause: error,
-              provider: 'openai', 
-          }
-      )
+    return new LLMConnectionError('The LLM provider could not be reached.', {
+      cause: error,
+      provider: 'openai',
+    })
   }
 
   if (error instanceof OpenAI.AuthenticationError) {
-      return new LLMAuthenticationError(
-          'Authentication with the LLM provider failed.',
-          {
-              cause: error,
-              provider: 'openai',
-              requestId: error.requestID?.toString()
-          }
-      )
+    return new LLMAuthenticationError(
+      'Authentication with the LLM provider failed.',
+      {
+        cause: error,
+        provider: 'openai',
+        requestId: error.requestID?.toString(),
+      },
+    )
   }
 
   if (error instanceof OpenAI.PermissionDeniedError) {
-      return new LLMPermissionDeniedError(
-          'Permission was denied by the LLM provider.',
-          {
-              cause: error,
-              provider: 'openai',
-              requestId: error.requestID?.toString()              
-          }
-      )
+    return new LLMPermissionDeniedError(
+      'Permission was denied by the LLM provider.',
+      {
+        cause: error,
+        provider: 'openai',
+        requestId: error.requestID?.toString(),
+      },
+    )
   }
 
   if (error instanceof OpenAI.BadRequestError) {
-      return new LLMInvalidRequestError(
-          'The LLM request is invalid.',
-          {
-              cause: error,
-              provider: 'openai',
-              requestId: error.requestID?.toString(),              
-          }
-      )
+    return new LLMInvalidRequestError('The LLM request is invalid.', {
+      cause: error,
+      provider: 'openai',
+      requestId: error.requestID?.toString(),
+    })
   }
 
   if (error instanceof OpenAI.UnprocessableEntityError) {
-      return new LLMInvalidRequestError(
-          'The LLM request could not be processed.',
-          {
-              cause: error,
-              provider: 'openai',
-              requestId: error.requestID?.toString()              
-          }
-      )
+    return new LLMInvalidRequestError(
+      'The LLM request could not be processed.',
+      {
+        cause: error,
+        provider: 'openai',
+        requestId: error.requestID?.toString(),
+      },
+    )
   }
 
   if (error instanceof OpenAI.NotFoundError) {
-      const message = error.message.toLowerCase()
+    const message = error.message.toLowerCase()
 
-      if (message.includes('model')) {
-          return new LLMModelNotSupportedError(
-              'The selected LLM model is not supported.',
-              {
-                  cause: error,
-                  provider: 'openai',
-                  requestId: error.requestID?.toString(),                  
-              }
-          )
-      }
-
-      return new LLMInvalidRequestError(
-          'The requested LLM resource was not found.',
-          {
-              cause: error,
-              provider: 'openai',
-              requestId: error.requestID?.toString(),              
-          }
+    if (message.includes('model')) {
+      return new LLMModelNotSupportedError(
+        'The selected LLM model is not supported.',
+        {
+          cause: error,
+          provider: 'openai',
+          requestId: error.requestID?.toString(),
+        },
       )
+    }
+
+    return new LLMInvalidRequestError(
+      'The requested LLM resource was not found.',
+      {
+        cause: error,
+        provider: 'openai',
+        requestId: error.requestID?.toString(),
+      },
+    )
   }
 
   if (error instanceof OpenAI.RateLimitError) {
-      return new LLMRateLimitError(
-          'The LLM provider rate limit has been exceeded.',
-          {
-              cause: error,
-              provider: 'openai',
-              requestId: error.requestID?.toString(),             
-          }
-      )
+    return new LLMRateLimitError(
+      'The LLM provider rate limit has been exceeded.',
+      {
+        cause: error,
+        provider: 'openai',
+        requestId: error.requestID?.toString(),
+      },
+    )
   }
 
   if (error instanceof OpenAI.InternalServerError) {
-      return new LLMServiceUnavailableError(
-          'The LLM provider is temporarily unavailable.',
-          {
-              cause: error,
-              provider: 'openai',
-              requestId: error.requestID?.toString()
-          }
-      )
+    return new LLMServiceUnavailableError(
+      'The LLM provider is temporarily unavailable.',
+      {
+        cause: error,
+        provider: 'openai',
+        requestId: error.requestID?.toString(),
+      },
+    )
   }
 
   if (error instanceof OpenAI.APIError) {
-      return new LLMUnknownProviderError(
-          'The LLM provider returned an unexpected error.',
-          {
-              cause: error,
-              provider: 'openai',
-              requestId: error.requestID?.toString()              
-          }
-      )
+    return new LLMUnknownProviderError(
+      'The LLM provider returned an unexpected error.',
+      {
+        cause: error,
+        provider: 'openai',
+        requestId: error.requestID?.toString(),
+      },
+    )
   }
 
   if (error instanceof Error) {
-      return new LLMUnknownProviderError(
-          error.message,
-          {
-              cause: error,
-              provider: 'openai',
-          }
-      )
+    return new LLMUnknownProviderError(error.message, {
+      cause: error,
+      provider: 'openai',
+    })
   }
 
   return new LLMUnknownProviderError(
-      'An unknown LLM provider error occurred.',
-      {
-          cause: error,
-          provider: 'openai',
-      }
+    'An unknown LLM provider error occurred.',
+    {
+      cause: error,
+      provider: 'openai',
+    },
   )
 }
 
@@ -266,49 +259,55 @@ export function mapFromOpenAIError(error: unknown): LLMError {
  *   tool results where the model had requested tools).
  * @returns Flat list suitable for `chat.completions.create` `messages` (excluding system; order preserved).
  */
-export function mapToOpenAIMessages(messages: LLMMessage[]): ChatCompletionMessageParam[] {
-    const result: ChatCompletionMessageParam[] = []
-  
-    for (const message of messages) {
-      if (message.role === MessageRole.Assistant) {
-        const openAIMessage = mapToOpenAIAssistantMessage(message)
-        result.push(openAIMessage)
+export function mapToOpenAIMessages(
+  messages: LLMMessage[],
+): ChatCompletionMessageParam[] {
+  const result: ChatCompletionMessageParam[] = []
 
-        continue
-      }
+  for (const message of messages) {
+    if (message.role === MessageRole.Assistant) {
+      const openAIMessage = mapToOpenAIAssistantMessage(message)
+      result.push(openAIMessage)
 
-      const hasToolResults = message.content.some((content) => content.type === ContentKind.ToolResult)
+      continue
+    }
 
-      if (hasToolResults) {
-        const nonToolContents = message.content.filter((content) => content.type !== ContentKind.ToolResult)
+    const hasToolResults = message.content.some(
+      (content) => content.type === ContentKind.ToolResult,
+    )
 
-        if (nonToolContents.length > 0) {
-          const message = { content: nonToolContents, role: MessageRole.User }
-          const openAIMessage = mapToOpenAIUserMessage(message)
+    if (hasToolResults) {
+      const nonToolContents = message.content.filter(
+        (content) => content.type !== ContentKind.ToolResult,
+      )
 
-          result.push(openAIMessage)
-        }
-
-        for (const content of message.content) {
-          if (content.type !== ContentKind.ToolResult) continue
-            
-          const toolMsg: ChatCompletionToolMessageParam = {
-            role: 'tool',
-            tool_call_id: content.toolUseId,
-            content: content.content,
-          }
-
-          result.push(toolMsg)
-        }
-      } else {
+      if (nonToolContents.length > 0) {
+        const message = { content: nonToolContents, role: MessageRole.User }
         const openAIMessage = mapToOpenAIUserMessage(message)
 
         result.push(openAIMessage)
       }
+
+      for (const content of message.content) {
+        if (content.type !== ContentKind.ToolResult) continue
+
+        const toolMsg: ChatCompletionToolMessageParam = {
+          role: 'tool',
+          tool_call_id: content.toolUseId,
+          content: content.content,
+        }
+
+        result.push(toolMsg)
+      }
+    } else {
+      const openAIMessage = mapToOpenAIUserMessage(message)
+
+      result.push(openAIMessage)
     }
-  
-    return result
-}  
+  }
+
+  return result
+}
 
 /**
  * Builds the full OpenAI chat message list for a completion request: optional **system** message
@@ -319,15 +318,18 @@ export function mapToOpenAIMessages(messages: LLMMessage[]): ChatCompletionMessa
  * @param systemPrompt - Optional system instructions; omitted from the list when `undefined` or empty.
  * @returns OpenAI {@link ChatCompletionMessageParam} array ready for `chat.completions.create`.
  */
-export function mapToOpenAIMessageList(messages: LLMMessage[], systemPrompt: string | undefined): ChatCompletionMessageParam[] {
-    const result: ChatCompletionMessageParam[] = []
-  
-    if (systemPrompt !== undefined && systemPrompt.length > 0) {
-      result.push({ role: 'system', content: systemPrompt })
-    }
-  
-    result.push(...mapToOpenAIMessages(messages))
-    return result
+export function mapToOpenAIMessageList(
+  messages: LLMMessage[],
+  systemPrompt: string | undefined,
+): ChatCompletionMessageParam[] {
+  const result: ChatCompletionMessageParam[] = []
+
+  if (systemPrompt !== undefined && systemPrompt.length > 0) {
+    result.push({ role: 'system', content: systemPrompt })
+  }
+
+  result.push(...mapToOpenAIMessages(messages))
+  return result
 }
 
 /**
@@ -338,14 +340,14 @@ export function mapToOpenAIMessageList(messages: LLMMessage[], systemPrompt: str
  * @returns A value suitable for the `tools` array on chat completion create calls.
  */
 export function mapToOpenAITool(tool: LLMToolDefinition): ChatCompletionTool {
-    return {
-      type: 'function',
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-      },
-    }
+  return {
+    type: 'function',
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    },
+  }
 }
 
 /**
@@ -364,7 +366,9 @@ export function mapToOpenAITool(tool: LLMToolDefinition): ChatCompletionTool {
  * @param message - Assistant turn with {@link LLMMessage.content} blocks (typically text and/or tool use).
  * @returns An OpenAI `assistant` message; `tool_calls` is set only when at least one tool-use block exists.
  */
-function mapToOpenAIAssistantMessage(message: LLMMessage): ChatCompletionAssistantMessageParam {
+function mapToOpenAIAssistantMessage(
+  message: LLMMessage,
+): ChatCompletionAssistantMessageParam {
   const textParts: string[] = []
   const toolCalls: ChatCompletionMessageToolCall[] = []
 
@@ -416,21 +420,28 @@ function mapToOpenAIAssistantMessage(message: LLMMessage): ChatCompletionAssista
  * @param message - User turn; may be plain text or mixed text + images.
  * @returns OpenAI `user` message in string or parts-array form.
  */
-function mapToOpenAIUserMessage(message: LLMMessage): ChatCompletionUserMessageParam {
-  if (message.content.length === 1 && message.content[0]?.type === ContentKind.Text) {
+function mapToOpenAIUserMessage(
+  message: LLMMessage,
+): ChatCompletionUserMessageParam {
+  if (
+    message.content.length === 1 &&
+    message.content[0]?.type === ContentKind.Text
+  ) {
     return { role: 'user', content: message.content[0].text }
   }
 
   const parts: ContentPart[] = []
 
-  type ContentPart = OpenAI.Chat.ChatCompletionContentPartText | OpenAI.Chat.ChatCompletionContentPartImage
+  type ContentPart =
+    | OpenAI.Chat.ChatCompletionContentPartText
+    | OpenAI.Chat.ChatCompletionContentPartImage
 
   for (const content of message.content) {
     if (content.type === ContentKind.Text) {
       parts.push({ type: 'text', text: content.text })
       continue
     }
-    
+
     if (content.type === ContentKind.Image) {
       parts.push({
         type: 'image_url',
@@ -438,10 +449,10 @@ function mapToOpenAIUserMessage(message: LLMMessage): ChatCompletionUserMessageP
           url: `data:${content.source.mediaType};base64,${content.source.data}`,
         },
       })
-    }    
+    }
   }
 
-  return { content: parts, role: 'user'}
+  return { content: parts, role: 'user' }
 }
 
 /**
@@ -457,30 +468,35 @@ function mapToOpenAIUserMessage(message: LLMMessage): ChatCompletionUserMessageP
  * @param toolCalls - Non-null `message.tool_calls` from {@link ChatCompletion}.
  * @returns One {@link ToolUseContent} per call, in the same order as `toolCalls`.
  */
-function mapToToolUseContent(toolCalls: ChatCompletionMessageToolCall[]): ToolUseContent[] {
-    return toolCalls.map((toolCall) => {
-      switch (toolCall.type) {
-        case 'custom':
+function mapToToolUseContent(
+  toolCalls: ChatCompletionMessageToolCall[],
+): ToolUseContent[] {
+  return toolCalls.map((toolCall) => {
+    switch (toolCall.type) {
+      case 'custom':
+        return {
+          id: toolCall.id,
+          input: JSON.parse(toolCall.custom.input) as Record<string, unknown>,
+          name: toolCall.custom.name,
+          type: ContentKind.ToolUse,
+        }
+
+      case 'function':
+        try {
           return {
             id: toolCall.id,
-            input: JSON.parse(toolCall.custom.input) as Record<string, unknown>,
-            name: toolCall.custom.name,
+            input: JSON.parse(toolCall.function.arguments) as Record<
+              string,
+              unknown
+            >,
+            name: toolCall.function.name,
             type: ContentKind.ToolUse,
           }
-  
-        case 'function':
-          try {          
-            return {
-              id: toolCall.id,
-              input: JSON.parse(toolCall.function.arguments) as Record<string, unknown>,
-              name: toolCall.function.name,
-              type: ContentKind.ToolUse,
-            }            
-          } catch {
-            throw new LLMToolCallNotSupportedError();
-          }
-        default:
-            throw new LLMToolCallNotSupportedError();
-       }
-    })
+        } catch {
+          throw new LLMToolCallNotSupportedError()
+        }
+      default:
+        throw new LLMToolCallNotSupportedError()
+    }
+  })
 }

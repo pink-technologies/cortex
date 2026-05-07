@@ -1,13 +1,13 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from '@nestjs/common';
-import { MembershipStatus } from '@prisma/client';
+import { Injectable } from '@nestjs/common'
+import { MembershipStatus } from '@prisma/client'
 import {
   Database,
   type DatabaseTransaction,
-  OrganizationMembership
-} from '@/infraestructure/database';
+  OrganizationMembership,
+} from '@/infraestructure/database'
 
 /**
  * Input parameters required to create a organization membership.
@@ -17,14 +17,14 @@ import {
  */
 export type CreateOrganizationMembershipParameters = {
   /** The unique identifier of the role to assign to the user. */
-  roleId: string;
+  roleId: string
 
   /** The unique identifier of the user. */
-  userId: string;
+  userId: string
 
   /** The unique identifier of the organization. */
-  organizationId: string;
-};
+  organizationId: string
+}
 
 /**
  * Repository responsible for persisting and querying organization membership entities.
@@ -43,7 +43,7 @@ export class OrganizationMembershipsRepository {
    * @param database - The database client used to perform organization operations.
    * Injected at runtime to support inversion of control and enable testability.
    */
-  constructor(private readonly database: Database) { }
+  constructor(private readonly database: Database) {}
 
   // MARK: - Instance methods
 
@@ -66,7 +66,7 @@ export class OrganizationMembershipsRepository {
     parameters: CreateOrganizationMembershipParameters,
     options?: { transaction?: DatabaseTransaction },
   ) {
-    const database = options?.transaction ?? this.database;
+    const database = options?.transaction ?? this.database
     return database.organizationMembership.create({
       data: {
         roleId: parameters.roleId,
@@ -74,7 +74,7 @@ export class OrganizationMembershipsRepository {
         userId: parameters.userId,
         organizationId: parameters.organizationId,
       },
-    });
+    })
   }
 
   /**
@@ -86,12 +86,12 @@ export class OrganizationMembershipsRepository {
    */
   async findByUserAndOrganization(
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<OrganizationMembership | null> {
     return this.database.organizationMembership.findUnique({
       where: {
         userId_organizationId: { userId, organizationId },
       },
-    });
+    })
   }
 }

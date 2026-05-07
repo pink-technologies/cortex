@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Database } from "src/infraestructure/database";
-import { OrganizationRoleSeeder } from "./organization-role/organization.role.seeder";
+import { Database } from 'src/infraestructure/database'
+import { OrganizationRoleSeeder } from './organization-role/organization.role.seeder'
 
 /**
  * SeederMigration is responsible for orchestrating the execution of all individual database seeders.
@@ -18,23 +18,23 @@ import { OrganizationRoleSeeder } from "./organization-role/organization.role.se
  * ```
  */
 export class SeederMigration {
-    // MARK: - Migration
+  // MARK: - Migration
 
-    /**
-     * Executes all registered seeders.
-     *
-     * @param database - The Database instance to use for seeding
-     */
-    static async prepare(database: Database) {
-        await new OrganizationRoleSeeder(database).prepare();
-    }
+  /**
+   * Executes all registered seeders.
+   *
+   * @param database - The Database instance to use for seeding
+   */
+  static async prepare(database: Database) {
+    await new OrganizationRoleSeeder(database).prepare()
+  }
 
-    /**
-     * Reverts all seeders in reverse order.
-     *
-     * @param database - The Database instance to use for reverting
-     */
-    static async revert(database: Database) {
-        await new OrganizationRoleSeeder(database).revert();
-    }
+  /**
+   * Reverts all seeders in reverse order.
+   *
+   * @param database - The Database instance to use for reverting
+   */
+  static async revert(database: Database) {
+    await new OrganizationRoleSeeder(database).revert()
+  }
 }

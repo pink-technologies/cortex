@@ -1,14 +1,14 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { UserStatus } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
-import { UserRepository } from '@/gateway/users/repository/users.repository';
-import { CreateUserParametersDto } from '@/gateway/users/dtos/parameters';
-import { SignInResult } from './types/sign-in-result';
-import { AccessTokenPayload } from './types/access-token-payload';
-import { OrganizationsService } from '@/gateway/organizations/services/organizations/organizations.service';
-import { Database } from '@/infraestructure/database';
+import { UserStatus } from '@prisma/client'
+import { Injectable } from '@nestjs/common'
+import { UserRepository } from '@/gateway/users/repository/users.repository'
+import { CreateUserParametersDto } from '@/gateway/users/dtos/parameters'
+import { SignInResult } from './types/sign-in-result'
+import { AccessTokenPayload } from './types/access-token-payload'
+import { OrganizationsService } from '@/gateway/organizations/services/organizations/organizations.service'
+import { Database } from '@/infraestructure/database'
 import {
   Authenticatable,
   AuthToken,
@@ -16,7 +16,7 @@ import {
   ProviderUserNotFoundError,
   RefreshTokenParameters,
   UsernameAndPasswordCredential,
-} from '@/infraestructure/auth';
+} from '@/infraestructure/auth'
 
 import {
   ConfirmForgotPasswordParametersDto,
@@ -26,7 +26,7 @@ import {
   RefreshTokenParametersDto,
   ResendConfirmationCodeParametersDto,
   SignupParametersDto,
-} from '../dtos/parameters';
+} from '../dtos/parameters'
 
 import {
   InactiveUserError,
@@ -35,7 +35,7 @@ import {
   UnauthorizedError,
   UserAlreadyRegisteredError,
   UserNotFoundError,
-} from './error/authentication-service-error';
+} from './error/authentication-service-error'
 
 /**
  * Application service responsible for coordinating authentication operations.
@@ -99,7 +99,7 @@ export class AuthenticationService {
       username: parameters.email,
       newPassword: parameters.newPassword,
       confirmationCode: parameters.confirmationCode,
-    });
+    })
   }
 
   /**
@@ -117,23 +117,27 @@ export class AuthenticationService {
    * or expired code, an invalid request state, or an underlying provider failure.
    */
   async confirmSignUp(parameters: ConfirmSignUpParametersDto): Promise<void> {
-    const user = await this.userRepository.findByEmail(parameters.email);
+    const user = await this.userRepository.findByEmail(parameters.email)
 
-    if (!user) throw new UserNotFoundError();
+    if (!user) throw new UserNotFoundError()
 
     await this.authenticatable.confirmSignUp({
       username: parameters.email,
       confirmationCode: parameters.confirmationCode,
-    });
+    })
 
     await this.database.withTransaction(async (transaction) => {
-      await this.userRepository.updateStatus(user.id, UserStatus.ACTIVE, transaction);
+      await this.userRepository.updateStatus(
+        user.id,
+        UserStatus.ACTIVE,
+        transaction,
+      )
 
       await this.organizationsService.create(
         { name: user.firstName, ownerId: user.id },
         transaction,
-      );
-    });
+      )
+    })
   }
 
   /**
@@ -146,12 +150,12 @@ export class AuthenticationService {
    * @returns A simplified payload containing expiration and username (email).
    */
   async decode(accessToken: string): Promise<AccessTokenPayload> {
-    const payload = await this.authenticatable.decode(accessToken);
+    const payload = await this.authenticatable.decode(accessToken)
 
     return {
       expiresIn: new Date(payload.exp).toISOString(),
       username: payload.email,
-    };
+    }
   }
 
   /**
@@ -170,11 +174,11 @@ export class AuthenticationService {
    * errors or invalid request state.
    */
   async forgotPassword(parameters: ForgotPasswordParametersDto): Promise<void> {
-    const user = await this.userRepository.findByEmail(parameters.email);
+    const user = await this.userRepository.findByEmail(parameters.email)
 
-    if (!user) throw new UnauthorizedError();
+    if (!user) throw new UnauthorizedError()
 
-    return await this.authenticatable.forgotPassword(parameters.email);
+    return await this.authenticatable.forgotPassword(parameters.email)
   }
 
   /**
@@ -202,11 +206,11 @@ export class AuthenticationService {
   async resendConfirmationCode(
     parameters: ResendConfirmationCodeParametersDto,
   ): Promise<void> {
-    const user = await this.userRepository.findByEmail(parameters.email);
-    
-    if (!user) throw new UnauthorizedError();
+    const user = await this.userRepository.findByEmail(parameters.email)
 
-    return await this.authenticatable.resendConfirmationCode(parameters.email);
+    if (!user) throw new UnauthorizedError()
+
+    return await this.authenticatable.resendConfirmationCode(parameters.email)
   }
 
   /**
@@ -227,24 +231,24 @@ export class AuthenticationService {
   async refreshToken(
     parameters: RefreshTokenParametersDto,
   ): Promise<AuthToken> {
-    const payload = await this.authenticatable.decode(parameters.idToken);
-    const email = payload.email.trim().toLowerCase();
+    const payload = await this.authenticatable.decode(parameters.idToken)
+    const email = payload.email.trim().toLowerCase()
 
-    const user = await this.userRepository.findByEmail(email);
+    const user = await this.userRepository.findByEmail(email)
 
-    if (!user) throw new UnauthorizedError();
+    if (!user) throw new UnauthorizedError()
 
-    if (user.status === UserStatus.INACTIVE) throw new InactiveUserError();
+    if (user.status === UserStatus.INACTIVE) throw new InactiveUserError()
 
     if (user.status === UserStatus.PENDING_CONFIRMATION)
-      throw new PendingUserConfirmationError();
+      throw new PendingUserConfirmationError()
 
     const refreshTokenParameters: RefreshTokenParameters = {
       username: payload.username,
       refreshToken: parameters.refreshToken,
-    };
+    }
 
-    return await this.authenticatable.refreshToken(refreshTokenParameters);
+    return await this.authenticatable.refreshToken(refreshTokenParameters)
   }
 
   /**
@@ -267,25 +271,25 @@ export class AuthenticationService {
   async signIn(
     credential: EmailAndPasswordCredentialDto,
   ): Promise<SignInResult> {
-    const user = await this.userRepository.findByEmail(credential.email);
+    const user = await this.userRepository.findByEmail(credential.email)
 
-    if (!user) throw new UnauthorizedError();
+    if (!user) throw new UnauthorizedError()
 
-    if (user.status === UserStatus.INACTIVE) throw new InactiveUserError();
+    if (user.status === UserStatus.INACTIVE) throw new InactiveUserError()
 
     if (user.status === UserStatus.PENDING_CONFIRMATION)
-      throw new PendingUserConfirmationError();
+      throw new PendingUserConfirmationError()
 
     const usernameAndPasswordCredential = new UsernameAndPasswordCredential(
       credential.email,
       credential.password,
-    );
+    )
 
     const token = await this.authenticatable.signIn(
       usernameAndPasswordCredential,
-    );
+    )
 
-    return { user, token };
+    return { user, token }
   }
 
   /**
@@ -306,58 +310,58 @@ export class AuthenticationService {
    * @throws An error when provider sign-up or database storage fails.
    */
   async signUp(parameters: SignupParametersDto): Promise<void> {
-    const email = parameters.email.trim().toLowerCase();
-    const phone = parameters.phone.trim();
+    const email = parameters.email.trim().toLowerCase()
+    const phone = parameters.phone.trim()
     const [existingUser, isPhoneRegistered] = await Promise.all([
       this.userRepository.findByEmail(email),
       this.userRepository.isPhoneRegistered(phone),
-    ]);
+    ])
 
     if (existingUser) {
       if (existingUser.status === UserStatus.ACTIVE)
-        throw new UserAlreadyRegisteredError();
+        throw new UserAlreadyRegisteredError()
 
       if (existingUser.status === UserStatus.PENDING_CONFIRMATION) {
-        await this.authenticatable.resendConfirmationCode(email);
-        return;
+        await this.authenticatable.resendConfirmationCode(email)
+        return
       }
     }
 
-    if (isPhoneRegistered) throw new PhoneAlreadyRegisteredError();
+    if (isPhoneRegistered) throw new PhoneAlreadyRegisteredError()
 
     const createUserParameters: CreateUserParametersDto = {
       email,
       firstName: parameters.firstName,
       lastName: parameters.lastName,
       phone,
-    };
+    }
 
-    const user = await this.userRepository.create(createUserParameters);
+    const user = await this.userRepository.create(createUserParameters)
 
     try {
       const result = await this.authenticatable.signUp({
         username: email,
         password: parameters.password,
-      });
+      })
 
-      await this.userRepository.makeCognitoSub(user.id, result.cognitoSub);
+      await this.userRepository.makeCognitoSub(user.id, result.cognitoSub)
     } catch (error) {
-      await this.userRepository.deleteById(user.id);
+      await this.userRepository.deleteById(user.id)
 
       if (error instanceof ProviderUserAlreadyExistsError) {
-        throw new UserAlreadyRegisteredError();
+        throw new UserAlreadyRegisteredError()
       }
 
       if (error instanceof ProviderUserNotFoundError) {
-        throw new UserNotFoundError();
+        throw new UserNotFoundError()
       }
 
-      throw error;
+      throw error
     }
 
     await this.userRepository.updateStatus(
       user.id,
       UserStatus.PENDING_CONFIRMATION,
-    );
+    )
   }
 }

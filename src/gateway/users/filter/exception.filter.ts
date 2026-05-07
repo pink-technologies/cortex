@@ -1,12 +1,12 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { I18nService } from '@/i18n/i18n.service';
-import { getExceptionCode } from '@/shared/utils/exception-code.util';
+import { I18nService } from '@/i18n/i18n.service'
+import { getExceptionCode } from '@/shared/utils/exception-code.util'
 import {
   UserNotFoundError,
   UserStatusUnchangedError,
-} from '../service/error/user.error';
+} from '../service/error/user.error'
 import {
   ArgumentsHost,
   BadRequestException,
@@ -15,7 +15,7 @@ import {
   HttpException,
   InternalServerErrorException,
   NotFoundException,
-} from '@nestjs/common';
+} from '@nestjs/common'
 
 /**
  * User-specific exception filter.
@@ -55,7 +55,7 @@ export class UserExceptionFilter implements ExceptionFilter {
    * @param host - The arguments host.
    */
   catch(exception: unknown, host: ArgumentsHost) {
-    const i18n = this.i18n;
+    const i18n = this.i18n
 
     if (exception instanceof UserNotFoundError) {
       throw new NotFoundException(
@@ -64,7 +64,7 @@ export class UserExceptionFilter implements ExceptionFilter {
           message: i18n.user.userNotFound(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof UserStatusUnchangedError) {
@@ -74,13 +74,15 @@ export class UserExceptionFilter implements ExceptionFilter {
           message: i18n.user.userStatusUnchanged(),
         },
         { cause: exception },
-      );
+      )
     }
 
     if (exception instanceof HttpException) {
-      throw exception;
+      throw exception
     }
 
-    throw new InternalServerErrorException(i18n.common.serviceUnavailable(), { cause: exception });
+    throw new InternalServerErrorException(i18n.common.serviceUnavailable(), {
+      cause: exception,
+    })
   }
 }

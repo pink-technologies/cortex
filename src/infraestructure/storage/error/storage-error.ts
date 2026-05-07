@@ -20,7 +20,7 @@ export abstract class StorageError extends Error {
   /**
    * A machine-readable error code identifying the type of storage failure.
    */
-  abstract readonly code: string;
+  abstract readonly code: string
 }
 
 /**
@@ -35,7 +35,7 @@ export class StorageDeletionError extends StorageError {
   /**
    * A machine-readable error code identifying storage delete failures.
    */
-  readonly code = 'STORAGE_DELETION_FAILED';
+  readonly code = 'STORAGE_DELETION_FAILED'
 }
 
 /**
@@ -50,7 +50,7 @@ export class StorageInitializationError extends StorageError {
   /**
    * A machine-readable error code identifying storage initialization failures.
    */
-  readonly code = 'INITIALIZATION_FAILED';
+  readonly code = 'INITIALIZATION_FAILED'
 }
 
 /**
@@ -66,7 +66,7 @@ export class ReadStorageError extends StorageError {
   /**
    * A machine-readable error code identifying storage read failures.
    */
-  readonly code = 'READ_STORAGE_FAILED';
+  readonly code = 'READ_STORAGE_FAILED'
 }
 
 /**
@@ -81,5 +81,5 @@ export class StorageWriteError extends StorageError {
   /**
    * A machine-readable error code identifying storage write failures.
    */
-  readonly code = 'STORAGE_WRITE_FAILED';
+  readonly code = 'STORAGE_WRITE_FAILED'
 }

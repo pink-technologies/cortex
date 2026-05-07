@@ -15,7 +15,7 @@ export abstract class DatabaseError extends Error {
    * A machine-readable error code identifying the type of
    * database failure.
    */
-  abstract readonly code: string;
+  abstract readonly code: string
 
   /**
    * The underlying error that caused this database failure.
@@ -24,7 +24,7 @@ export abstract class DatabaseError extends Error {
    * tracing, diagnostics) and must not be exposed directly
    * to API consumers.
    */
-  readonly cause?: unknown;
+  readonly cause?: unknown
 
   // MARK: - Constructor
 
@@ -38,10 +38,10 @@ export abstract class DatabaseError extends Error {
    * @param cause - The underlying error that triggered this failure.
    */
   constructor(message: string, cause?: unknown) {
-    super(message);
+    super(message)
 
-    this.cause = cause;
-    this.name = new.target.name;
+    this.cause = cause
+    this.name = new.target.name
   }
 }
 
@@ -58,7 +58,7 @@ export class DatabaseInvalidQueryError extends DatabaseError {
   /**
    * A machine-readable error code identifying invalid query failures.
    */
-  readonly code = 'INVALID_QUERY';
+  readonly code = 'INVALID_QUERY'
 }
 
 /**
@@ -72,7 +72,7 @@ export class DatabaseEntityConflictError extends DatabaseError {
   /**
    * A machine-readable error code identifying entity conflict failures.
    */
-  readonly code = 'ENTITY_CONFLICT';
+  readonly code = 'ENTITY_CONFLICT'
 }
 
 /**
@@ -84,7 +84,7 @@ export class DatabaseEntityNotFoundError extends DatabaseError {
   /**
    * A machine-readable error code identifying missing entity failures.
    */
-  readonly code = 'ENTITY_NOT_FOUND';
+  readonly code = 'ENTITY_NOT_FOUND'
 }
 
 /**
@@ -98,7 +98,7 @@ export class DatabaseInternalError extends DatabaseError {
   /**
    * A machine-readable error code identifying internal database failures.
    */
-  readonly code = 'INTERNAL_ERROR';
+  readonly code = 'INTERNAL_ERROR'
 }
 
 /**
@@ -112,7 +112,7 @@ export class DatabaseMissingRequiredValueError extends DatabaseError {
   /**
    * A machine-readable error code identifying missing required values.
    */
-  readonly code = 'MISSING_REQUIRED_VALUE';
+  readonly code = 'MISSING_REQUIRED_VALUE'
 }
 
 /**
@@ -125,5 +125,5 @@ export class DatabaseNullConstraintViolationError extends DatabaseError {
   /**
    * A machine-readable error code identifying null constraint violations.
    */
-  readonly code = 'NULL_CONSTRAINT_VIOLATION';
+  readonly code = 'NULL_CONSTRAINT_VIOLATION'
 }

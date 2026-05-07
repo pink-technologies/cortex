@@ -9,15 +9,14 @@
  * @returns The exception code or undefined if not present.
  */
 export function getExceptionCode(exception: unknown): string | undefined {
-    if (
-      exception &&
-      typeof exception === 'object' &&
-      'code' in exception &&
-      typeof (exception as { code: unknown }).code === 'string'
-    ) {
-      return (exception as { code: string }).code;
-    }
-  
-    return undefined;
+  if (
+    exception &&
+    typeof exception === 'object' &&
+    'code' in exception &&
+    typeof (exception as { code: unknown }).code === 'string'
+  ) {
+    return (exception as { code: string }).code
   }
-  
+
+  return undefined
+}

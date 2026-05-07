@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { ExecutionContext } from "@/shared/types";
+import { ExecutionContext } from '@/shared/types'
 
 /**
  * Pluggable unit that runs a single **capability** (tool, integration, or domain action)
@@ -14,18 +14,18 @@ import { ExecutionContext } from "@/shared/types";
  * capability registry) using {@link CapabilityExecutor.id} for lookup and routing.
  */
 export interface CapabilityExecutor<Input = unknown, Output = unknown> {
-    /**
-     * Stable identifier for this executor.
-     * Must be unique among capability executors in the same registry.
-     */
-    readonly id: string;
+  /**
+   * Stable identifier for this executor.
+   * Must be unique among capability executors in the same registry.
+   */
+  readonly id: string
 
-    /**
-     * Runs the capability for the given input and execution scope.
-     *
-     * @param input - Capability-specific input; shape matches `Input`.
-     * @param context - Shared run context (e.g. {@link ExecutionContext.executionId}, {@link ExecutionContext.message}).
-     * @returns The capability result; shape matches `Output`.
-     */
-    execute(input: Input, context: ExecutionContext): Promise<Output>;
+  /**
+   * Runs the capability for the given input and execution scope.
+   *
+   * @param input - Capability-specific input; shape matches `Input`.
+   * @param context - Shared run context (e.g. {@link ExecutionContext.executionId}, {@link ExecutionContext.message}).
+   * @returns The capability result; shape matches `Output`.
+   */
+  execute(input: Input, context: ExecutionContext): Promise<Output>
 }

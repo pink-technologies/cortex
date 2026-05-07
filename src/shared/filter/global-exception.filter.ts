@@ -1,16 +1,16 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { I18nService } from '@/i18n/i18n.service';
-import type { Response } from 'express';
-import { getExceptionCode } from '@/shared/utils/exception-code.util';
+import { I18nService } from '@/i18n/i18n.service'
+import type { Response } from 'express'
+import { getExceptionCode } from '@/shared/utils/exception-code.util'
 import {
   ArgumentsHost,
   Catch,
   ExceptionFilter,
   HttpException,
   HttpStatus,
-} from '@nestjs/common';
+} from '@nestjs/common'
 
 /**
  * Global exception filter responsible for handling all uncaught exceptions
@@ -65,36 +65,36 @@ export class GlobalExceptionFilter implements ExceptionFilter {
    * @param host - The arguments host.
    */
   catch(exception: unknown, host: ArgumentsHost): void {
-    const http = host.switchToHttp();
-    const response = http.getResponse<Response>();
+    const http = host.switchToHttp()
+    const response = http.getResponse<Response>()
 
     if (exception instanceof HttpException) {
-      const status = exception.getStatus();
-      const raw = exception.getResponse();
+      const status = exception.getStatus()
+      const raw = exception.getResponse()
 
       const basePayload =
         typeof raw === 'string'
           ? { message: raw }
-          : (raw as Record<string, unknown>);
+          : (raw as Record<string, unknown>)
 
       const payload: Record<string, unknown> = {
         statusCode: status,
         code: basePayload.code,
         message: basePayload.message,
         timestamp: new Date().toISOString(),
-      };
+      }
 
-      response.status(status).send(payload);
-      return;
+      response.status(status).send(payload)
+      return
     }
 
-    const status = HttpStatus.INTERNAL_SERVER_ERROR;
+    const status = HttpStatus.INTERNAL_SERVER_ERROR
 
     response.status(status).send({
       statusCode: status,
       message: this.i18n.common.serviceUnavailable(),
       code: getExceptionCode(exception),
       timestamp: new Date().toISOString(),
-    });
+    })
   }
 }

@@ -12,7 +12,7 @@
 export const AgentRole = {
   Assistant: 'Assistant',
   Specialist: 'Specialist',
-} as const;
+} as const
 
 /**
  * Discriminator values for {@link AgentDecision}.
@@ -25,13 +25,14 @@ export const AgentDecisionType = {
   Delegate: 'delegate',
   Respond: 'respond',
   UseSkill: 'use-skill',
-} as const;
+} as const
 
 /** Union of string literals in {@link AgentDecisionType}. */
-export type AgentDecisionType = (typeof AgentDecisionType)[keyof typeof AgentDecisionType];
+export type AgentDecisionType =
+  (typeof AgentDecisionType)[keyof typeof AgentDecisionType]
 
 /** Union of string literals in {@link AgentRole}. */
-export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
+export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole]
 
 /**
  * Outcome of one decide call — a tagged union on `type`.
@@ -42,19 +43,19 @@ export type AgentRole = (typeof AgentRole)[keyof typeof AgentRole];
  */
 export type AgentDecision =
   | {
-    readonly type: typeof AgentDecisionType.Delegate,
-    readonly agentId: string;
-    readonly reason?: string
-  }
+      readonly type: typeof AgentDecisionType.Delegate
+      readonly agentId: string
+      readonly reason?: string
+    }
   | {
-    readonly type: typeof AgentDecisionType.Respond,
-    readonly response: string
-  }
+      readonly type: typeof AgentDecisionType.Respond
+      readonly response: string
+    }
   | {
-    readonly type: typeof AgentDecisionType.UseSkill,
-    readonly skillId: string;
-    readonly input: Record<string, unknown>
-  };
+      readonly type: typeof AgentDecisionType.UseSkill
+      readonly skillId: string
+      readonly input: Record<string, unknown>
+    }
 
 /**
  * Static configuration for an {@link Agent}: display name, role, and what skills/capabilities
@@ -64,27 +65,27 @@ export interface AgentDescriptor {
   /**
    * Human-readable agent name.
    */
-  readonly name: string;
+  readonly name: string
 
   /**
    * High-level role in the system ({@link AgentRole}).
    */
-  readonly role: (typeof AgentRole)[keyof typeof AgentRole];
+  readonly role: (typeof AgentRole)[keyof typeof AgentRole]
 
   /**
    * Skill ids this agent may invoke via {@link AgentDecisionType.UseSkill} (enforce in orchestration).
    */
-  readonly allowedSkillIds: readonly string[];
+  readonly allowedSkillIds: readonly string[]
 
   /**
    * Capability ids (e.g. manifest keys) this agent is associated with for routing or reasoning.
    */
-  readonly capabilities: readonly string[];
+  readonly capabilities: readonly string[]
 
   /**
    * Optional description for routing/discovery.
    */
-  readonly description?: string;
+  readonly description?: string
 }
 
 /**
@@ -97,12 +98,12 @@ export interface AgentContext {
   /**
    * Correlates logs, tool calls, and nested hops for this execution (e.g. UUID/ULID).
    */
-  readonly executionId: string;
+  readonly executionId: string
 
   /**
    * Normalized user utterance for this decision step.
    */
-  readonly message: string;
+  readonly message: string
 }
 
 /**
@@ -115,12 +116,12 @@ export interface Agent {
   /**
    * Stable key used in {@link AgentRegistry} and in {@link AgentDecision} when delegating.
    */
-  readonly id: string;
+  readonly id: string
 
   /**
    * Static metadata.
    */
-  readonly descriptor: AgentDescriptor;
+  readonly descriptor: AgentDescriptor
 
   /**
    * Decides the next step for this turn: delegate, respond, or invoke a skill.
@@ -128,5 +129,5 @@ export interface Agent {
    * @param context - Current execution id and user message for this decision.
    * @returns A single {@link AgentDecision}; callers interpret and act (loop, respond, execute skill).
    */
-  decide(context: AgentContext): Promise<AgentDecision>;
+  decide(context: AgentContext): Promise<AgentDecision>
 }

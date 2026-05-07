@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AuthToken } from '@/infraestructure/auth';
-import { User } from '@/infraestructure/database';
+import { AuthToken } from '@/infraestructure/auth'
+import { User } from '@/infraestructure/database'
 
 /**
  * Data Transfer Object representing the response returned after a
@@ -24,7 +24,7 @@ export class SignInResponseDto {
   constructor(
     readonly user: UserResponseDto,
     readonly token: AuthenticationTokenResponseDto,
-  ) { }
+  ) {}
 }
 
 /**
@@ -38,23 +38,23 @@ export class AuthenticationTokenResponseDto {
   /**
    * Short-lived token used to authorize requests to protected resources.
    */
-  readonly accessToken: string;
+  readonly accessToken: string
 
   /**
    * The exact date and time at which the access token expires (ISO 8601).
    */
-  readonly expiresIn: string;
+  readonly expiresIn: string
 
   /**
    * Token containing identity-related claims about the authenticated user.
    */
-  readonly idToken: string;
+  readonly idToken: string
 
   /**
    * Long-lived token used to obtain new access tokens without
    * re-authenticating the user.
    */
-  readonly refreshToken: string;
+  readonly refreshToken: string
 
   // Static methods
 
@@ -74,7 +74,7 @@ export class AuthenticationTokenResponseDto {
       expiresIn: authToken.expiresIn,
       idToken: authToken.idToken,
       refreshToken: authToken.refreshToken,
-    };
+    }
   }
 }
 
@@ -88,22 +88,22 @@ export class UserResponseDto {
   /**
    * Unique identifier of the user.
    */
-  readonly id: string;
+  readonly id: string
 
   /**
    * Email address associated with the user account.
    */
-  readonly email: string;
+  readonly email: string
 
   /**
    * The user's given (first) name.
    */
-  readonly firstName: string;
+  readonly firstName: string
 
   /**
    * The user's family (last) name.
    */
-  readonly lastName: string;
+  readonly lastName: string
 
   // Static methods
 
@@ -122,6 +122,6 @@ export class UserResponseDto {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-    };
+    }
   }
 }
