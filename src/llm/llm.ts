@@ -270,7 +270,24 @@ export interface LLMOptions {
      * full input type where the adapter exposes it.
      */
     tools?: LLMToolDefinition[];
-    
+
+    /**
+     * Constrains the shape of the assistant's reply when the provider
+     * supports it.
+     *
+     * - `'text'` (default): no constraint. The model may answer in any form.
+     * - `'json_object'`: instructs the provider to guarantee a valid JSON
+     *   document at the root. Required for structured-output flows that
+     *   parse the reply with `JSON.parse()` and reject anything else
+     *   (e.g. the {@link Agent.decide} pipeline). Note: for OpenAI the
+     *   prompt or system prompt MUST mention the word "JSON" somewhere
+     *   when this mode is enabled, otherwise the API will reject the
+     *   request.
+     *
+     * Adapters that do not support the option may silently ignore it.
+     */
+    responseFormat?: 'text' | 'json_object';
+
     /**
      * Abort signal for the request.
      */

@@ -1,6 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { Agent } from '@/agents/agent';
 import type { ConversationMessage } from '../input/execution-input';
 
 /**
@@ -48,5 +49,5 @@ export interface ExecutionContext {
     /**
      * The id of the current acting agent.
      */
-    readonly agentId: string;
+    readonly agent: Agent;
 }

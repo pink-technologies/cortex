@@ -1,0 +1,46 @@
+id = "cube-analytics"
+name = "Cube Analytics"
+version = "1.0.0"
+description = "Read the Cube semantic layer (meta) and run analytical queries (load) against the connected Cube deployment."
+
+type = "integration"
+
+tools = []
+
+tags = [
+  "cube",
+  "analytics",
+  "semantic-layer",
+  "bi",
+  "external"
+]
+
+actions = [
+  "meta",
+  "load"
+]
+
+[execution]
+timeout_ms = 60000
+max_concurrency = 5
+
+[safety]
+requires_confirmation = false
+allow_background = false
+
+[constraints]
+max_iterations = 5
+max_rows = 10000
+allow_raw_queries = false
+
+[auth]
+required = true
+connection_type = "cube"
+
+[[config]]
+key = "default_timezone"
+label = "Default timezone"
+description = "IANA timezone passed to Cube queries when the user does not specify one (e.g. UTC)."
+type = "text"
+required = false
+default = "UTC"

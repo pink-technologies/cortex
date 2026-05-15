@@ -61,6 +61,15 @@ export class OpenAILLM implements LLM {
                   stream: false,
                   temperature: options.temperature,
                   tools: options.tools ? options.tools.map(mapToOpenAITool) : undefined,
+                  // Forward the cross-provider response-format hint to OpenAI.
+                  // When `json_object` is requested, OpenAI guarantees the
+                  // assistant reply is parseable JSON (or returns a
+                  // 400 if the prompt does not mention "JSON"). When
+                  // unset or `text`, behaviour is unchanged.
+                  response_format:
+                    options.responseFormat === 'json_object'
+                      ? { type: 'json_object' }
+                      : undefined,
                 },
                 {
                     signal: options.abortSignal,

@@ -5,23 +5,32 @@ import path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@/infraestructure/database/index';
+import { SemanticLayerModule } from '@/infraestructure/semantic-layer';
 import { ToolsModule } from '@/tools/tools.module';
 import { DECODER, TomlDecoder } from '@/shared/types';
 import { BUNDLED_CAPABILITIES_ROOT } from './capability-tokens';
 import { CapabilityService } from './service/capability.service';
 import { CapabilityBootstrapService } from './service/capability-bootstrap.service';
 import { CapabilityRegistryService } from './service/registry/capability-registry.service';
+import { CapabilityContractResolver } from './contract/capability-contract-resolver';
 import { STORAGE } from '@/infraestructure/storage';
 import { InMemoryStorageService } from '@/infraestructure/storage/in-memory/in-memory.service';
 import { TRELLO_CREDENTIALS_TOKEN, TrelloCapabilityExecutor } from './executors/trello/trello-capability.executor';
+import { CubeAnalyticsCapabilityExecutor } from './executors/cube/cube-analytics-capability.executor';
 
 const TRELLO_API_KEY_ENV = 'TRELLO_API_KEY';
 const TRELLO_TOKEN_ENV = 'TRELLO_TOKEN';
 
 @Module({
     controllers: [],
-    imports: [ConfigModule, DatabaseModule, ToolsModule],
-    exports: [CapabilityService, TrelloCapabilityExecutor, CapabilityRegistryService],
+    imports: [ConfigModule, DatabaseModule, ToolsModule, SemanticLayerModule],
+    exports: [
+        CapabilityService,
+        TrelloCapabilityExecutor,
+        CubeAnalyticsCapabilityExecutor,
+        CapabilityRegistryService,
+        CapabilityContractResolver,
+    ],
     providers: [
         {
             provide: STORAGE,
@@ -39,8 +48,12 @@ const TRELLO_TOKEN_ENV = 'TRELLO_TOKEN';
             },
         },
         CapabilityRegistryService,
+        CapabilityContractResolver,
         CapabilityBootstrapService,
-        { provide: DECODER, useClass: TomlDecoder },
+        {
+            provide: DECODER,
+            useClass: TomlDecoder
+        },
         CapabilityService,
         {
             provide: TRELLO_CREDENTIALS_TOKEN,
@@ -51,6 +64,7 @@ const TRELLO_TOKEN_ENV = 'TRELLO_TOKEN';
             }),
         },
         TrelloCapabilityExecutor,
+        CubeAnalyticsCapabilityExecutor,
     ],
 })
 export class CapabilitiesModule { }

@@ -5,6 +5,7 @@ import { Injectable, OnModuleInit } from "@nestjs/common";
 
 import { TrelloCapabilityExecutor } from "../executors/trello/trello-capability.executor";
 import { CapabilityRegistryService } from "./registry/capability-registry.service";
+import { CubeAnalyticsCapabilityExecutor } from "../executors/cube/cube-analytics-capability.executor";
 
 /**
  * Registers all capability instances into {@link CapabilityRegistryService} at module init.
@@ -22,6 +23,7 @@ export class CapabilityBootstrapService implements OnModuleInit {
     constructor(
         private readonly capabilityRegistryService: CapabilityRegistryService,
         private readonly trelloCapabilityExecutor: TrelloCapabilityExecutor,
+        private readonly cubeAnalyticsCapabilityExecutor: CubeAnalyticsCapabilityExecutor,
     ) { }
 
     // MARK: - OnModuleInit
@@ -33,6 +35,11 @@ export class CapabilityBootstrapService implements OnModuleInit {
         this.capabilityRegistryService.register(
             this.trelloCapabilityExecutor.id,
             () => this.trelloCapabilityExecutor,
+        );
+
+        this.capabilityRegistryService.register(
+            this.cubeAnalyticsCapabilityExecutor.id,
+            () => this.cubeAnalyticsCapabilityExecutor,
         );
     }
 }

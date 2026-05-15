@@ -1,7 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { ContentKind, MessageRole, type TextContent } from '@/llm/llm';
+import { ContentKind, MessageRole, type LLMMessage, type TextContent } from '@/llm/llm';
+import type { ConversationMessage } from '@/shared/types/input/execution-input';
 import { agentDecisionsSchema } from '../schema/agent-decision/agent-decision.schema';
 import type {
   Agent,
@@ -27,13 +28,13 @@ export class PromptDrivenAgent implements Agent {
    *   {@link LLM} port, and optional `delegateAgentIds`. Used for {@link Agent.id},
    *   {@link Agent.descriptor}, and {@link Agent.decide} (LLM call + prompt assembly).
    */
-  constructor(private readonly configuration: AgentConfiguration) {}
+  constructor(private readonly configuration: AgentConfiguration) { }
 
   // MARK: - Agent
 
   /**
    * The id of the agent.
-   * 
+   *
    * @returns The id of the agent.
    */
   get id(): string {
@@ -42,7 +43,7 @@ export class PromptDrivenAgent implements Agent {
 
   /**
    * The descriptor of the agent.
-   * 
+   *
    * @returns The descriptor of the agent.
    */
   get descriptor(): AgentDescriptor {
@@ -57,47 +58,89 @@ export class PromptDrivenAgent implements Agent {
    */
   async decide(context: AgentContext): Promise<AgentDecision[]> {
     const { llm, systemPrompt, model } = this.configuration;
-    const result = await llm.chat(
-      [
-        {
-          role: MessageRole.User,
-          content: [
-            {
-              type: ContentKind.Text,
-              text: this.buildPrompt(context),
-            },
-          ],
-        },
-      ],
-      {
-        model,
-        systemPrompt,
-      },
-    );
+
+    const fullSystemPrompt = this.buildSystemPrompt(systemPrompt, context);
+    const messages = this.buildMessages(context);
+
+    const result = await llm.chat(messages, {
+      model,
+      systemPrompt: fullSystemPrompt,
+      responseFormat: 'json_object',
+    });
 
     const assistantText = result.content
       .filter((message): message is TextContent => message.type === ContentKind.Text)
       .map((message) => message.text)
       .join('')
-      .replace(/```json|```/g, '')
+
+    const cleaned = assistantText
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
       .trim();
 
-    const raw = JSON.parse(assistantText) as unknown;
+    const raw = JSON.parse(cleaned);
     return agentDecisionsSchema.parse(raw);
   }
 
   // MARK: - Private methods
 
-  private buildPrompt(context: AgentContext): string {
-    const parts = [
-      `Execution id: ${context.executionId}`,
-      `Conversation history: ${context.conversationHistory?.map(message => `${message.role}: ${message.content}`).join('\n') || 'none'}`,
-      `User message: ${context.message}`,
+  private buildSystemPrompt(basePrompt: string | undefined, context: AgentContext): string {
+    const capabilities = context.availableCapabilities ?? [];
+    const capabilityDefinitions = capabilities.length === 0 ? 'none' : JSON.stringify(capabilities, null, 2);
+
+    const sections = [
+      basePrompt?.trim() ?? '',
+      '',
       `Available skills: ${this.configuration.descriptor.skills.join(', ') || 'none'}`,
       `Available capabilities: ${this.configuration.descriptor.capabilities.join(', ') || 'none'}`,
+      `Available capabilities definitions: ${capabilityDefinitions}`,
       `Available delegates: ${this.configuration.delegateAgentIds?.join(', ') || 'none'}`,
+      '',
+      `Execution id: ${context.executionId}`,
     ];
 
-    return parts.join('\n\n');
+    return sections.join('\n');
+  }
+
+  private buildMessages(context: AgentContext): LLMMessage[] {
+    const history = context.conversationHistory ?? [];
+    const messages: LLMMessage[] = history.map((entry) => ({
+      role: this.toLLMRole(entry.role),
+      content: [
+        {
+          type: ContentKind.Text,
+          text: entry.content
+        }],
+    }));
+
+    const last = messages[messages.length - 1];
+
+    if (!last || last.role !== MessageRole.User) {
+      messages.push({
+        role: MessageRole.User,
+        content: [{ type: ContentKind.Text, text: context.message }],
+      });
+    }
+
+    return messages;
+  }
+
+  private toLLMRole(role: ConversationMessage['role']): MessageRole {
+    switch (role) {
+      case MessageRole.User:
+        return MessageRole.User;
+
+      case MessageRole.Assistant:
+        return MessageRole.Assistant;
+
+      case MessageRole.System:
+        return MessageRole.System;
+
+      case MessageRole.Tool:
+        return MessageRole.Tool;
+
+      default:
+        return MessageRole.User;
+    }
   }
 }

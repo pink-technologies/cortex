@@ -14,10 +14,9 @@ import type { Storage } from "@/infraestructure/storage/storage";
 import { STORAGE } from "@/infraestructure/storage";
 import { CapabilityRegistryService } from "@/capabilities/service/registry/capability-registry.service";
 import { SkillRegistryService } from "@/skills/service/registry/skill-registry.service";
-import { 
-  KernelAgentNotFoundError,
-  KernelInvalidDecisionTypeError,
-} from "../error/kernel.error";
+import { ConversationMessage } from "@/shared/types/input/execution-input";
+import { KernelAgentNotFoundError, KernelInvalidDecisionTypeError } from "../error/kernel.error";
+import { CapabilityDescriptionResolverService } from "@/capabilities";
 
 /**
  * Nest DI token for {@link DecisionExecutor}.
@@ -61,11 +60,16 @@ export class KernelDecisionExecutor implements DecisionExecutor {
    *
    * @param storage - Same {@link STORAGE} as {@link AgentService} (in-memory; not Redis JSON).
    * @param capabilityRegistryService - The capability registry service.
+   * @param capabilityDescriptionResolver - Resolves live capability descriptions
+   *   for the acting agent so re-entrant {@link Agent.decide} calls see the
+   *   same dynamic contract as the kernel's initial call.
+   * @param skillRegistryService - The skill registry service.
    */
   constructor(
     @Inject(STORAGE)
     private readonly storage: Storage,
     private readonly capabilityRegistryService: CapabilityRegistryService,
+    private readonly capabilityDescriptionResolver: CapabilityDescriptionResolverService,
     private readonly skillRegistryService: SkillRegistryService,
   ) { }
 
@@ -89,12 +93,25 @@ export class KernelDecisionExecutor implements DecisionExecutor {
 
           if (!agent) throw new KernelAgentNotFoundError();
 
+          const delegateContext: ExecutionContext = {
+            ...context,
+            agent,
+          };
+
+          const availableCapabilities =
+            await this.capabilityDescriptionResolver.resolve(
+              agent.descriptor.capabilities,
+              delegateContext,
+            );
+
           const nextDecisions = await agent.decide({
             executionId: context.executionId,
-            message: context.message
+            message: context.message,
+            conversationHistory: context.conversationHistory,
+            availableCapabilities,
           });
 
-          const result = await this.execute(nextDecisions, context);
+          const result = await this.execute(nextDecisions, delegateContext);
           message += result.message + '\n';
           break;
         }
@@ -133,11 +150,61 @@ export class KernelDecisionExecutor implements DecisionExecutor {
         }
 
         case AgentDecisionType.UseCapability: {
-          const capability = this.capabilityRegistryService.get(decision.capabilityId);
-          await capability.execute(decision.input, context);
 
-          message += `${decision.userMessage}\n`;
-          break;
+          const capability = this.capabilityRegistryService.get(decision.capabilityId);
+          const result = await capability.execute(decision.input, context);
+
+          const callEntry: ConversationMessage = {
+            role: 'assistant',
+            content: JSON.stringify({
+              type: 'use-capability',
+              capabilityId: decision.capabilityId,
+              input: decision.input,
+            }),
+          };
+
+          const resultEntry: ConversationMessage = {
+            role: 'assistant',
+            content:
+              `[capability-result] capabilityId=${decision.capabilityId} ` +
+              `result=${JSON.stringify(result)}`,
+          };
+
+          const synthesizeEntry: ConversationMessage = {
+            role: 'user',
+            content:
+              'The previous [capability-result] above contains the data ' +
+              'needed to answer my original question. Synthesize it into a ' +
+              'final `respond` decision now. Do NOT call the same capability ' +
+              'with the same input again.',
+          };
+
+          const updatedHistory: ConversationMessage[] = [
+            ...(context.conversationHistory ?? []),
+            callEntry,
+            resultEntry,
+            synthesizeEntry,
+          ];
+
+          const nextContext: ExecutionContext = {
+            ...context,
+            conversationHistory: updatedHistory,
+          };
+
+          const availableCapabilities =
+            await this.capabilityDescriptionResolver.resolve(
+              context.agent.descriptor.capabilities,
+              nextContext,
+            );
+
+          const nextDecisions = await context.agent.decide({
+            executionId: context.executionId,
+            message: context.message,
+            conversationHistory: updatedHistory,
+            availableCapabilities,
+          });
+
+          return await this.execute(nextDecisions, nextContext);
         }
 
         case AgentDecisionType.UseSkill: {
@@ -158,7 +225,7 @@ export class KernelDecisionExecutor implements DecisionExecutor {
 
     return {
       executionId: context.executionId,
-      message: message,
+      message,
     };
   }
 }

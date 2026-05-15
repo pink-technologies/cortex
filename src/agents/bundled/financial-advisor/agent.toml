@@ -10,7 +10,7 @@ skills = []
 
 skill_groups = []
 
-capabilities = []
+capabilities = ["cube-analytics"]
 
 delegates_to = []
 

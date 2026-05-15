@@ -2,9 +2,10 @@
 // https://pink-tech.io/
 
 import { CapabilityInputSchema } from "@/capabilities/schema/input/capability-input.schema";
-import { LLM, LLMModel } from "@/llm";
+import type { CapabilityDescription } from "@/capabilities/capability";
 import { ConversationMessage } from "@/shared/types/input/execution-input";
 import { SkillInputSchema } from "@/skills/schema/input/skill-input.schema";
+import { LLM, LLMModel } from "@/llm";
 
 /**
  * High-level persona / responsibility label for an agent.
@@ -184,10 +185,17 @@ export interface AgentContext {
    */
   readonly message: string;
 
-    /**
+  /**
    * Full thread for LLM replay (same shape as {@link ConversationMessage}).
    */
-    readonly conversationHistory?: readonly ConversationMessage[];
+  readonly conversationHistory?: readonly ConversationMessage[];
+
+  /**
+   * Live, resolved descriptions of the capabilities this agent is allowed to use
+   * (i.e. one entry per id in {@link AgentDescriptor.capabilities} whose executor
+   * implements {@link CapabilityContractProvider}).
+   */
+  readonly availableCapabilities?: readonly CapabilityDescription[];
 }
 
 /**

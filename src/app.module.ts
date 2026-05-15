@@ -16,11 +16,13 @@ import {
   DatabaseExceptionFilter,
   DatabaseModule,
 } from './infraestructure/database';
+import { SemanticLayerModule } from './infraestructure/semantic-layer';
 import { StorageModule } from './infraestructure/storage/storage.module';
 import { I18nModule as CortexI18nModule } from './i18n';
 import { KernelModule } from './kernel/kernel.module';
 import { SkillsModule } from './skills/skills.module';
 import { ToolsModule } from './tools/tools.module';
+import { PlaygroundModule } from './playground/playground.module';
 
 @Module({
   imports: [
@@ -29,6 +31,7 @@ import { ToolsModule } from './tools/tools.module';
       isGlobal: true,
     }),
     StorageModule,
+    SemanticLayerModule,
     I18nModule.forRoot({
       fallbackLanguage: 'en',
       loader: I18nJsonLoader,
@@ -49,6 +52,7 @@ import { ToolsModule } from './tools/tools.module';
     SkillsModule,
     ToolsModule,
     KernelModule,
+    PlaygroundModule,
   ],
   controllers: [],
   providers: [
