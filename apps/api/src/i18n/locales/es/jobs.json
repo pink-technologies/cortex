@@ -1,0 +1,5 @@
+{
+    "job_not_found": "No se encontró la tarea.",
+    "job_id_not_found": "No se encontró la tarea con el identificador indicado.",
+    "job_status_update_failed": "No se pudo actualizar el estado de la tarea."
+}

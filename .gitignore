@@ -23,3 +23,5 @@ lerna-debug.log*
 .temp
 .tmp
 .DS_Store
+apps/*/.env
+apps/*/.env.local
