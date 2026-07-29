@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "module": "commonjs",
+    "ignoreDeprecations": "6.0",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -13,7 +14,7 @@
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["jest", "node"]
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules"]
