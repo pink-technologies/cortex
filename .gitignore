@@ -25,3 +25,8 @@ lerna-debug.log*
 .DS_Store
 apps/*/.env
 apps/*/.env.local
+**/dist
+
+# Test coverage
+**/coverage
+.DS_Store

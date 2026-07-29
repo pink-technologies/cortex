@@ -6,25 +6,8 @@ import { AgentRole } from '../models/agent-role'
 import { agentExecutionSchema } from './agent-execution-schema'
 import { agentLLMSchema } from './agent-llm-schema'
 import { agentSafetySchema } from './agent-safety-schema'
-
-/**
- * Validates stable identifiers used across agent manifests.
- *
- * Accepted form: one or more lowercase alphanumeric segments separated by
- * `.`, `_`, or `-` (for example `main`, `research.summarize`, `trello-cards`).
- * Leading/trailing separators and uppercase letters are rejected.
- *
- * Used for agent `id` values and for entries in `capabilities`,
- * `delegates_to`, and `skills`.
- */
-const identifierSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .regex(
-    /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/,
-    'Expected a lowercase identifier containing letters, numbers, dots, underscores, or hyphens',
-  )
+import { identifierSchema } from '../../manifest/schema/identifier-schema'
+import { validateUniqueValues } from '../../manifest'
 
 /**
  * Validates a complete agent manifest (for example `agent.toml` / JSON).
@@ -49,9 +32,7 @@ export const agentSchema = z
      * {@link identifierSchema}. Effective use also requires
      * {@link agentSafetySchema}'s `allow_capability_use`.
      */
-    capabilities: z
-      .array(identifierSchema)
-      .default([]),
+    capabilities: z.array(identifierSchema).default([]),
 
     /**
      * Agent identifiers to which this agent may delegate work.
@@ -60,51 +41,39 @@ export const agentSchema = z
      * requires `allow_delegation` and respects `max_delegation_depth` on
      * {@link agentSafetySchema}.
      */
-    delegates_to: z
-      .array(identifierSchema)
-      .default([]),
+    delegates_to: z.array(identifierSchema).default([]),
 
     /**
      * Optional human-readable summary of the agent's purpose.
      *
      * When present, must be non-empty after trim.
      */
-    description: z
-      .string()
-      .trim()
-      .min(1)
-      .optional(),
+    description: z.string().trim().min(1).optional(),
 
     /**
      * Per-run limits (iteration count and wall-clock timeout).
      *
      * See {@link agentExecutionSchema}.
      */
-    execution:
-      agentExecutionSchema,
+    execution: agentExecutionSchema,
 
     /**
      * Stable agent identifier used for registration and cross-agent
      * references (including `delegates_to` targets).
      */
-    id:
-      identifierSchema,
+    id: identifierSchema,
 
     /**
      * Default language-model settings for this agent.
      *
      * See {@link agentLLMSchema}.
      */
-    llm:
-      agentLLMSchema,
+    llm: agentLLMSchema,
 
     /**
      * Human-readable display name (non-empty after trim).
      */
-    name: z
-      .string()
-      .trim()
-      .min(1),
+    name: z.string().trim().min(1),
 
     /**
      * Path to the system-prompt file, relative to the manifest directory.
@@ -113,10 +82,7 @@ export const agentSchema = z
      * {@link AgentDescriptor.systemPrompt}; the path itself is not retained
      * on {@link AgentDefinition}.
      */
-    prompt_file: z
-      .string()
-      .trim()
-      .min(1),
+    prompt_file: z.string().trim().min(1),
 
     /**
      * Responsibility assigned to the agent.
@@ -124,18 +90,14 @@ export const agentSchema = z
      * - {@link AgentRole.Main} — primary / orchestrating agent
      * - {@link AgentRole.Specialist} — focused subordinate agent
      */
-    role: z.enum([
-      AgentRole.Main,
-      AgentRole.Specialist,
-    ]),
+    role: z.enum([AgentRole.Main, AgentRole.Specialist]),
 
     /**
      * Kernel-enforced permissions and delegation limits.
      *
      * See {@link agentSafetySchema}.
      */
-    safety:
-      agentSafetySchema,
+    safety: agentSafetySchema,
 
     /**
      * Skill identifiers available to this agent.
@@ -143,29 +105,13 @@ export const agentSchema = z
      * Defaults to `[]`. Entries must be unique. Effective use also requires
      * `allow_skill_use` on {@link agentSafetySchema}.
      */
-    skills: z
-      .array(identifierSchema)
-      .default([]),
+    skills: z.array(identifierSchema).default([]),
   })
   .strict()
   .superRefine((manifest, context) => {
-    validateUniqueIdentifiers(
-      manifest.capabilities,
-      'capabilities',
-      context,
-    )
-
-    validateUniqueIdentifiers(
-      manifest.delegates_to,
-      'delegates_to',
-      context,
-    )
-
-    validateUniqueIdentifiers(
-      manifest.skills,
-      'skills',
-      context,
-    )
+    validateUniqueValues(manifest.capabilities, 'capabilities', context)
+    validateUniqueValues(manifest.delegates_to, 'delegates_to', context)
+    validateUniqueValues(manifest.skills, 'skills', context)
   })
 
 /**
@@ -175,43 +121,4 @@ export const agentSchema = z
  * {@link AgentDefinition.from}) in runtime code after the prompt file is
  * resolved and field names are normalized.
  */
-export type AgentManifest =
-  z.infer<typeof agentSchema>
-
-/**
- * Rejects duplicate entries in identifier collections.
- *
- * Reports a custom Zod issue at the second (and later) occurrence of each
- * repeated id in `capabilities`, `delegates_to`, or `skills`.
- */
-function validateUniqueIdentifiers(
-  identifiers: readonly string[],
-  field: 'capabilities' | 'delegates_to' | 'skills',
-  context: z.RefinementCtx,
-): void {
-  const encounteredIdentifiers =
-    new Set<string>()
-
-  identifiers.forEach(
-    (identifier, index) => {
-      if (
-        encounteredIdentifiers.has(identifier)
-      ) {
-        context.addIssue({
-          code:
-            z.ZodIssueCode.custom,
-          message:
-            `Duplicate identifier: ${identifier}`,
-          path: [
-            field,
-            index,
-          ],
-        })
-
-        return
-      }
-
-      encounteredIdentifiers.add(identifier)
-    },
-  )
-}
+export type AgentManifest = z.infer<typeof agentSchema>

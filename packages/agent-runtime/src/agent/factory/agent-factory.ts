@@ -1,57 +1,52 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Inject, Injectable } from '@nestjs/common'
-import { LLM_FACTORY, LLMFactory } from '@cortex/llm'
-import { Agent } from '../models/agent'
-import { AgentDefinition } from '../../definition/models/agent-definition'
-import { LLMDecisionAgent } from '../../legacy/runtime/llm-decision-agent'
+import type { Agent } from '../models/agent'
+import type { AgentDefinition } from '../../definition/models/agent-definition'
+import type { AgentLLMResolver } from './agent-llm-resolver'
+import { LlmAgent } from '../llm/llm-agent'
 
 /**
- * Builds executable {@link Agent} instances from catalog {@link AgentDefinition} records.
+ * Builds executable {@link Agent} instances from catalog {@link AgentDefinition}
+ * records.
  *
- * The factory is intentionally dumb: it does not load definitions from storage or resolve
- * the main agent. Pass a definition that was already loaded by {@link AgentDefinitionService}.
+ * Intentionally narrow: it does not load manifests from storage, pick the main
+ * agent, or look up API keys. Callers supply a validated definition; this
+ * factory asks {@link AgentLLMResolver} for an {@link LLM} client, then returns
+ * an {@link LlmAgent}.
+ *
+ * Credential resolution and provider selection stay behind
+ * {@link AgentLLMResolver} so the factory remains reusable across hosts.
  */
-@Injectable()
 export class AgentFactory {
   // MARK: - Constructor
 
   /**
-   * Creates a new {@link AgentFactory}.
-   * 
-   * @param llmFactory - Vendor-agnostic builder injected via {@link LLM_FACTORY}. Used in
-   *   {@link create} to instantiate an {@link LLM} from {@link AgentDefinition.llm} plus
-   *   run-time credentials (API key supplied by the caller or a future resolver — not stored
-   *   on the definition). Registered in {@link LLMModule} and re-exported for {@link AgentsModule}.
+   * Creates an agent factory.
+   *
+   * @param llmResolver - Resolves a provider-backed {@link LLM} from
+   *   {@link AgentDefinition.llm} (model/provider settings) plus host-supplied
+   *   credentials. Injected by the application composition root.
    */
   constructor(
-    @Inject(LLM_FACTORY)
-    private readonly llmFactory: LLMFactory,
+    private readonly llmResolver: AgentLLMResolver,
   ) {}
 
   // MARK: - Instance methods
 
   /**
-   * Creates an {@link LLMDecisionAgent} from a catalog definition and runtime options.
+   * Creates an {@link LlmAgent} for the given catalog definition.
    *
-   * @param definition - Validated agent metadata and system prompt from the definitions layer.   
-   * @returns An {@link Agent} ready for {@link Agent.decide}.
+   * Resolves the language-model client via {@link AgentLLMResolver.resolve},
+   * then wires it with {@link definition} into {@link LlmAgent}. The returned
+   * agent is ready for {@link Agent.nextTurn}; it does not run the kernel loop.
+   *
+   * @param definition - Validated agent metadata and resolved system prompt.
+   * @returns An executable {@link Agent} backed by the resolved {@link LLM}.
    */
-  create(definition: AgentDefinition): Agent {
-    const llm = this.llmFactory.create(
-        definition.llm.provider,  
-        {
-            apiKey: 'definition.llm.apiKey', 
-        }
-    )
+  async create(definition: AgentDefinition): Promise<Agent> {
+    const llm = await this.llmResolver.resolve(definition.llm)
 
-    return new LLMDecisionAgent(definition.id, definition.descriptor, llm, {
-      capabilityIds: definition.descriptor.capabilities,
-      model: definition.llm.model,
-      systemPrompt: definition.descriptor.systemPrompt,
-      delegateAgentIds: definition.descriptor.delegatesTo,
-      skills: definition.descriptor.skills,
-    })
+    return new LlmAgent(definition, llm)
   }
 }

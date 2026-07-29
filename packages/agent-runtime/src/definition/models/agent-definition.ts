@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { z } from 'zod'
+import z from 'zod'
 import { agentSchema } from '../schema/agent-schema'
 import type { AgentExecutionDefinition } from './agent-execution-definition'
 import type { AgentLLMDefinition } from './agent-llm-definition'

@@ -2,11 +2,10 @@
 // https://pink-tech.io/
 
 import path from 'path';
-import { Inject, Injectable } from '@nestjs/common'
 import { readdir, readFile } from 'fs/promises'
-import { AgentDefinition } from '../models/agent-definition';
-import { agentSchema } from '../schema/agent-schema';
-import { DECODER, Decoder } from '../../manifest/decoder/decoder';
+import { AgentDefinition } from '../models/agent-definition'
+import { agentSchema } from '../schema/agent-schema'
+import { DECODER, Decoder } from '../../manifest/decoder/decoder'
 
 /**
  * Loads bundled agent definitions from the local file system.
@@ -34,7 +33,6 @@ import { DECODER, Decoder } from '../../manifest/decoder/decoder';
  * definitions into validated `Agent` domain models so the rest of the runtime
  * does not depend on TOML parsing, directory traversal, or file-system details.
  */
-@Injectable()
 export class AgentDefinitionLoader {
   // MARK: - Constructor
 
@@ -43,8 +41,7 @@ export class AgentDefinitionLoader {
    *
    * @param decoder - The decoder used to parse and validate agent manifests.
    */
-  constructor(
-    @Inject(DECODER)
+  constructor(    
     private readonly decoder: Decoder,
   ) {}
 

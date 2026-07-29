@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { z } from 'zod'
+import z from 'zod'
 
 /**
  * Validates the execution limits declared by an agent manifest.
