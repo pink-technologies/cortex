@@ -214,7 +214,7 @@ describe('WorkflowOrchestrator advance', () => {
       },
     })
 
-    expect(parked?.status).toBe(WorkflowRunStatus.RUNNING)
+    expect(parked?.status).toBe(WorkflowRunStatus.AWAITING_APPROVAL)
     expect(parked?.steps.map((step) => step.key)).toEqual([
       'triage',
       'implement',
@@ -225,8 +225,9 @@ describe('WorkflowOrchestrator advance', () => {
       WorkflowStepStatus.COMPLETED,
       WorkflowStepStatus.COMPLETED,
       WorkflowStepStatus.COMPLETED,
-      WorkflowStepStatus.PENDING,
+      WorkflowStepStatus.AWAITING_APPROVAL,
     ])
+    expect(parked?.steps[3]?.startedAt).toBeInstanceOf(Date)
   })
 
   it('fails the run when a linked job fails', async () => {

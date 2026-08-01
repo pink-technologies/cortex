@@ -3,3 +3,4 @@
 
 export * from './execution'
 export * from './nodes'
+export * from './workflow'

@@ -7,7 +7,7 @@ import { ExecutionJobService } from '../../execution/execution-job.service'
 import type { ExecutionJob } from '../../execution/models/execution-job'
 import { WorkflowRunStatus, WorkflowStepKind, WorkflowStepStatus } from '../datatypes'
 import { WorkflowDefinitionRegistry } from '../definitions/registry'
-import { WorkflowAdvanceError, WorkflowStartError } from '../error/error'
+import { WorkflowAdvanceError, WorkflowApprovalError, WorkflowStartError } from '../error/error'
 import type { StartWorkflowRunResult } from '../models/start-workflow-run-result'
 import type { WorkflowRun } from '../models/workflow-run'
 import type { WorkflowStep } from '../models/workflow-step'
@@ -42,15 +42,14 @@ interface LinkedStepContext {
  *
  * {@link start} creates the run and activates the first `JOB` step.
  * {@link onJobCompleted} / {@link onJobFailed} advance or fail the run after a
- * child execution job reaches a terminal state. Approval activation is Chunk 6;
- * when the next step is `APPROVAL`, the completed `JOB` step is left terminal
- * and the approval step stays `PENDING`.
+ * child execution job reaches a terminal state. When the next step is
+ * `APPROVAL`, the run parks in `AWAITING_APPROVAL` until a human decision
+ * arrives through {@link approve} or {@link reject}.
  *
- * Start, advance, and fail apply workflow mutations inside
- * {@link Database.withTransaction} so run/step status and child job enqueue
- * commit atomically. On job terminal, complete/fail is persisted first by
- * {@link ExecutionJobService}; that advance/fail transaction covers the
- * workflow half only.
+ * All mutations apply inside {@link Database.withTransaction} so run/step
+ * status and child job enqueue commit atomically. On job terminal,
+ * complete/fail is persisted first by {@link ExecutionJobService}; that
+ * advance/fail transaction covers the workflow half only.
  */
 @Injectable()
 export class WorkflowOrchestrator {
@@ -76,12 +75,94 @@ export class WorkflowOrchestrator {
   // MARK: - Instance methods
 
   /**
+   * Applies a positive approval decision to a parked run.
+   *
+   * Completes the step awaiting approval, then activates the next `JOB` step
+   * (returning the run to `RUNNING`), parks again when the next step is
+   * another `APPROVAL`, or completes the run when no steps remain. All writes
+   * commit in one transaction; concurrent decisions are resolved by an
+   * optimistic status guard so only one decision applies.
+   *
+   * @param runId - Primary key of the run awaiting approval.
+   * @returns The refreshed run after the decision; `null` when the run does not exist.
+   * @throws {@link WorkflowApprovalError} When no step is awaiting approval.
+   */
+  async approve(runId: string): Promise<WorkflowRun | null> {
+    const run = await this.workflowRunRepository.findById(runId)
+
+    if (!run) {
+      return null
+    }
+
+    const approvalStep = this.resolveAwaitingApprovalStep(run)
+    const completedAt = new Date()
+    const nextStep = run.steps.find((candidate) => candidate.position > approvalStep.position)
+    const payload = [...run.steps]
+    .filter((candidate) => candidate.position < approvalStep.position && candidate.output != null)
+    .at(-1)
+    ?.output ?? run.input
+
+    await this.database.withTransaction(async (transaction) => {
+      const stepped = await this.workflowRunRepository.updateStepStatus(
+        approvalStep.id,
+        {
+          completedAt,
+          status: WorkflowStepStatus.COMPLETED,
+        },
+        {
+          onlyIfStatusIn: [WorkflowStepStatus.AWAITING_APPROVAL],
+          transaction,
+        },
+      )
+
+      if (!stepped) {
+        return
+      }
+
+      if (!nextStep) {
+        await this.workflowRunRepository.updateRunStatus(
+          run.id,
+          {
+            completedAt,
+            result: payload,
+            status: WorkflowRunStatus.COMPLETED,
+          },
+          { transaction },
+        )
+        return
+      }
+
+      if (nextStep.kind === WorkflowStepKind.APPROVAL) {
+        await this.activateApprovalStep({ step: nextStep, transaction })
+
+        return
+      }
+
+      await this.workflowRunRepository.updateRunStatus(
+        run.id,
+        {
+          status: WorkflowRunStatus.RUNNING,
+        },
+        { transaction },
+      )
+
+      await this.activateStep({
+        payload,
+        step: nextStep,
+        transaction,
+      })
+    })
+
+    return this.workflowRunRepository.findById(runId)
+  }
+
+  /**
    * Advances the workflow after a child execution job completes successfully.
    *
    * No-ops when the job is not linked to a run/step, or when the step is already
    * terminal (idempotent retries of complete). Completes the current step, then
    * activates the next `JOB` step, completes the run when no steps remain, or
-   * parks when the next step is `APPROVAL` (until Chunk 6).
+   * parks the run in `AWAITING_APPROVAL` when the next step is `APPROVAL`.
    *
    * Workflow writes run in a single transaction with an optimistic step-status
    * guard so concurrent completes do not double-advance.
@@ -128,12 +209,12 @@ export class WorkflowOrchestrator {
       }
 
       if (nextStep.kind === WorkflowStepKind.APPROVAL) {
-        // Chunk 6 activates APPROVAL. Until then the run stays RUNNING with the
-        // approval step PENDING.
+        await this.activateApprovalStep({ step: nextStep, transaction })
+
         return
       }
 
-      await this.activateJobStep({
+      await this.activateStep({
         payload,
         step: nextStep,
         transaction,
@@ -186,6 +267,61 @@ export class WorkflowOrchestrator {
         { transaction },
       )
     })
+  }
+
+  /**
+   * Applies a negative approval decision to a parked run.
+   *
+   * Fails the step awaiting approval and the run in one transaction. The run's
+   * failure payload records the rejected step. Concurrent decisions are
+   * resolved by an optimistic status guard so only one decision applies.
+   *
+   * @param runId - Primary key of the run awaiting approval.
+   * @returns The refreshed run after the decision; `null` when the run does not exist.
+   * @throws {@link WorkflowApprovalError} When no step is awaiting approval.
+   */
+  async reject(runId: string): Promise<WorkflowRun | null> {
+    const run = await this.workflowRunRepository.findById(runId)
+
+    if (!run) {
+      return null
+    }
+
+    const approvalStep = this.resolveAwaitingApprovalStep(run)
+    const failedAt = new Date()
+
+    await this.database.withTransaction(async (transaction) => {
+      const stepped = await this.workflowRunRepository.updateStepStatus(
+        approvalStep.id,
+        {
+          failedAt,
+          status: WorkflowStepStatus.FAILED,
+        },
+        {
+          onlyIfStatusIn: [WorkflowStepStatus.AWAITING_APPROVAL],
+          transaction,
+        },
+      )
+
+      if (!stepped) {
+        return
+      }
+
+      await this.workflowRunRepository.updateRunStatus(
+        run.id,
+        {
+          failedAt,
+          failure: {
+            code: 'WORKFLOW_APPROVAL_REJECTED',
+            message: `Approval step ${approvalStep.key} was rejected`,
+          },
+          status: WorkflowRunStatus.FAILED,
+        },
+        { transaction },
+      )
+    })
+
+    return this.workflowRunRepository.findById(runId)
   }
 
   /**
@@ -246,7 +382,7 @@ export class WorkflowOrchestrator {
         )
       }
 
-      const job = await this.activateJobStep({
+      const job = await this.activateStep({
         payload: parameters.input,
         priority: parameters.priority,
         step: firstStep,
@@ -277,7 +413,31 @@ export class WorkflowOrchestrator {
 
   // MARK: - Private methods
 
-  private async activateJobStep(parameters: {
+  private async activateApprovalStep(parameters: {
+    step: WorkflowStep
+    transaction: DatabaseTransaction
+  }): Promise<void> {
+    const { step, transaction } = parameters
+
+    await this.workflowRunRepository.updateStepStatus(
+      step.id,
+      {
+        startedAt: new Date(),
+        status: WorkflowStepStatus.AWAITING_APPROVAL,
+      },
+      { transaction },
+    )
+
+    await this.workflowRunRepository.updateRunStatus(
+      step.runId,
+      {
+        status: WorkflowRunStatus.AWAITING_APPROVAL,
+      },
+      { transaction },
+    )
+  }
+
+  private async activateStep(parameters: {
     payload: unknown
     priority?: number
     step: WorkflowStep
@@ -289,21 +449,22 @@ export class WorkflowOrchestrator {
       throw new WorkflowAdvanceError(step.runId, `Workflow step ${step.key} must be a JOB with jobKind to activate`)
     }
 
-    const createExecutionJobParameters = {
-      kind: step.jobKind,
-      payload,
-      payloadVersion: 1,
-      policy: {},
-      priority,
-      runId: step.runId,
-      stepId: step.id,
-      requirements: {
-        allOf: [],
+    const job = await this.executionJobService.create(
+      {
+        kind: step.jobKind,
+        payload,
+        payloadVersion: 1,
+        policy: {},
+        priority,
+        runId: step.runId,
+        stepId: step.id,
+        requirements: {
+          allOf: [],
+        },
       },
-    }
+      { transaction },
+    )
 
-    const job = await this.executionJobService.create(createExecutionJobParameters, { transaction })
-    
     await this.workflowRunRepository.updateStepStatus(
       step.id,
       {
@@ -314,6 +475,24 @@ export class WorkflowOrchestrator {
     )
 
     return job
+  }
+
+  private resolveApprovalPayload(run: WorkflowRun, approvalStep: WorkflowStep): unknown {
+    const priorSteps = [...run.steps]
+      .filter((candidate) => candidate.position < approvalStep.position && candidate.output != null)
+      .at(-1)
+
+    return priorSteps?.output ?? run.input
+  }
+
+  private resolveAwaitingApprovalStep(run: WorkflowRun): WorkflowStep {
+    const approvalStep = run.steps.find((candidate) => candidate.status === WorkflowStepStatus.AWAITING_APPROVAL)
+
+    if (!approvalStep) {
+      throw new WorkflowApprovalError(run.id, `Workflow run ${run.id} has no step awaiting approval`)
+    }
+
+    return approvalStep
   }
 
   private async resolveLinkedStep(jobId: string): Promise<LinkedStepContext | null> {

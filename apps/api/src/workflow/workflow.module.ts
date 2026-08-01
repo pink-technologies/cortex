@@ -3,6 +3,7 @@
 
 import { Module, forwardRef } from '@nestjs/common'
 import { ExecutionModule } from '../execution/execution.module'
+import { WorkflowRunController } from './controller/workflow-run.controller'
 import { WorkflowDefinitionRegistry } from './definitions/registry'
 import { WorkflowOrchestrator } from './orchestrator'
 import { WORKFLOW_RUN_REPOSITORY, WorkflowRunRepositoryImpl } from './repository'
@@ -14,12 +15,14 @@ import {
 } from './definitions/flows'
 
 /**
- * Workflow persistence, definitions, and orchestration module.
+ * Workflow persistence, definitions, orchestration, and HTTP module.
  *
  * Exposes {@link WORKFLOW_RUN_REPOSITORY}, {@link WorkflowDefinitionRegistry},
- * and {@link WorkflowOrchestrator}. HTTP enters in later chunks.
+ * and {@link WorkflowOrchestrator}, plus the public workflow-run endpoints via
+ * {@link WorkflowRunController}.
  */
 @Module({
+  controllers: [WorkflowRunController],
   exports: [WORKFLOW_RUN_REPOSITORY, WorkflowDefinitionRegistry, WorkflowOrchestrator],
   imports: [forwardRef(() => ExecutionModule)],
   providers: [

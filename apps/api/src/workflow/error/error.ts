@@ -234,6 +234,43 @@ export class WorkflowAdvanceError extends WorkflowModuleError {
 }
 
 /**
+ * Indicates that an approval decision could not be applied.
+ *
+ * Raised when a run has no step awaiting approval — for example the run has
+ * not reached its approval gate, the decision was already applied, or the run
+ * is terminal. Missing runs are not represented by this error; the
+ * orchestrator returns `null`.
+ */
+export class WorkflowApprovalError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for approval failures.
+   */
+  readonly code = 'WORKFLOW_APPROVAL_ERROR'
+
+  /**
+   * Run id whose approval decision failed.
+   */
+  readonly runId: string
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow approval error.
+   *
+   * @param runId - Run whose approval decision failed.
+   * @param message - Human-readable description of the approval failure.
+   * @param options - Optional diagnostic options containing the originating
+   *   failure in `cause`.
+   */
+  constructor(runId: string, message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.runId = runId
+  }
+}
+
+/**
  * Indicates that starting a workflow run failed for a domain reason.
  *
  * Examples: the first step is not a `JOB`, or activation could not complete.
