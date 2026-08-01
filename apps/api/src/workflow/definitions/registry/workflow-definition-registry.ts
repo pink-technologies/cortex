@@ -50,7 +50,8 @@ export class WorkflowDefinitionRegistry {
   /**
    * Registers a workflow definition under its {@link WorkflowDefinition.key}.
    *
-   * Validates step shape, then inserts. Registration is append-only.
+   * Validates step shape, stores a copy with steps ordered by `position`
+   * ascending, then inserts. Registration is append-only.
    *
    * @param definition - Flow definition to store.
    * @throws {@link WorkflowDefinitionInvalidError} when the definition is malformed.
@@ -63,7 +64,10 @@ export class WorkflowDefinitionRegistry {
       throw new WorkflowDefinitionAlreadyRegisteredError(definition.key)
     }
 
-    this.definitions.set(definition.key, definition)
+    this.definitions.set(definition.key, {
+      key: definition.key,
+      steps: [...definition.steps].sort((left, right) => left.position - right.position),
+    })
   }
 
   /**

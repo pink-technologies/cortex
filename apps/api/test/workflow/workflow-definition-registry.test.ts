@@ -82,6 +82,33 @@ describe('WorkflowDefinitionRegistry', () => {
     ])
   })
 
+  it('stores steps ordered by position when registered out of order', () => {
+    const registry = new WorkflowDefinitionRegistry()
+
+    registry.register({
+      key: 'unordered.flow',
+      steps: [
+        {
+          key: 'second',
+          kind: WorkflowStepKind.JOB,
+          jobKind: AgentExecuteJobKind,
+          position: 1,
+        },
+        {
+          key: 'first',
+          kind: WorkflowStepKind.JOB,
+          jobKind: JiraTriageJobKind,
+          position: 0,
+        },
+      ],
+    })
+
+    expect(registry.resolve('unordered.flow').steps.map((step) => step.key)).toEqual([
+      'first',
+      'second',
+    ])
+  })
+
   it('throws when resolving an unknown definition key', () => {
     const registry = new WorkflowDefinitionRegistry()
 

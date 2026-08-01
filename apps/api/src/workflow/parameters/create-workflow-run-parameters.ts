@@ -76,8 +76,8 @@ export interface CreateWorkflowRunParameters {
   /**
    * Steps created with the run, typically in activation order.
    *
-   * Pass at least one step for a usable flow. Each entry’s {@link CreateWorkflowStepParameters.key}
-   * and {@link CreateWorkflowStepParameters.position} must be unique within the list.
+   * Pass at least one step for a usable flow. Each entry’s {@link CreateWorkflowStepParameters#key}
+   * and {@link CreateWorkflowStepParameters#position} must be unique within the list.
    */
   readonly steps: readonly CreateWorkflowStepParameters[]
 

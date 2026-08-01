@@ -5,16 +5,16 @@ import { Body, ConflictException, Controller, HttpCode, HttpStatus, Param, Post,
 import { ZodValidationPipe } from '@/http/pipes/zod-validation.pipe'
 import { ExecutionJobExceptionFilter } from '../filter/exception.filter'
 import { ExecutionJobService } from '../execution-job.service'
-import { ExecutionJobProtocolMapper } from '../mapper/execution-job-protocol-mapper'
+import { ExecutionJobProtocolMapper } from '../mapper'
 import {
-    ClaimExecutionJobRequestSchema,
-    ClaimExecutionJobResponseSchema,
-    CompleteExecutionJobRequestSchema,
-    FailExecutionJobRequestSchema,
-    type ClaimExecutionJobRequest,
-    type ClaimExecutionJobResponse,
-    type CompleteExecutionJobRequest,
-    type FailExecutionJobRequest,
+  ClaimExecutionJobRequestSchema,
+  ClaimExecutionJobResponseSchema,
+  CompleteExecutionJobRequestSchema,
+  FailExecutionJobRequestSchema,
+  type ClaimExecutionJobRequest,
+  type ClaimExecutionJobResponse,
+  type CompleteExecutionJobRequest,
+  type FailExecutionJobRequest,
 } from '@cortex/protocol'
 
 /**

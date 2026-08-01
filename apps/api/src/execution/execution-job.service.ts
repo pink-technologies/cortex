@@ -1,12 +1,14 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Inject, Injectable } from '@nestjs/common'
-import { EXECUTION_JOB_REPOSITORY, type ExecutionJobRepository } from './execution-job-repository'
-import { ExecutionJob } from './models/execution-job'
+import { forwardRef, Inject, Injectable, Optional } from '@nestjs/common'
 import { NodesService } from '@/nodes/nodes.service'
 import { FailExecutionJobRequest, type CompleteExecutionJobRequest } from '@cortex/protocol'
+import type { DatabaseTransaction } from '@/infraestructure/database'
+import { EXECUTION_JOB_REPOSITORY, type ExecutionJobRepository } from './execution-job-repository'
+import { ExecutionJob } from './models/execution-job'
 import { CreateExecutionJobParameters } from './parameters/create-execution-job-parameters'
+import { WorkflowOrchestrator } from '../workflow/orchestrator'
 import {
   ExecutionJobClaimError,
   ExecutionJobCompleteError,
@@ -20,7 +22,8 @@ import {
  *
  * The service delegates job claiming to the configured
  * {@link ExecutionJobRepository}, keeping execution orchestration independent
- * of the underlying persistence implementation.
+ * of the underlying persistence implementation. When a terminal transition
+ * succeeds for a workflow-linked job, it notifies {@link WorkflowOrchestrator}.
  */
 @Injectable()
 export class ExecutionJobService {
@@ -32,13 +35,16 @@ export class ExecutionJobService {
    * @param executionJobRepository - Repository used to atomically claim
    * available execution jobs.
    * @param nodesService - Service used to resolve the execution node.
+   * @param workflowOrchestrator - Optional orchestrator notified after terminal
+   * job transitions for workflow-linked jobs.
    */
   constructor(
     @Inject(EXECUTION_JOB_REPOSITORY)
     private readonly executionJobRepository: ExecutionJobRepository,
-
-    @Inject()
     private readonly nodesService: NodesService,
+    @Optional()
+    @Inject(forwardRef(() => WorkflowOrchestrator))
+    private readonly workflowOrchestrator?: WorkflowOrchestrator,
   ) {}
 
   // MARK: - Instance methods
@@ -71,7 +77,8 @@ export class ExecutionJobService {
    *
    * Delegates the guarded `RUNNING` → `COMPLETED` transition to the repository.
    * A `false` result indicates that the job does not exist or is no longer in
-   * the required running state.
+   * the required running state. On success, advances the owning workflow when
+   * the job is linked to a run step.
    *
    * @param id - Stable identifier of the execution job to complete.
    * @param parameters - Completion request including claim proof and optional result.
@@ -80,7 +87,13 @@ export class ExecutionJobService {
    */
   async complete(id: string, parameters: CompleteExecutionJobRequest): Promise<boolean> {
     try {
-      return await this.executionJobRepository.complete(id, parameters)
+      const completed = await this.executionJobRepository.complete(id, parameters)
+
+      if (completed) {
+        await this.workflowOrchestrator?.onJobCompleted(id)
+      }
+
+      return completed
     } catch (error) {
       throw new ExecutionJobCompleteError('Failed to complete execution job', { cause: error })
     }
@@ -94,12 +107,16 @@ export class ExecutionJobService {
    *
    * @typeParam Payload - Type of the execution-job payload.
    * @param parameters - Parameters describing the execution job to create.
+   * @param options - Optional transaction client.
    * @returns The newly persisted execution job.
    * @throws ExecutionJobCreateError When the persistence operation fails.
    */
-  async create<Payload>(parameters: CreateExecutionJobParameters<Payload>): Promise<ExecutionJob> {
+  async create<Payload>(
+    parameters: CreateExecutionJobParameters<Payload>,
+    options?: { transaction?: DatabaseTransaction },
+  ): Promise<ExecutionJob> {
     try {
-      return await this.executionJobRepository.create(parameters)
+      return await this.executionJobRepository.create(parameters, options)
     } catch (error) {
       throw new ExecutionJobCreateError('Failed to create execution job', { cause: error })
     }
@@ -110,7 +127,8 @@ export class ExecutionJobService {
    *
    * Delegates the guarded `RUNNING` → `FAILED` transition to the repository.
    * A `false` result indicates that the job does not exist or is no longer in
-   * the required running state.
+   * the required running state. On success, fails the owning workflow when the
+   * job is linked to a run step.
    *
    * @param id - Stable identifier of the execution job to fail.
    * @param parameters - Failure request including claim proof and failure payload.
@@ -119,7 +137,13 @@ export class ExecutionJobService {
    */
   async fail(id: string, parameters: FailExecutionJobRequest): Promise<boolean> {
     try {
-      return await this.executionJobRepository.fail(id, parameters)
+      const failed = await this.executionJobRepository.fail(id, parameters)
+
+      if (failed) {
+        await this.workflowOrchestrator?.onJobFailed(id)
+      }
+
+      return failed
     } catch (error) {
       throw new ExecutionJobFailError('Failed to fail execution job', { cause: error })
     }

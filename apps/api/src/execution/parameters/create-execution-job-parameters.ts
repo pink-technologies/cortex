@@ -1,11 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { 
-    ExecutionJobPolicy,
-    ExecutionJobRequirements,
-    ExecutionJobSource
-} from "../models"
+import { ExecutionJobPolicy, ExecutionJobRequirements, ExecutionJobSource } from '../models'
 
 /**
  * Input for creating a queued `ExecutionJob` via the execution job repository.
@@ -66,9 +62,24 @@ export interface CreateExecutionJobParameters<Payload = unknown> {
   requirements: ExecutionJobRequirements
 
   /**
+   * Optional owning {@link WorkflowRun} primary key.
+   *
+   * Set when the job is created from a workflow step. Nullable until historical
+   * jobs are backfilled.
+   */
+  runId?: string
+
+  /**
    * Optional provenance; stored as `sourceType` / `sourceIdentifier` on the row.
    */
   source?: ExecutionJobSource
+
+  /**
+   * Optional owning {@link WorkflowStep} primary key.
+   *
+   * Set with {@link runId} when the job belongs to a workflow step.
+   */
+  stepId?: string
 
   /**
    * Idempotency key for enqueue (`ExecutionJob.triggerIdentifier`, unique).

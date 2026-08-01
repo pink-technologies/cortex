@@ -10,8 +10,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
  * Transaction type exposed by the database layer.
  *
  * Use this type when accepting an optional transaction in repository methods
- * (e.g. `options?: { tx?: TransactionClient }`). The same type is passed to
- * the callback of {@link Database.withTransaction}.
+ * (e.g. `options?: { transaction?: DatabaseTransaction }`). The same type is
+ * passed to the callback of {@link Database.withTransaction}.
  *
  * Import from `@integrations/database`; do not use Prisma types directly.
  */
@@ -84,11 +84,11 @@ export class Database
    * If the callback throws or rejects, the transaction is rolled back.
    * Otherwise it is committed.
    *
-   * Pass the `tx` argument to repository methods that support
-   * `options?.tx` so they participate in this transaction.
+   * Pass the `transaction` argument to repository methods that support
+   * `options?.transaction` so they participate in this transaction.
    *
    * @param fn - Callback receiving the transaction client. Run all
-   *   transactional operations inside this callback using `tx`.
+   *   transactional operations inside this callback using `transaction`.
    * @returns The value resolved by the callback.
    *
    * @throws {DatabaseError} when any operation in the transaction fails
@@ -96,16 +96,16 @@ export class Database
    *
    * @example
    * ```typescript
-   * await this.database.withTransaction(async (tx) => {
-   *   const workspace = await this.workspacesRepository.create(params, { tx });
-   *   await this.rolesRepository.createWorkspaceRole(roleParams, { tx });
-   *   await this.rolesRepository.createWorkspaceMembership(memberParams, { tx });
+   * await this.database.withTransaction(async (transaction) => {
+   *   const workspace = await this.workspacesRepository.create(params, { transaction });
+   *   await this.rolesRepository.createWorkspaceRole(roleParams, { transaction });
+   *   await this.rolesRepository.createWorkspaceMembership(memberParams, { transaction });
    *   return workspace;
    * });
    * ```
    */
   async withTransaction<T>(
-    fn: (tx: DatabaseTransaction) => Promise<T>,
+    fn: (transaction: DatabaseTransaction) => Promise<T>,
   ): Promise<T> {
     return this.$transaction(fn);
   }

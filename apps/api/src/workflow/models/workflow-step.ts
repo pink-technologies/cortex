@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { WorkflowStepKind, WorkflowStepStatus } from '../datatypes'
+import { WorkflowStepStatus, type WorkflowStepKind } from '../datatypes'
 
 /**
  * Persistence fields required to build a {@link WorkflowStep}.
@@ -156,6 +156,22 @@ export class WorkflowStep {
    * Timestamp when the step row was last updated.
    */
   readonly updatedAt: Date
+
+  // MARK: - Computed Properties
+
+  /**
+   * Whether this step is in a terminal lifecycle status.
+   *
+   * Terminal statuses are `CANCELLED`, `COMPLETED`, `FAILED`, and `SKIPPED`.
+   */
+  get isTerminal(): boolean {
+    return (
+      this.status === WorkflowStepStatus.CANCELLED ||
+      this.status === WorkflowStepStatus.COMPLETED ||
+      this.status === WorkflowStepStatus.FAILED ||
+      this.status === WorkflowStepStatus.SKIPPED
+    )
+  }
 
   // MARK: - Static methods
 

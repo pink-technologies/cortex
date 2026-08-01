@@ -63,7 +63,48 @@ describe('WorkflowRun', () => {
     expect(run.steps.map((step) => step.key)).toEqual(['triage', 'approval'])
     expect(run.steps[0]?.kind).toBe(WorkflowStepKind.JOB)
     expect(run.steps[0]?.status).toBe(WorkflowStepStatus.PENDING)
+    expect(run.steps[0]?.isTerminal).toBe(false)
     expect(run.steps[1]?.kind).toBe(WorkflowStepKind.APPROVAL)
+  })
+
+  it('reports terminal step statuses via isTerminal', () => {
+    const now = new Date('2026-08-01T12:00:00.000Z')
+
+    const completed = WorkflowRun.from({
+      activeKey: null,
+      completedAt: now,
+      createdAt: now,
+      definitionKey: 'jira.triage.flow',
+      failedAt: null,
+      failure: null,
+      id: 'run-terminal',
+      input: {},
+      result: null,
+      startedAt: now,
+      status: 'COMPLETED',
+      triggerIdentifier: null,
+      updatedAt: now,
+      steps: [
+        {
+          completedAt: now,
+          createdAt: now,
+          failedAt: null,
+          id: 'step-terminal',
+          input: null,
+          jobKind: 'jira.triage',
+          key: 'main',
+          kind: 'JOB',
+          output: null,
+          position: 0,
+          runId: 'run-terminal',
+          startedAt: now,
+          status: 'COMPLETED',
+          updatedAt: now,
+        },
+      ],
+    }).steps[0]!
+
+    expect(completed.isTerminal).toBe(true)
   })
 
   it('maps a run without included steps to an empty step list', () => {

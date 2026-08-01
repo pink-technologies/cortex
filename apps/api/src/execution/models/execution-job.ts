@@ -5,6 +5,7 @@ import { ExecutionJobStatus } from '../datatypes/execution-job-status'
 import { ExecutionJobPolicy } from './execution-job-policy'
 import { ExecutionJobRequirements } from './execution-job-requirements'
 import { ExecutionJobSource } from './execution-job-source'
+import type { ExecutionJob as ExecutionJobPersistence } from '@/infraestructure/database'
 
 /**
  * Domain model for a persisted execution job.
@@ -15,6 +16,49 @@ import { ExecutionJobSource } from './execution-job-source'
  * `sourceType` / `sourceIdentifier`.
  */
 export class ExecutionJob {
+  // MARK: - Static methods
+
+  /**
+   * Maps a Prisma execution-job row into a domain job.
+   *
+   * @param record - Persisted job row.
+   * @returns Domain job ready for execution consumers.
+   */
+  static from(record: ExecutionJobPersistence): ExecutionJob {    
+    const source = record.sourceType == null || record.sourceIdentifier == null
+      ? undefined
+      : {
+          identifier: record.sourceIdentifier,
+          type: record.sourceType,
+        }
+
+    return new ExecutionJob(
+      record.id,
+      record.availableAt,
+      record.createdAt,
+      record.kind,
+      record.maximumAttempts,
+      record.priority,
+      record.payload,
+      record.payloadVersion,
+      record.policy as unknown as ExecutionJobPolicy,
+      record.requirements as unknown as ExecutionJobRequirements,
+      record.status as ExecutionJobStatus,
+      record.updatedAt,
+      source,
+      record.triggerIdentifier,
+      record.activeKey,
+      record.claimToken,
+      record.claimedByNodeId,
+      record.completedAt,
+      record.result,
+      record.failedAt,
+      record.failure,
+      record.runId,
+      record.stepId,
+    )
+  }
+
   // MARK: - Constructor
 
   /**
@@ -41,6 +85,8 @@ export class ExecutionJob {
    * @param result - Result produced by the execution.
    * @param failedAt - Timestamp when the job entered a terminal failure state.
    * @param failure - Sanitized failure payload persisted for the job.
+   * @param runId - Optional owning workflow run primary key.
+   * @param stepId - Optional owning workflow step primary key.
    */
   constructor(
     readonly id: string,
@@ -64,5 +110,7 @@ export class ExecutionJob {
     readonly result: unknown | null = null,
     readonly failedAt: Date | null = null,
     readonly failure: unknown | null = null,
+    readonly runId: string | null = null,
+    readonly stepId: string | null = null,
   ) {}
 }

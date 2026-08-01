@@ -36,9 +36,9 @@ export interface WorkflowDefinitionStep {
 /**
  * Code-defined workflow shape used to start runs.
  *
- * Resolved by {@link WorkflowDefinitionRegistry} via {@link key}. Chunk 4 will
- * turn these steps into persisted {@link WorkflowRun} / {@link WorkflowStep}
- * rows.
+ * Resolved by {@link WorkflowDefinitionRegistry} via {@link key}.
+ * {@link WorkflowOrchestrator.start} turns these steps into persisted
+ * {@link WorkflowRun} / {@link WorkflowStep} rows.
  */
 export interface WorkflowDefinition {
   /**
@@ -47,10 +47,12 @@ export interface WorkflowDefinition {
   readonly key: string
 
   /**
-   * Ordered steps that make up the flow.
+   * Steps that make up the flow.
    *
    * Must be non-empty. {@link WorkflowDefinitionStep.key} and
    * {@link WorkflowDefinitionStep.position} must be unique within the list.
+   * {@link WorkflowDefinitionRegistry.register} stores them ordered by
+   * `position` ascending.
    */
   readonly steps: readonly WorkflowDefinitionStep[]
 }

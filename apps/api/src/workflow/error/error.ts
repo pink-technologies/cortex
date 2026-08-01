@@ -199,6 +199,77 @@ export class WorkflowDefinitionInvalidError extends WorkflowModuleError {
 }
 
 /**
+ * Indicates that advancing a workflow run failed for a domain reason.
+ *
+ * Examples: the next step is not an activatable `JOB` (outside the approval
+ * park path). Persistence failures use the dedicated create/update error types.
+ */
+export class WorkflowAdvanceError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for advance failures.
+   */
+  readonly code = 'WORKFLOW_ADVANCE_ERROR'
+
+  /**
+   * Run id that failed to advance, when known.
+   */
+  readonly runId: string
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow advance error.
+   *
+   * @param runId - Run that failed to advance.
+   * @param message - Human-readable description of the advance failure.
+   * @param options - Optional diagnostic options containing the originating
+   *   failure in `cause`.
+   */
+  constructor(runId: string, message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.runId = runId
+  }
+}
+
+/**
+ * Indicates that starting a workflow run failed for a domain reason.
+ *
+ * Examples: the first step is not a `JOB`, or activation could not complete.
+ * Missing definitions use {@link WorkflowDefinitionNotFoundError}. Persistence
+ * failures use the dedicated create/update error types.
+ */
+export class WorkflowStartError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for start failures.
+   */
+  readonly code = 'WORKFLOW_START_ERROR'
+
+  /**
+   * Definition key that was being started, when known.
+   */
+  readonly definitionKey: string
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow start error.
+   *
+   * @param definitionKey - Definition key that was being started.
+   * @param message - Human-readable description of the start failure.
+   * @param options - Optional diagnostic options containing the originating
+   *   failure in `cause`.
+   */
+  constructor(definitionKey: string, message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.definitionKey = definitionKey
+  }
+}
+
+/**
  * Indicates that no workflow definition is registered for the given key.
  */
 export class WorkflowDefinitionNotFoundError extends WorkflowModuleError {

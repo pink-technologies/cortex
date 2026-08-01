@@ -1,8 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
+import { ExecutionModule } from '../execution/execution.module'
 import { WorkflowDefinitionRegistry } from './definitions/registry'
+import { WorkflowOrchestrator } from './orchestrator'
 import { WORKFLOW_RUN_REPOSITORY, WorkflowRunRepositoryImpl } from './repository'
 import {
   agentExecuteFlow,
@@ -12,14 +14,16 @@ import {
 } from './definitions/flows'
 
 /**
- * Workflow persistence and definition module.
+ * Workflow persistence, definitions, and orchestration module.
  *
- * Exposes {@link WORKFLOW_RUN_REPOSITORY} and a {@link WorkflowDefinitionRegistry}
- * preloaded with built-in flows. Orchestration and HTTP enter in later chunks.
+ * Exposes {@link WORKFLOW_RUN_REPOSITORY}, {@link WorkflowDefinitionRegistry},
+ * and {@link WorkflowOrchestrator}. HTTP enters in later chunks.
  */
 @Module({
-  exports: [WORKFLOW_RUN_REPOSITORY, WorkflowDefinitionRegistry],
+  exports: [WORKFLOW_RUN_REPOSITORY, WorkflowDefinitionRegistry, WorkflowOrchestrator],
+  imports: [forwardRef(() => ExecutionModule)],
   providers: [
+    WorkflowOrchestrator,
     {
       provide: WORKFLOW_RUN_REPOSITORY,
       useClass: WorkflowRunRepositoryImpl,

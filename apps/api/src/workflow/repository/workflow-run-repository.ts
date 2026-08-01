@@ -14,6 +14,7 @@ import {
 
 import type {
   CreateWorkflowRunParameters,
+  RepositoryWriteOptions,
   UpdateWorkflowRunStatusParameters,
   UpdateWorkflowStepStatusParameters,
 } from '../parameters'
@@ -38,10 +39,14 @@ export interface WorkflowRunRepository {
    * steps ordered by `position`.
    *
    * @param parameters - Run definition key, input, optional idempotency keys, and steps.
+   * @param options - Optional transaction client.
    * @returns The newly persisted {@link WorkflowRun}.
    * @throws {WorkflowRunCreateError} When persistence fails (including unique collisions).
    */
-  create(parameters: CreateWorkflowRunParameters): Promise<WorkflowRun>
+  create(
+    parameters: CreateWorkflowRunParameters,
+    options?: RepositoryWriteOptions,
+  ): Promise<WorkflowRun>
 
   /**
    * Loads a single run by primary key, including its steps.
@@ -50,30 +55,41 @@ export interface WorkflowRunRepository {
    * {@link WorkflowRunReadError}.
    *
    * @param id - Stable primary key of the workflow run.
+   * @param options - Optional transaction client.
    * @returns The domain run when found; otherwise `null`.
    * @throws {WorkflowRunReadError} When the persistence operation fails.
    */
-  findById(id: string): Promise<WorkflowRun | null>
+  findById(id: string, options?: RepositoryWriteOptions): Promise<WorkflowRun | null>
 
   /**
    * Updates a run's status and optional terminal fields.
    *
    * @param id - Primary key of the run to update.
    * @param parameters - Target status and optional result/failure/timestamps.
+   * @param options - Optional transaction client.
    * @returns `true` when one row was updated; `false` when the run does not exist.
    * @throws {WorkflowRunUpdateError} When the persistence operation fails.
    */
-  updateRunStatus(id: string, parameters: UpdateWorkflowRunStatusParameters): Promise<boolean>
+  updateRunStatus(
+    id: string,
+    parameters: UpdateWorkflowRunStatusParameters,
+    options?: RepositoryWriteOptions,
+  ): Promise<boolean>
 
   /**
    * Updates a step's status and optional terminal fields.
    *
    * @param id - Primary key of the step to update.
    * @param parameters - Target status and optional output/timestamps.
-   * @returns `true` when one row was updated; `false` when the step does not exist.
+   * @param options - Optional transaction client and status guard.
+   * @returns `true` when one row was updated; `false` when no row matched.
    * @throws {WorkflowStepUpdateError} When the persistence operation fails.
    */
-  updateStepStatus(id: string, parameters: UpdateWorkflowStepStatusParameters): Promise<boolean>
+  updateStepStatus(
+    id: string,
+    parameters: UpdateWorkflowStepStatusParameters,
+    options?: RepositoryWriteOptions,
+  ): Promise<boolean>
 }
 
 /**
@@ -100,12 +116,17 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
    * steps ordered by `position`.
    *
    * @param parameters - Run definition key, input, optional idempotency keys, and steps.
+   * @param options - Optional transaction client.
    * @returns The newly persisted {@link WorkflowRun}.
    * @throws {WorkflowRunCreateError} When persistence fails (including unique collisions).
    */
-  async create(parameters: CreateWorkflowRunParameters): Promise<WorkflowRun> {
+  async create(
+    parameters: CreateWorkflowRunParameters,
+    options?: RepositoryWriteOptions,
+  ): Promise<WorkflowRun> {
     try {
-      const record = await this.database.workflowRun.create({
+      const client = options?.transaction ?? this.database
+      const record = await client.workflowRun.create({
         data: {
           activeKey: parameters.activeKey,
           definitionKey: parameters.definitionKey,
@@ -143,12 +164,14 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
    * Loads a single run by primary key, including its steps.
    *
    * @param id - Stable primary key of the workflow run.
+   * @param options - Optional transaction client.
    * @returns The domain run when found; otherwise `null`.
    * @throws {WorkflowRunReadError} When the persistence operation fails.
    */
-  async findById(id: string): Promise<WorkflowRun | null> {
+  async findById(id: string, options?: RepositoryWriteOptions): Promise<WorkflowRun | null> {
     try {
-      const record = await this.database.workflowRun.findUnique({
+      const client = options?.transaction ?? this.database
+      const record = await client.workflowRun.findUnique({
         where: {
           id,
         },
@@ -176,11 +199,17 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
    *
    * @param id - Primary key of the run to update.
    * @param parameters - Target status and optional result/failure/timestamps.
+   * @param options - Optional transaction client.
    * @returns `true` when one row was updated; `false` when the run does not exist.
    * @throws {WorkflowRunUpdateError} When the persistence operation fails.
    */
-  async updateRunStatus(id: string, parameters: UpdateWorkflowRunStatusParameters): Promise<boolean> {
+  async updateRunStatus(
+    id: string,
+    parameters: UpdateWorkflowRunStatusParameters,
+    options?: RepositoryWriteOptions,
+  ): Promise<boolean> {
     try {
+      const client = options?.transaction ?? this.database
       const data: Prisma.WorkflowRunUpdateManyMutationInput = {
         status: parameters.status,
       }
@@ -207,7 +236,7 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
           parameters.failure === null ? Prisma.DbNull : (parameters.failure as Prisma.InputJsonValue)
       }
 
-      const result = await this.database.workflowRun.updateMany({
+      const result = await client.workflowRun.updateMany({
         where: {
           id,
         },
@@ -225,14 +254,17 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
    *
    * @param id - Primary key of the step to update.
    * @param parameters - Target status and optional output/timestamps.
-   * @returns `true` when one row was updated; `false` when the step does not exist.
+   * @param options - Optional transaction client and status guard.
+   * @returns `true` when one row was updated; `false` when no row matched.
    * @throws {WorkflowStepUpdateError} When the persistence operation fails.
    */
   async updateStepStatus(
     id: string,
     parameters: UpdateWorkflowStepStatusParameters,
+    options?: RepositoryWriteOptions,
   ): Promise<boolean> {
     try {
+      const client = options?.transaction ?? this.database
       const data: Prisma.WorkflowStepUpdateManyMutationInput = {
         status: parameters.status,
       }
@@ -254,9 +286,16 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
           parameters.output === null ? Prisma.DbNull : (parameters.output as Prisma.InputJsonValue)
       }
 
-      const result = await this.database.workflowStep.updateMany({
+      const result = await client.workflowStep.updateMany({
         where: {
           id,
+          ...(options?.onlyIfStatusIn
+            ? {
+                status: {
+                  in: [...options.onlyIfStatusIn],
+                },
+              }
+            : {}),
         },
         data,
       })

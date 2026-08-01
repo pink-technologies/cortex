@@ -1,26 +1,23 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { GetExecutionJobResponse, GetExecutionJobResponseSchema } from '@cortex/protocol'
+import { GetExecutionJobResponseSchema, type GetExecutionJobResponse } from '@cortex/protocol'
 import type { ExecutionJob } from '../models'
 
 /**
- * Maps a domain {@link ExecutionJob} into the Cortex HTTP protocol.
+ * Maps a domain {@link ExecutionJob} into the public GET execution-job response.
  *
- * This mapper defines the boundary between the API's internal execution-job
- * model and the representation transmitted to Cortex Nodes.
+ * Converts dates to ISO-8601, selects the read-model fields, and validates the
+ * result against {@link GetExecutionJobResponseSchema}.
  */
 export class ExecutionJobResponseMapper {
-  // MARK: - Static Methods
+  // MARK: - Static methods
 
   /**
    * Creates a protocol response from a domain execution job.
    *
-   * Dates are converted to ISO-8601 strings, nested values are copied
-   * explicitly, and persistence-only properties are omitted.
-   *
-   * @param executionJob - The domain execution job to expose.
-   * @returns The corresponding execution-job protocol response.
+   * @param executionJob - Domain execution job to expose.
+   * @returns Validated GET execution-job response.
    */
   static from(executionJob: ExecutionJob): GetExecutionJobResponse {
     return GetExecutionJobResponseSchema.parse({
