@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AgentDefinitionAlreadyRegisteredError, AgentDefinitionNotFoundError } from '../error/error'
-import type { AgentDefinition } from '../models'
+import { AgentDefinitionAlreadyRegisteredError, AgentDefinitionNotFoundError } from '@/definition/error/error'
+import type { AgentDefinition } from '@/definition/models'
 
 /**
  * In-memory catalog of {@link AgentDefinition} records available to the runtime.

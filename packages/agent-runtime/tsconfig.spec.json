@@ -4,7 +4,11 @@
     "rootDir": ".",
     "noEmit": true,
     "isolatedModules": true,
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "zod": ["./node_modules/zod/index.d.ts", "../../node_modules/zod/index.d.ts"]
+    }
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["dist", "node_modules"]

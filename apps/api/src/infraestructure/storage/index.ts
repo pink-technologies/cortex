@@ -7,4 +7,4 @@ export {
   StorageInitializationError,
   ReadStorageError,
   StorageWriteError,
-} from './error/storage-error';
+} from './error/error';

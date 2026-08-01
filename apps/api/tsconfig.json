@@ -1,3 +1,16 @@
 {
-  "extends": "./tsconfig.app.json"
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@integrations/*": ["./src/integrations/*"],
+      "@modules/*": ["./src/modules/*"]
+    },
+    "types": ["jest", "node"],
+    "typeRoots": ["./node_modules/@types", "../../node_modules/@types"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.test.ts"],
+  "exclude": ["dist", "node_modules", "src/infraestructure/database/generated/**"]
 }

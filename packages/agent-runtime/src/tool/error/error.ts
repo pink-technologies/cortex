@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { ZodError } from 'zod';
-import { AgentRuntimeError } from '../../error/agent-runtime-error';
+import { AgentRuntimeError } from '@/error/error';
 
 /**
  * Thrown when a tool is registered with an id that already exists.

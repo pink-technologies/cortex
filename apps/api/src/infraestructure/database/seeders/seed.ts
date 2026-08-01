@@ -6,7 +6,7 @@ import * as dotenv from 'dotenv';
 import { ConfigService } from '@nestjs/config';
 import { Database } from '@/infraestructure/database';
 import { SeederMigration } from './seeder.migration';
-import { SeedExecutionError } from './error/seed-execution-error';
+import { SeedExecutionError } from './error/error';
 
 /**
  * Seed entrypoint.

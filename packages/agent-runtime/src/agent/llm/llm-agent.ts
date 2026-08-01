@@ -2,9 +2,9 @@
 // https://pink-tech.io/
 
 import type { LLM } from '@cortex/llm'
-import type { AgentDefinition } from '../../definition'
-import type { AgentExecutionContext } from '../../execution/agent-execution-context'
-import type { Agent, AgentTurn, AgentTurnRequest } from '../models'
+import type { AgentDefinition } from '@/definition'
+import type { AgentExecutionContext } from '@/execution/agent-execution-context'
+import type { Agent, AgentTurn, AgentTurnRequest } from '@/agent/models'
 
 /**
  * {@link Agent} implementation that produces turns via a language-model client.

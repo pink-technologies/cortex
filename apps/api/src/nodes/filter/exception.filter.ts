@@ -7,7 +7,7 @@ import {
   NodeModuleError, 
   NodeNotFoundError, 
   NodeRevokedError 
-} from '../error/node-module-error'
+} from '../error/error'
 
 import {
   ArgumentsHost,

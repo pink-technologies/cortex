@@ -1,0 +1,6 @@
+# Copyright (c) 2026, PinkTech
+# https://pink-tech.io/
+
+id = "repro-from-ticket"
+description = "Derive a reproduction hypothesis from a Jira ticket."
+prompt_file = "prompt.md"

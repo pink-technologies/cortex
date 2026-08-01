@@ -6,7 +6,11 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
+  // rawBody is required so GitHub webhook HMAC can be verified against the
+  // exact bytes GitHub signed (parsed JSON is not byte-identical).
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  })
 
   app.setGlobalPrefix('api')
   app.useGlobalPipes(

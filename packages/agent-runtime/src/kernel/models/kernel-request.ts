@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { LLMMessage, LLMToolDefinition } from '@cortex/llm'
-import type { Agent } from '../../agent'
+import type { Agent } from '@/agent'
 
 /**
  * Describes an execution request handled by the {@link Kernel}.

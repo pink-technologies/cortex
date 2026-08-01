@@ -2,9 +2,9 @@
 // https://pink-tech.io/
 
 import type { ToolUseContent } from '@cortex/llm'
-import type { AgentExecutionContext } from '../../execution/agent-execution-context'
-import { AgentToolExecutionError, AgentToolInputValidationError } from '../error/error'
-import type { AgentToolRegistry } from '../registry/agent-tool-registry'
+import type { AgentExecutionContext } from '@/execution/agent-execution-context'
+import { AgentToolExecutionError, AgentToolInputValidationError } from '@/tool/error/error'
+import type { AgentToolRegistry } from '@/tool/registry/agent-tool-registry'
 import type { AgentToolExecutionResult } from './agent-tool-execution-result'
 
 /**

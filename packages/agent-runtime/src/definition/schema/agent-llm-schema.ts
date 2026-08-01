@@ -23,7 +23,7 @@ export const agentLLMSchema = z
      * Must be a positive integer. Mapped to
      * {@link AgentLLMDefinition.maximumOutputTokens}.
      */
-    max_tokens: z
+    maximum_output_tokens: z
       .number()
       .int()
       .positive(),

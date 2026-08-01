@@ -18,7 +18,7 @@ import {
   KernelTimeoutError,
   KernelToolNotAllowedError,
   KernelUnexpectedStopReasonError,
-} from '../../src/kernel/error/kernel.error'
+} from '../../src/kernel/error/error'
 import { Kernel } from '../../src/kernel/kernel'
 import {
   AgentToolExecutor,

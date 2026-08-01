@@ -2,76 +2,84 @@
 // https://pink-tech.io/
 
 import { setTimeout as delay } from 'node:timers/promises'
-import { ExecutionJobClient } from './jobs/execution-job-client'
-import { NODE_CONFIGURATION, type NodeConfiguration } from '../configuration/node-configuration'
-import { NodeDescriptorProvider } from '../node/node-descriptor.provider'
-import { SystemTestExecutor } from './jobs/system-test.executor'
-import { NodeIdentityStore } from '../node/node-identity-store'
-import { ExecutionNodeClient } from '../node/execution-node.client'
+import { Inject, Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common'
+import { AgentRuntimeBootstrap } from '../agent/bootstrap'
 import {
-  Inject,
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  OnApplicationShutdown,
-} from '@nestjs/common'
+  assertJiraTriageRuntimeReady,
+  assertRepositoryReviewRuntimeReady,
+  NODE_CONFIGURATION,
+  type NodeConfiguration,
+} from '../configuration'
+import { ExecutionJobPoller } from './jobs/polling'
+import { CortexNodeResource } from '../cortex'
+import { NodeDescriptorProvider } from '../node/node-descriptor.provider'
+import { NodeIdentityStore } from '../node/node-identity-store'
 
 /**
- * Coordinates execution-job processing for the Cortex Node.
+ * Application lifecycle coordinator for a Cortex execution Node.
  *
- * The service continuously requests compatible jobs from the Cortex API,
- * executes supported job kinds, and reports the resulting terminal state.
+ * Started by Nest via {@link OnApplicationBootstrap} and stopped via
+ * {@link OnApplicationShutdown}. On boot this service loads local agent
+ * definitions, registers the Node with the Cortex API using a stable
+ * installation identity and workload descriptor, then runs the execution-job
+ * poller and heartbeat loop until shutdown aborts them.
  *
- * Jobs are executed sequentially. The node does not request another job until
- * the current job has completed or failed.
+ * Responsibilities:
+ * - initialize {@link AgentRuntimeBootstrap} before accepting work
+ * - register with the control plane and log the assigned Node id
+ * - run {@link ExecutionJobPoller} and periodic heartbeats concurrently
+ * - abort in-flight loops cleanly on application shutdown
+ *
+ * Non-responsibilities:
+ * - claiming, executing, or completing individual jobs (see
+ *   {@link ExecutionJobPoller})
+ * - HTTP transport details for registration or heartbeat (see
+ *   {@link CortexNodeResource})
+ * - constructing the advertised descriptor or persisting installation identity
  */
 @Injectable()
-export class ExecutionNodeService
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class ExecutionNodeService implements OnApplicationBootstrap, OnApplicationShutdown {
   // MARK: - Private Properties
 
   private readonly abortController = new AbortController()
-
   private readonly logger = new Logger(ExecutionNodeService.name)
 
-  private executionTask?: Promise<void>
+  private executionTask: Promise<void> | undefined
 
   // MARK: - Constructor
 
   /**
-   * Creates the execution node service.
+   * Creates the execution Node service.
    *
    * @param configuration - Validated Cortex Node configuration.
-   * @param executionJobClient - Client used to communicate with the Cortex API.
-   * @param systemTestExecutor - Executor for `system.test` jobs.
+   * @param agentRuntimeBootstrap - Initializes local agent definitions.
+   * @param nodeDescriptorProvider - Creates the local Node descriptor.
+   * @param identityStore - Stores the stable Node installation identity.
+   * @param nodes - Resource for Node registration and heartbeats.
+   * @param executionJobPoller - Claims and processes execution jobs.
    */
   constructor(
     @Inject(NODE_CONFIGURATION)
     private readonly configuration: NodeConfiguration,
-    @Inject()
+    private readonly agentRuntimeBootstrap: AgentRuntimeBootstrap,
     private readonly nodeDescriptorProvider: NodeDescriptorProvider,
-    @Inject()
     private readonly identityStore: NodeIdentityStore,
-    private readonly executionJobClient: ExecutionJobClient,
-    private readonly executionNodeClient: ExecutionNodeClient,
-    private readonly systemTestExecutor: SystemTestExecutor,
+    private readonly nodes: CortexNodeResource,
+    private readonly executionJobPoller: ExecutionJobPoller,
   ) {}
 
   // MARK: - OnApplicationBootstrap
 
-  /**
-   * Starts the execution-job polling loop.
-   */
   onApplicationBootstrap(): void {
-    this.executionTask = this.run()
+    if (this.executionTask) {
+      return
+    }
+
+    this.executionTask = this.run(this.abortController.signal)
   }
 
   // MARK: - OnApplicationShutdown
 
-  /**
-   * Stops polling and waits for the execution loop to terminate.
-   */
   async onApplicationShutdown(): Promise<void> {
     this.abortController.abort()
 
@@ -80,145 +88,70 @@ export class ExecutionNodeService
 
   // MARK: - Private methods
 
-  private async run(): Promise<void> {
-    const identity =  await this.identityStore.loadOrCreate()
-    const descriptor = this.nodeDescriptorProvider.create()
-    const registration = await this.executionNodeClient.register(
-      {
-        ...descriptor,
-        installationId: identity.installationId,
-        name: this.configuration.nodeName,
-        version: this.configuration.version
-      }
-    )    
+  private async run(signal: AbortSignal): Promise<void> {
+    await this.agentRuntimeBootstrap.initialize()
 
-    this.logger.log(
-      `Cortex Node registered as ${registration.nodeId}`,
-    )
+    signal.throwIfAborted()
+
+    const descriptor = this.nodeDescriptorProvider.create()
+
+    assertRepositoryReviewRuntimeReady(this.configuration, descriptor.supportedKinds)
+    assertJiraTriageRuntimeReady(this.configuration, descriptor.supportedKinds)
+
+    const identity = await this.identityStore.loadOrCreate()
+    const registration = await this.nodes.register({
+      ...descriptor,
+      installationId: identity.installationId,
+      name: this.configuration.nodeName,
+      version: this.configuration.version,
+    })
+
+    this.logger.log(`Cortex Node registered as ${registration.nodeId} (kinds: ${descriptor.supportedKinds.join(', ')})`)
+
+    if (this.configuration.sourceControlConnections.length > 0) {
+      this.logger.log(
+        `Source-control connections ready: ${this.configuration.sourceControlConnections
+          .map((connection) => connection.id)
+          .join(', ')}`,
+      )
+    }
 
     await Promise.all([
-      this.runExecutionLoop(registration.nodeId),
-      this.runHeartbeatLoop(
-        registration.nodeId,
-        registration.heartbeatIntervalSeconds,
-      ),
+      this.executionJobPoller.run(registration.nodeId, signal),
+      this.runHeartbeatLoop(registration.nodeId, registration.heartbeatIntervalSeconds, signal),
     ])
   }
 
-  private async executeNextAvailableJob(nodeId: string): Promise<void> {
-    const response = await this.executionJobClient.claimNextAvailable(nodeId)
-    const executionJob = response.job
-  
-    if (!executionJob) {
-      return
-    }
-  
-    this.logger.log(
-      `Executing job ${executionJob.id} (${executionJob.kind})`,
-    )
-  
-    try {
-      switch (executionJob.kind) {
-        case 'system.test':
-          await this.systemTestExecutor.execute(executionJob)
-          break
-  
-        default:
-          throw new Error(
-            `Unsupported execution job kind: ${executionJob.kind}`,
-          )
-      }
-  
-      await this.executionJobClient.complete(
-        executionJob.id,
-      )
-  
-      this.logger.log(
-        `Execution job ${executionJob.id} completed`,
-      )
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Execution failed with an unknown error'
-  
-      this.logger.error(
-        `Execution job ${executionJob.id} failed: ${message}`,
-        error instanceof Error
-          ? error.stack
-          : undefined,
-      )
-  
-      await this.executionJobClient.fail(executionJob.id)
-    }
-  }
-
-  private async runExecutionLoop(
-    nodeId: string,
-  ): Promise<void> {
-    while (!this.abortController.signal.aborted) {
+  private async runHeartbeatLoop(nodeId: string, intervalSeconds: number, signal: AbortSignal): Promise<void> {
+    while (!signal.aborted) {
       try {
-        await this.executeNextAvailableJob(nodeId)
+        await this.nodes.heartbeat(nodeId, signal)
       } catch (error) {
+        if (signal.aborted) {
+          return
+        }
+
         this.logger.error(
-          'Failed to execute the next available job',
-          error instanceof Error
-            ? error.stack
-            : undefined,
+          `Failed to send heartbeat for Node '${nodeId}'.`,
+          error instanceof Error ? error.stack : undefined,
         )
       }
-  
-      await this.wait(
-        this.configuration.pollingIntervalMilliseconds,
-      )
+
+      await this.wait(intervalSeconds * 1_000, signal)
     }
   }
 
-  private async runHeartbeatLoop(nodeId: string, intervalSeconds: number): Promise<void> {
-    while (!this.abortController.signal.aborted) {
-      try {        
-        await this.executionNodeClient.heartbeat(nodeId)
-      } catch (error) {
-        this.logger.error(
-          `Failed to send heartbeat for node ${nodeId}`,
-          error instanceof Error
-            ? error.stack
-            : undefined,
-        )
-      }
-  
-      await this.wait(
-        intervalSeconds * 1_000,
-      )
-    }
-  }
-
-  private async wait(
-    milliseconds: number,
-  ): Promise<void> {
+  private async wait(milliseconds: number, signal: AbortSignal): Promise<void> {
     try {
-      await this.waitForNextPoll()
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.name === 'AbortError'
-      ) {
-        return
-      }
-  
-      throw error
-    }
-  }
-
-  private async waitForNextPoll(): Promise<void> {
-    try {
-      await delay(this.configuration.pollingIntervalMilliseconds, undefined, {
-        signal: this.abortController.signal,
+      await delay(milliseconds, undefined, {
+        signal,
       })
     } catch (error) {
-      if (!this.abortController.signal.aborted) {
-        throw error
+      if (signal.aborted) {
+        return
       }
+
+      throw error
     }
   }
 }

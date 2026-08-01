@@ -2,10 +2,10 @@
 // https://pink-tech.io/
 
 import z, { type ZodType } from 'zod'
-import type { AgentExecutionContext } from '../../execution/agent-execution-context'
-import { AgentToolAlreadyRegisteredError, AgentToolNotFoundError } from '../error/error'
-import type { AgentTool } from '../models/agent-tool'
-import type { RegisteredAgentTool } from '../models/'
+import type { AgentExecutionContext } from '@/execution/agent-execution-context'
+import { AgentToolAlreadyRegisteredError, AgentToolNotFoundError } from '@/tool/error/error'
+import type { AgentTool } from '@/tool/models/agent-tool'
+import type { RegisteredAgentTool } from '@/tool/models/'
 import { LLMToolDefinition } from '@cortex/llm'
 
 /**

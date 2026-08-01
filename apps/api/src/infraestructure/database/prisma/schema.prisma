@@ -66,6 +66,8 @@ model ExecutionJob {
 
   triggerIdentifier String? @unique
   activeKey         String? @unique
+  claimToken        String?
+  claimedByNodeId   String?
 
   maximumAttempts Int @default(1)
 
@@ -76,6 +78,7 @@ model ExecutionJob {
 
   startedAt   DateTime?
   completedAt DateTime?
+  failedAt    DateTime?
 
   attempts ExecutionJobAttempt[]
   events   ExecutionJobEvent[]

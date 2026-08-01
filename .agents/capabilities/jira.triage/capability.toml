@@ -1,0 +1,7 @@
+# Copyright (c) 2026, PinkTech
+# https://pink-tech.io/
+
+id = "jira.triage"
+description = "Classifies Jira tickets, reproduces via allowlisted tests, and escalates or drafts a fix PR."
+default_agent = "qa"
+tools = []

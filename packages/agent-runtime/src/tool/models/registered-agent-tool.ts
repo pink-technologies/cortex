@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { ZodType } from 'zod'
-import type { AgentExecutionContext } from '../../execution/agent-execution-context'
+import type { AgentExecutionContext } from '@/execution/agent-execution-context'
 
 /**
  * Represents a type-erased tool resolved from the tool registry.

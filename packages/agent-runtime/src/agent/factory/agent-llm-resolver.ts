@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { LLM } from '@cortex/llm'
-import type { AgentLLMDefinition } from '../../definition'
+import type { AgentLLMDefinition } from '@/definition'
   
   /**
    * Resolves the language-model client required by an agent.

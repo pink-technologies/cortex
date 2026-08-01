@@ -2,13 +2,13 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common'
+import { AgentModule } from './agent'
 import { NodeConfigurationModule } from './configuration/node-configuration.module'
-import { ExecutionJobClient } from './execution/jobs/execution-job-client'
-import { SystemTestExecutor } from './execution/jobs/system-test.executor'
-import { ExecutionNodeService } from './execution/jobs/execution-node.service'
+import { CortexModule } from './cortex'
+import { ExecutionModule } from './execution/execution.module'
+import { ExecutionNodeService } from './execution/execution-node.service'
 import { NodeDescriptorProvider } from './node/node-descriptor.provider'
 import { NodeIdentityStore } from './node/node-identity-store'
-import { ExecutionNodeClient } from './node/execution-node.client'
 
 /**
  * Root application module for the Cortex Node.
@@ -18,16 +18,7 @@ import { ExecutionNodeClient } from './node/execution-node.client'
  * final state.
  */
 @Module({
-  imports: [
-    NodeConfigurationModule,
-  ],
-  providers: [
-    ExecutionJobClient,
-    ExecutionNodeClient,
-    ExecutionNodeService,
-    NodeDescriptorProvider,
-    NodeIdentityStore,
-    SystemTestExecutor,
-  ],
+  imports: [AgentModule, CortexModule, ExecutionModule, NodeConfigurationModule],
+  providers: [ExecutionNodeService, NodeDescriptorProvider, NodeIdentityStore],
 })
 export class NodeModule {}

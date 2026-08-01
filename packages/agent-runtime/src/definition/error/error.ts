@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { AgentRuntimeError } from '../../error/agent-runtime-error';
+import { AgentRuntimeError } from '@/error/error';
 
 /**
  * Thrown when an agent definition is registered with an id that already exists.

@@ -13,6 +13,7 @@ import { z } from 'zod'
  * - `openai` — OpenAI Chat Completions API.
  */
 export const LLMProviderType = {
+  Anthropic: 'anthropic',
   OpenAI: 'openai',
 } as const
 
@@ -25,6 +26,7 @@ export const LLMProviderType = {
  * time instead of at client construction.
  */
 export const LLMProviderTypeSchema = z.enum([
+  LLMProviderType.Anthropic,
   LLMProviderType.OpenAI,
 ])
 

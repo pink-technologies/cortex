@@ -33,6 +33,13 @@ exports.ExecutionJobSchema = zod_1.z.object({
     priority: zod_1.z.number().int(),
     /** Runtime limits and failure-artifact retention settings. */
     policy: execution_job_policy_1.ExecutionJobPolicySchema,
+    /**
+     * Token issued when the job was claimed.
+     *
+     * Present on claimed (`RUNNING`) jobs so the worker can prove ownership when
+     * completing or failing the job. Absent or `null` while queued.
+     */
+    claimToken: zod_1.z.uuid().nullable(),
     /** Current lifecycle state of the execution job. */
     status: execution_job_status_1.ExecutionJobStatusSchema,
     /** ISO-8601 timestamp of the most recent persisted change. */

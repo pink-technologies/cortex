@@ -3,7 +3,7 @@
 
 import { ToolFactory } from '@/tools/tool';
 import { CreateCardTool } from './create-card.tool';
-import { TrelloClientMissingInContextError } from '../error/trello.error';
+import { TrelloClientMissingInContextError } from '../error/error';
 
 /**
  * Creates a new create card tool factory.

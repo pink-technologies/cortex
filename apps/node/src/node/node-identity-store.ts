@@ -7,7 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { z } from 'zod'
-import type { NodeIdentity } from './node-identity'
+import type { NodeIdentity } from './models'
 
 const NodeIdentitySchema = z
   .object({

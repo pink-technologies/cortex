@@ -1,0 +1,79 @@
+---
+description: Source-file basics — MARK, imports, models, errors, public JSDoc
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Code Organization
+
+Apply `.cursor/skills/cortext-style/references/source-file-basics.md` and
+`references/cortex-typescript-overlay.md`. See also
+`.cursor/skills/cortext-style/SKILL.md`.
+
+## Copyright
+
+Changed hand-written TypeScript files use the PinkTech header:
+
+```ts
+// Copyright (c) 2026, PinkTech
+// https://pink-tech.io/
+```
+
+## MARK sections
+
+```text
+// MARK: - Types
+// MARK: - Properties          (all fields, including private)
+// MARK: - Constructor         (always document)
+// MARK: - Instance methods    (public API; interface MARK ok when useful)
+// MARK: - Private methods
+```
+
+Omit unused sections. Prefer explicit private fields under Properties.
+
+## Documentation
+
+From `documentation-comments-full-spec.md` + overlay:
+
+- Document exported types/interfaces, constructors, and public methods.
+- **Always** document constructors (`@param` for every parameter, including Nest injects).
+- **Always** document every property on exported models/interfaces.
+- Do **not** JSDoc private members.
+- Tag order: `@param` → `@returns` → `@throws`.
+
+## Models
+
+Place domain types and request/result shapes under `<feature>/models/` (one
+primary type per file, barrel at `models/index.ts`). Do not declare data models
+inline in adapter, service, or port files.
+
+## Errors
+
+Place folder-scoped errors in `<folder>/error/error.ts` — one file per folder.
+Do not use `*-error.ts`, `*.error.ts`, or sibling error classes outside `error/`.
+
+## Line length
+
+Keep lines within Prettier `printWidth: 120`. Break long URLs, argument lists,
+and fluent chains rather than exceeding the limit.
+
+## Imports
+
+1. Single-line imports first (external packages, then internal/`@/` paths).
+2. Multiline imports last.
+3. No blank line between the last single-line import and the first multiline import.
+4. Blank line between each multiline import block.
+
+```ts
+import { Injectable } from '@nestjs/common'
+import { JiraTriageJobKind } from '@cortex/protocol'
+import {
+  AgentDefinitionLoader,
+  AgentDefinitionRegistry,
+} from '@cortex/agent-runtime'
+
+import {
+  ConfigJiraConnectionStore,
+  ConfigSourceControlConnectionStore,
+} from '../connection'
+```

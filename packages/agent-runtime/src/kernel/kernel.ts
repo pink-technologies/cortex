@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { AgentExecutionContext } from '../execution/agent-execution-context'
-import type { AgentToolExecutor } from '../tool'
+import type { AgentExecutionContext } from '@/execution/agent-execution-context'
+import type { AgentToolExecutor } from '@/tool'
 import type { KernelRequest, KernelResult } from './models'
 import {
   ContentKind,
@@ -20,7 +20,7 @@ import {
   KernelTimeoutError,
   KernelToolNotAllowedError,
   KernelUnexpectedStopReasonError,
-} from './error/kernel.error'
+} from './error/error'
 
 /**
  * Coordinates the multi-turn execution loop for a single agent run.

@@ -6,7 +6,7 @@ import { Database } from '@/infraestructure/database'
 import { ExecutionNodeMapper } from './mapper/execution-node-mapper'
 import { ExecutionNode } from './models/execution-node'
 import { RegisterNodeParameters } from './parameters/register/register-node-parameters'
-import { FindNodeFailedError, HeartbeatNodeFailedError, RegisterNodeFailedError } from './error/node-module-error'
+import { FindNodeFailedError, HeartbeatNodeFailedError, RegisterNodeFailedError } from './error/error'
 
 /**
  * Injection token for the {@link NodesRepository} persistence port.

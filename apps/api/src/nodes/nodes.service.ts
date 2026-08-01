@@ -5,7 +5,7 @@ import { Inject, Injectable } from "@nestjs/common"
 import { NODES_REPOSITORY, type NodesRepository } from "./nodes.repository"
 import { ExecutionNode, NodeState } from "./models/execution-node"
 import { RegisterNodeParameters } from "./parameters/register/register-node-parameters"
-import { NodeDisabledError, NodeNotFoundError, NodeRevokedError } from "./error/node-module-error"
+import { NodeDisabledError, NodeNotFoundError, NodeRevokedError } from "./error/error"
 
 /**
  * Coordinates execution-node registration, lookup, heartbeat, and scheduling

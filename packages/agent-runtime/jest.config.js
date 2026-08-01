@@ -4,6 +4,9 @@ module.exports = {
   rootDir: '.',
   roots: ['<rootDir>/test'],
   testMatch: ['<rootDir>/test/**/*.test.ts'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
   transform: {
     '^.+\\.(t|j)s$': [
       'ts-jest',
@@ -19,7 +22,12 @@ module.exports = {
   collectCoverageFrom: [
     // Expand this list as each module gains a dedicated suite. Thresholds apply
     // only to collected files — aim for 100%, enforce ≥95%.
+    '<rootDir>/src/capabilities/**/*.ts',
+    '<rootDir>/src/execution/scope/error/error.ts',
+    '<rootDir>/src/execution/scope/capability-agent-execution-scope-resolver.ts',
+    '<rootDir>/src/execution/scope/default-agent-execution-scope-resolver.ts',
     '<rootDir>/src/kernel/**/*.ts',
+    '<rootDir>/src/skills/**/*.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',
   coverageReporters: ['text', 'text-summary', 'lcov'],

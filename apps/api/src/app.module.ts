@@ -10,6 +10,7 @@ import { DatabaseExceptionFilter, DatabaseModule } from './infraestructure/datab
 import { ExecutionModule } from './execution/execution.module'
 import { NodesModule } from './nodes/nodes.module'
 import { StorageModule } from './infraestructure/storage/storage.module'
+import { WebhooksModule } from './webhooks'
 import { I18nModule as CortexI18nModule } from './i18n'
 import {
   AcceptLanguageResolver,
@@ -29,6 +30,7 @@ import {
     ExecutionModule,
     NodesModule,
     StorageModule,
+    WebhooksModule,
     I18nModule.forRoot({
       fallbackLanguage: 'en',
       loader: I18nJsonLoader,
@@ -43,10 +45,6 @@ import {
       },
     }),
     RouterModule.register([
-      {
-        path: 'internal',
-        module: ExecutionModule,
-      },
       {
         path: 'internal',
         module: NodesModule,

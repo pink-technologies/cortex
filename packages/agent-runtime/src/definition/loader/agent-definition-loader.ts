@@ -3,9 +3,9 @@
 
 import path from 'path';
 import { readdir, readFile } from 'fs/promises'
-import { AgentDefinition } from '../models/agent-definition'
-import { agentSchema } from '../schema/agent-schema'
-import { DECODER, Decoder } from '../../manifest/decoder/decoder'
+import { AgentDefinition } from '@/definition/models/agent-definition'
+import { agentSchema } from '@/definition/schema/agent-schema'
+import { DECODER, Decoder } from '@/manifest/decoder/decoder'
 
 /**
  * Loads bundled agent definitions from the local file system.
@@ -17,11 +17,11 @@ import { DECODER, Decoder } from '../../manifest/decoder/decoder'
  * Example directory structure:
  *
  * ```text
- * agents/
+ * .agents/agents/
  * ├── assistant/
  * │   ├── agent.toml
  * │   └── prompt.md
- * └── financial-advisor-agent/
+ * └── financial-advisor/
  *     ├── agent.toml
  *     └── prompt.md
  * ```

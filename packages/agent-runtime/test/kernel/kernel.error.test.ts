@@ -10,7 +10,7 @@ import {
   KernelToolNotAllowedError,
   KernelUnexpectedStopReasonError,
   SkillDecisionTypeNotSupportedError,
-} from '../../src/kernel/error/kernel.error'
+} from '../../src/kernel/error/error'
 
 describe('Kernel errors', () => {
   describe('Given KernelAgentNotFoundError', () => {

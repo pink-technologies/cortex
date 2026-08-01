@@ -1,0 +1,36 @@
+---
+description: Testing strategy + Jest coverage (≥95%, target 100%)
+alwaysApply: true
+---
+
+# Testing and Coverage
+
+Apply `.cursor/skills/cortext-style/references/testing-strategy-full-spec.md`
+together with this repository's Jest thresholds.
+
+## Behavior coverage (`CX-TEST-*`)
+
+- Add a regression test for every bug fix that fails if the bug returns.
+- Cover changed public (or closest stable) behavior: success, expected failure,
+  invalid state, cancellation, retry/recovery, repeated invocation, cleanup.
+- Test meaningful state transitions and lifecycle cleanup when ownership changes.
+- Assert typed errors and relevant fields — not only “it threw”.
+- Prefer Given–When–Then for nontrivial cases; keep tests independent.
+- Test through the public boundary; do not export private helpers solely for
+  coverage when the public API already exercises the behavior.
+- Do not mock simple values or private structure merely to hit a percentage.
+- Report checks as `PASS` / `FAIL` / `NOT_RUN` independently.
+
+## Jest coverage policy
+
+When adding or extending tests in this monorepo:
+
+- Aim for **100%** statement/branch/function/line coverage on the production
+  code under test.
+- Enforce a **minimum of 95%** via Jest `coverageThreshold` (fail if below).
+- Keep `collectCoverage: true` on package Jest configs once a suite exists.
+- Scope `collectCoverageFrom` to modules that have dedicated tests; expand as
+  each module gets a suite. Do not lower thresholds to include unfinished modules.
+- Prefer filling gaps with focused tests over excluding files from collection.
+- Coverage percentage does not replace behavior coverage for failure,
+  cancellation, recovery, or lifecycle transitions.

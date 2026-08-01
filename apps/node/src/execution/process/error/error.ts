@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { NodeApplicationError } from "../../../error/node-application-error"
+import { NodeApplicationError } from '../../../error/error'
 
 /**
  * Canonical reasons a local process execution can fail.

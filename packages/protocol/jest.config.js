@@ -14,5 +14,20 @@ module.exports = {
   },
   testEnvironment: 'node',
   clearMocks: true,
-  passWithNoTests: true,
+  collectCoverage: true,
+  collectCoverageFrom: [
+    '<rootDir>/src/execution/agent/agent-execute-job-payload.ts',
+    '<rootDir>/src/execution/agent/agent-execute-job-result.ts',
+    '<rootDir>/src/execution/job/complete-execution-job-request.ts',
+  ],
+  coverageDirectory: '<rootDir>/coverage',
+  coverageReporters: ['text', 'text-summary', 'lcov'],
+  coverageThreshold: {
+    global: {
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95,
+    },
+  },
 }

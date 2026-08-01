@@ -1,0 +1,26 @@
+id = "assistant"
+name = "Main Assistant"
+description = "General-purpose Cortex assistant for smoke and runtime verification."
+
+role = "main"
+prompt_file = "prompt.md"
+
+skills = []
+capabilities = []
+delegates_to = []
+
+[safety]
+allow_skill_use = false
+allow_capability_use = false
+allow_delegation = false
+max_delegation_depth = 0
+
+[execution]
+timeout_ms = 30000
+max_iterations = 4
+
+[llm]
+provider = "openai"
+model = "gpt-4o-mini"
+maximum_output_tokens = 300
+temperature = 0

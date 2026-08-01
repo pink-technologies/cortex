@@ -1,8 +1,8 @@
-export { Database, type DatabaseTransaction } from './database';
-export { DatabaseEntityNotFoundError } from './error/database-error';
-export { DatabaseExceptionFilter } from './filter/database-exception.filter';
-export { DatabaseModule } from './database.module';
-export { Prisma, ExecutionJobStatus, NodeOperatingSystem, NodeState } from '@prisma/client';
+export { Database, type DatabaseTransaction } from './database'
+export { DatabaseEntityNotFoundError } from './error/error'
+export { DatabaseExceptionFilter } from './filter/database-exception.filter'
+export { DatabaseModule } from './database.module'
+export { Prisma, ExecutionJobStatus, NodeOperatingSystem, NodeState } from '@prisma/client'
 export type {
   Agent,
   AgentSkill,
@@ -13,5 +13,6 @@ export type {
   ExecutionJobEvent,
   ExecutionNode,
   ExecutionWorker,
+  JobStatus,
   Message,  
-} from '@prisma/client';
+} from '@prisma/client'

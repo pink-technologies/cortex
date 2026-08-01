@@ -3,19 +3,33 @@
 
 import { Injectable } from '@nestjs/common'
 import { NodeArchitecture, NodeOperatingSystem } from '@cortex/protocol'
-import type { NodeDescriptor } from './node-descriptor'
+import { ExecutionJobHandlerRegistry } from '../execution/handler'
+import type { NodeDescriptor } from './models'
 
 /**
  * Produces the workload-matching descriptor advertised by this Cortex node.
  *
  * The provider centralizes the node's supported capabilities, labels, and job
- * kinds so registration and execution flows use the same metadata. Dynamic
- * machine attributes, such as the operating system and CPU architecture, are
- * resolved when the descriptor is created.
+ * kinds so registration and execution flows use the same metadata. Supported
+ * job kinds are derived from the execution-job handler registry, so the node
+ * only advertises work it can actually process. Dynamic machine attributes,
+ * such as the operating system and CPU architecture, are resolved when the
+ * descriptor is created.
  */
 @Injectable()
 export class NodeDescriptorProvider {
-  
+  // MARK: - Constructor
+
+  /**
+   * Creates a node-descriptor provider.
+   *
+   * @param executionJobHandlerRegistry - Registry whose registered handlers
+   * define the job kinds this node advertises.
+   */
+  constructor(
+    private readonly executionJobHandlerRegistry: ExecutionJobHandlerRegistry,
+  ) {}
+
   // MARK: - Instance methods
 
   /**
@@ -32,9 +46,7 @@ export class NodeDescriptorProvider {
       ],
       labels: [],      
       operatingSystem: this.resolveOperatingSystem(),
-      supportedKinds: [
-        'system.test',
-      ],
+      supportedKinds: [...this.executionJobHandlerRegistry.supportedKinds()],
     }
   }
 

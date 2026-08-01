@@ -26,5 +26,6 @@
       "@modules/*": ["./apps/api/src/modules/*"]
     }
   },
-  "exclude": ["node_modules", "dist"]
+  "include": ["types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "packages", "apps"]
 }

@@ -1,24 +1,25 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { config } from 'dotenv'
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-
-config({
-  path: resolve(
-    process.cwd(),
-    'apps/node/.env',
-  ),
-})
-
 import { NestFactory } from '@nestjs/core'
 import { NodeModule } from './node.module'
 
+const envCandidates = [
+  resolve(process.cwd(), '.env'),
+  resolve(process.cwd(), 'apps/node/.env'),
+]
+
+for (const envPath of envCandidates) {
+  if (existsSync(envPath)) {
+    process.loadEnvFile(envPath)
+    break
+  }
+}
+
 async function bootstrap(): Promise<void> {
-  const application =
-    await NestFactory.createApplicationContext(
-      NodeModule,
-    )
+  const application = await NestFactory.createApplicationContext(NodeModule)
 
   application.enableShutdownHooks()
 }

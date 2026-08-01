@@ -1,0 +1,7 @@
+# Copyright (c) 2026, PinkTech
+# https://pink-tech.io/
+
+id = "repository.review"
+description = "Reviews source-control changes in a prepared repository workspace and publishes findings."
+default_agent = "coder"
+tools = []

@@ -4,7 +4,7 @@
 import {
   TrelloAPIKeyNotConfiguredError,
   TrelloTokenNotConfiguredError,
-} from '../catalog/error/trello.error';
+} from '../catalog/error/error';
 import { TrelloClient } from '../trello-client';
 
 /**

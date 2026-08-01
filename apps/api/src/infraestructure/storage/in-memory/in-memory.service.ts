@@ -3,7 +3,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { StorageDeletionError, type Storage } from '@/infraestructure/storage';
-import { ReadStorageError, StorageWriteError } from '../error/storage-error';
+import { ReadStorageError, StorageWriteError } from '../error/error';
 
 /**
  * Implementation of {@link Storage} backed by a {@link Map} (async API, in-memory).

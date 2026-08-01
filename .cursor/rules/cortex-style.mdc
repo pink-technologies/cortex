@@ -1,0 +1,38 @@
+---
+description: Cortex engineering style — always apply shared rulebooks + TS overlay
+alwaysApply: true
+---
+
+# Cortex style
+
+Follow the Cortex engineering skill for every implementation and review:
+
+`.cursor/skills/cortext-style/SKILL.md`
+
+Always load:
+
+- `references/review-philosophy.md`
+- `references/architecture-and-api-review.md`
+- `references/api-design-full-spec.md`
+- `references/accepted-exceptions.md`
+- `references/cortex-typescript-overlay.md`
+
+Load subject rulebooks as needed (source-file basics, documentation, naming,
+formatting, testing, implementation workflow).
+
+## Non-negotiables (summary)
+
+- Consumer-visible behavior first: success, failure, cancellation, retry.
+- One owner / source of truth per lifecycle or state.
+- Concrete types by default; interfaces only for real substitution or boundaries.
+- Minimal public surface; do not leak transport, storage, or DI internals.
+- Opt-in checks (e.g. `@cortex/networking` `.validate()`).
+- Call `session.request` at the use site; map failures to layer semantic errors
+  with `{ cause }`.
+- Models under `models/` with JSDoc on every property; errors in `error/error.ts`.
+- Smallest coherent change; delete superseded paths; update docs and tests with
+  the code.
+- Test public boundaries; do not export private helpers solely for tests.
+
+Cite `CX-*` rule IDs in reviews. Do not invent stylistic rules beyond the
+rulebooks and overlay.

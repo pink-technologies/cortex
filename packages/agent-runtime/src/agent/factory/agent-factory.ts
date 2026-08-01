@@ -1,10 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { Agent } from '../models/agent'
-import type { AgentDefinition } from '../../definition/models/agent-definition'
+import type { Agent } from '@/agent/models/agent'
+import type { AgentDefinition } from '@/definition/models/agent-definition'
 import type { AgentLLMResolver } from './agent-llm-resolver'
-import { LlmAgent } from '../llm/llm-agent'
+import { LlmAgent } from '@/agent/llm/llm-agent'
 
 /**
  * Builds executable {@link Agent} instances from catalog {@link AgentDefinition}

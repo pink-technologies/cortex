@@ -77,7 +77,9 @@ export class OpenAILLM implements LLM {
         },
         {
           signal: request.signal,
-          timeout: request.timeoutMilliseconds,
+          ...(request.timeoutMilliseconds === undefined
+            ? {}
+            : { timeout: request.timeoutMilliseconds }),
         },
       )
 

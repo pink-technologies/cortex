@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import z from 'zod'
-import { agentSchema } from '../schema/agent-schema'
+import { agentSchema } from '@/definition/schema/agent-schema'
 import type { AgentExecutionDefinition } from './agent-execution-definition'
 import type { AgentLLMDefinition } from './agent-llm-definition'
 import { AgentRole } from './agent-role'
@@ -136,7 +136,7 @@ export class AgentDefinition {
         systemPrompt,
       },
       {
-        maximumOutputTokens: schema.llm.max_tokens,
+        maximumOutputTokens: schema.llm.maximum_output_tokens,
         model: schema.llm.model,
         provider: schema.llm.provider,
         temperature: schema.llm.temperature,

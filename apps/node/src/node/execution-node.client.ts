@@ -1,17 +1,27 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable } from "@nestjs/common"
-import { RegisterNodeRequest } from "@cortex/protocol"
-import { RegisterNodeResponse } from "@cortex/protocol"
-import { RegisterNodeResponseSchema } from "@cortex/protocol"
-import { Inject } from "@nestjs/common"
-import { NODE_CONFIGURATION, type NodeConfiguration } from "../configuration/node-configuration"
+import { HTTPMethod } from '@cortex/networking'
+import { Injectable, Inject } from '@nestjs/common'
+import {
+  RegisterNodeRequest,
+  RegisterNodeResponse,
+  RegisterNodeResponseSchema,
+} from '@cortex/protocol'
+import { NODE_CONFIGURATION, type NodeConfiguration } from '../configuration/node-configuration'
 
+/**
+ * HTTP client for registering this Node with the Cortex API.
+ */
 @Injectable()
 export class ExecutionNodeClient {
   // MARK: - Constructor
 
+  /**
+   * Creates a Cortex API client for Node registration.
+   *
+   * @param configuration - Node configuration providing the API base URL.
+   */
   constructor(
     @Inject(NODE_CONFIGURATION)
     private readonly configuration:
@@ -20,9 +30,7 @@ export class ExecutionNodeClient {
 
   // MARK: - Instance Methods
 
-  async register(
-    request: RegisterNodeRequest,
-  ): Promise<RegisterNodeResponse> {    
+  async register(request: RegisterNodeRequest): Promise<RegisterNodeResponse> {    
     const response = await fetch(
       `${this.configuration.apiURL}/internal/nodes/register`,
       {
@@ -30,7 +38,7 @@ export class ExecutionNodeClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        method: 'POST',
+        method: HTTPMethod.POST,
       },
     )
 
@@ -45,13 +53,17 @@ export class ExecutionNodeClient {
     )
   }
 
-  async heartbeat(nodeId: string): Promise<void> {
+  async heartbeat(nodeId: string, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted()
+
     const response = await fetch(
       `${this.configuration.apiURL}/internal/nodes/${nodeId}/heartbeat`,
       {
-        method: 'POST',
+        method: HTTPMethod.POST,
       },
     )
+
+    signal?.throwIfAborted()
 
     if (!response.ok) {
       throw new Error(

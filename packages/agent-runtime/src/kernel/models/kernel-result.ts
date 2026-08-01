@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { LLMMessage, TokenUsage } from '@cortex/llm'
-import type { AgentTurn } from '../../agent'
+import type { AgentTurn } from '@/agent'
 
 /**
  * Represents the successful result of a {@link Kernel} execution.

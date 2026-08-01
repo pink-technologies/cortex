@@ -21,6 +21,13 @@ import {
  */
 @Catch(Prisma.PrismaClientKnownRequestError, Prisma.PrismaClientValidationError)
 export class DatabaseExceptionFilter implements ExceptionFilter {
+  // MARK: - Constructor
+
+  /**
+   * Creates a Prisma-to-HTTP exception filter.
+   *
+   * @param i18n - Localization service for client-facing error messages.
+   */
   constructor(private readonly i18n: I18nService) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {

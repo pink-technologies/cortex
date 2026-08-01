@@ -18,6 +18,7 @@ export declare const ExecutionJobSchema: z.ZodObject<{
         maximumDurationSeconds: z.ZodOptional<z.ZodNumber>;
         preserveWorkspaceOnFailure: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strict>;
+    claimToken: z.ZodNullable<z.ZodUUID>;
     status: z.ZodEnum<{
         AWAITING_REVIEW: "AWAITING_REVIEW";
         CANCELLED: "CANCELLED";

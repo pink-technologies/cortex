@@ -2,12 +2,12 @@
 // https://pink-tech.io/
 
 import { z } from 'zod'
-import { AgentRole } from '../models/agent-role'
+import { AgentRole } from '@/definition/models/agent-role'
 import { agentExecutionSchema } from './agent-execution-schema'
 import { agentLLMSchema } from './agent-llm-schema'
 import { agentSafetySchema } from './agent-safety-schema'
-import { identifierSchema } from '../../manifest/schema/identifier-schema'
-import { validateUniqueValues } from '../../manifest'
+import { identifierSchema } from '@/manifest/schema/identifier-schema'
+import { validateUniqueValues } from '@/manifest'
 
 /**
  * Validates a complete agent manifest (for example `agent.toml` / JSON).

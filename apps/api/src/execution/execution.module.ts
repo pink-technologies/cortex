@@ -2,19 +2,16 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common'
-import { ExecutionJobService } from './jobs/execution-job.service'
-import { EXECUTION_JOB_REPOSITORY, ExecutionJobRepositoryImpl } from './jobs/execution-job-repository'
-import { ExecutionJobController } from './jobs/execution-job.controller'
 import { NodesModule } from '@/nodes'
+import { ExecutionJobController } from './controller/execution-job.controller'
+import { EXECUTION_JOB_REPOSITORY, ExecutionJobRepositoryImpl } from './execution-job-repository'
+import { ExecutionJobService } from './execution-job.service'
+import { InternalExecutionJobController } from './controller/internal-execution-job.controller'
 
 @Module({
+  controllers: [ExecutionJobController, InternalExecutionJobController],
   exports: [ExecutionJobService],
-  controllers: [
-    ExecutionJobController,
-  ],
-  imports: [
-    NodesModule,
-  ],
+  imports: [NodesModule],
   providers: [
     ExecutionJobService,
     {

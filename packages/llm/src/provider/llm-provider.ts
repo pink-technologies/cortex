@@ -16,6 +16,9 @@ import { LLMProviderType } from './llm-provider-type'
 export type LLMProviderConfiguration = {
   /** API key used to authenticate with the selected provider. */
   readonly apiKey: string
+
+  /** Provider type. */
+  readonly provider: LLMProviderType
 }
 
 /**

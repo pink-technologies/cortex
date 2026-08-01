@@ -7,22 +7,27 @@ import { AgentDefinition, AgentRole } from '../../../src/definition'
 /**
  * Builds a minimal {@link AgentDefinition} for kernel tests.
  *
- * @param overrides - Optional overrides for execution limits.
+ * @param overrides - Optional overrides for descriptor resources, safety
+ *   switches, and execution limits.
  */
 export function createAgentDefinitionFixture(
   overrides: {
+    readonly allowCapabilityUse?: boolean
+    readonly allowSkillUse?: boolean
+    readonly capabilities?: readonly string[]
     readonly maximumIterations?: number
+    readonly skills?: readonly string[]
     readonly timeoutMilliseconds?: number
   } = {},
 ): AgentDefinition {
   return new AgentDefinition(
     'test-agent',
     {
-      capabilities: [],
+      capabilities: overrides.capabilities ?? [],
       delegatesTo: [],
       name: 'Test Agent',
       role: AgentRole.Main,
-      skills: [],
+      skills: overrides.skills ?? [],
       systemPrompt: 'You are a test agent.',
     },
     {
@@ -36,9 +41,9 @@ export function createAgentDefinitionFixture(
       timeoutMilliseconds: overrides.timeoutMilliseconds ?? 30_000,
     },
     {
-      allowCapabilityUse: false,
+      allowCapabilityUse: overrides.allowCapabilityUse ?? false,
       allowDelegation: false,
-      allowSkillUse: false,
+      allowSkillUse: overrides.allowSkillUse ?? false,
       maximumDelegationDepth: 0,
     },
   )

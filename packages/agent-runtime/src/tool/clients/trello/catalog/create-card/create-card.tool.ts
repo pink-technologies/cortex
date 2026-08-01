@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { Tool } from '@/tools/tool';
-import { TrelloCardCreationError } from '../error/trello.error';
+import { TrelloCardResource } from '../../resources/card';
 import { TrelloClient } from '../../trello-client';
 
 /**
@@ -48,8 +48,8 @@ interface CreateCardToolOutput {
  * ## Responsibilities
  *
  * - Transform input into a Trello API request
- * - Call the Trello API through the provided client
- * - Handle API errors and map them to domain errors
+ * - Call the Trello API through {@link TrelloCardResource}
+ * - Surface resource errors to the tool runtime
  *
  * ## Design notes
  *
@@ -61,6 +61,10 @@ export class CreateCardTool implements Tool<
   CreateCardToolInput,
   CreateCardToolOutput
 > {
+  // MARK: - Properties
+
+  private readonly cards: TrelloCardResource;
+
   // MARK: - Constructor
 
   /**
@@ -68,7 +72,9 @@ export class CreateCardTool implements Tool<
    *
    * @param trelloClient - Preconfigured Trello client for the current user.
    */
-  constructor(private readonly trelloClient: TrelloClient) {}
+  constructor(trelloClient: TrelloClient) {
+    this.cards = new TrelloCardResource(trelloClient);
+  }
 
   // MARK: - Instance methods
 
@@ -83,20 +89,12 @@ export class CreateCardTool implements Tool<
    * @throws {@link TrelloCardCreationError} When the API request fails.
    */
   async execute(input: CreateCardToolInput): Promise<CreateCardToolOutput> {
-    const url = this.trelloClient.buildUrl('/cards', {
-      idList: input.listId,
+    const card = await this.cards.create({
+      description: input.description,
+      listId: input.listId,
       name: input.name,
-      desc: input.description,
     });
 
-    const response = await fetch(url, { method: 'POST' });
-
-    if (!response.ok) {
-      throw new TrelloCardCreationError();
-    }
-
-    const data = await response.json();
-
-    return { id: data.id };
+    return { id: card.id };
   }
 }

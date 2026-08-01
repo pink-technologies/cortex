@@ -9,7 +9,7 @@ import {
   StorageInitializationError,
   ReadStorageError,
   StorageWriteError,
-} from '../error/storage-error';
+} from '../error/error';
 
 /**
  * Implementation of {@link Storage} using Redis (ioredis).

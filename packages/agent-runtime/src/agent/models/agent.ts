@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { AgentDefinition } from '../../definition'
-import type { AgentExecutionContext } from '../../execution/agent-execution-context'
+import type { AgentDefinition } from '@/definition'
+import type { AgentExecutionContext } from '@/execution/agent-execution-context'
 import type { AgentTurn } from './agent-turn'
 import type { AgentTurnRequest } from './agent-turn-request'
 
