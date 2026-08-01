@@ -40,6 +40,10 @@ Good domain model checklist:
 - Explicit constructor with `@param` for every parameter.
 - Static `from(...)` (or `fromResponses(...)`) maps wire → domain; adapters call
   the mapper and stay free of field-by-field parsing.
+- Persistence: use `Model.from(record)` for a single persistence graph (including
+  nested relations). Keep a `*Mapper` class only when the domain model needs more
+  than one independently loaded source. Skip identity enum `switch` maps when
+  Prisma and domain string values match—cast/assert instead.
 - MARK order for models: Properties → Static methods → Constructor
   (omit unused sections). Nested related types follow in the same file.
 

@@ -3,13 +3,14 @@
 
 import { HTTPMethod, JSONParameterEncoder } from '@cortex/networking'
 import { Injectable } from '@nestjs/common'
+import { CortexClient } from '../../cortex-client'
+import { CortexNodeHeartbeatError, CortexNodeRegisterError } from './error/error'
 import {
+  RegisterNodeRequestSchema,
   RegisterNodeResponseSchema,
   type RegisterNodeRequest,
   type RegisterNodeResponse,
 } from '@cortex/protocol'
-import { CortexClient } from '../../cortex-client'
-import { CortexNodeHeartbeatError, CortexNodeRegisterError } from './error/error'
 
 /**
  * Cortex API resource for `/internal/nodes` paths.
@@ -47,10 +48,12 @@ export class CortexNodeResource {
     signal?.throwIfAborted()
 
     try {
-      await this.client.request(`/internal/nodes/${encodeURIComponent(nodeId)}/heartbeat`, {
-        method: HTTPMethod.POST,
-        signal,
-      })
+      await this.client
+        .request(`/internal/nodes/${encodeURIComponent(nodeId)}/heartbeat`, {
+          method: HTTPMethod.POST,
+          signal,
+        })
+        .response()
     } catch (error) {
       if (signal?.aborted) {
         throw error
@@ -72,12 +75,15 @@ export class CortexNodeResource {
     signal?.throwIfAborted()
 
     try {
-      const body = await this.client.requestJson<unknown>('/internal/nodes/register', {
-        method: HTTPMethod.POST,
-        parameterEncoder: JSONParameterEncoder.default,
-        parameters: { ...request },
-        signal,
-      })
+      const parameters = RegisterNodeRequestSchema.parse(request)
+      const body = await this.client
+        .request('/internal/nodes/register', {
+          method: HTTPMethod.POST,
+          parameterEncoder: JSONParameterEncoder.default,
+          parameters: parameters,
+          signal,
+        })
+        .responseJson<unknown>()
 
       return RegisterNodeResponseSchema.parse(body)
     } catch (error) {

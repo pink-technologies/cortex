@@ -1,0 +1,228 @@
+// Copyright (c) 2026, PinkTech
+// https://pink-tech.io/
+
+/**
+ * Base class for errors raised by the workflow module.
+ *
+ * Subclasses expose a stable, machine-readable {@link code} while retaining a
+ * human-readable message and optional diagnostic context.
+ */
+export abstract class WorkflowModuleError extends Error {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for this error category.
+   */
+  abstract readonly code: string
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow module error.
+   *
+   * @param message - Human-readable description of the failure.
+   * @param options - Optional diagnostic options, including an underlying
+   *   error in `cause`.
+   */
+  protected constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+
+    this.name = new.target.name
+  }
+}
+
+/**
+ * Indicates that creating a workflow run (and its steps) failed.
+ */
+export class WorkflowRunCreateError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for create failures.
+   */
+  readonly code = 'WORKFLOW_RUN_CREATE_ERROR'
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow-run create error.
+   *
+   * @param message - Human-readable description of the create failure.
+   * @param options - Optional diagnostic options containing the originating
+   *   failure in `cause`.
+   */
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+  }
+}
+
+/**
+ * Indicates that loading a workflow run failed unexpectedly.
+ *
+ * A missing row is not represented by this error; repositories return `null`.
+ */
+export class WorkflowRunReadError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for read failures.
+   */
+  readonly code = 'WORKFLOW_RUN_READ_ERROR'
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow-run read error.
+   *
+   * @param message - Human-readable description of the read failure.
+   * @param options - Optional diagnostic options containing the originating
+   *   failure in `cause`.
+   */
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+  }
+}
+
+/**
+ * Indicates that updating a workflow run status failed unexpectedly.
+ *
+ * A no-op update (unknown id) is not represented by this error; repositories
+ * return `false`.
+ */
+export class WorkflowRunUpdateError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for run update failures.
+   */
+  readonly code = 'WORKFLOW_RUN_UPDATE_ERROR'
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow-run update error.
+   *
+   * @param message - Human-readable description of the update failure.
+   * @param options - Optional diagnostic options containing the originating
+   *   failure in `cause`.
+   */
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+  }
+}
+
+/**
+ * Indicates that updating a workflow step status failed unexpectedly.
+ *
+ * A no-op update (unknown id) is not represented by this error; repositories
+ * return `false`.
+ */
+export class WorkflowStepUpdateError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for step update failures.
+   */
+  readonly code = 'WORKFLOW_STEP_UPDATE_ERROR'
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow-step update error.
+   *
+   * @param message - Human-readable description of the update failure.
+   * @param options - Optional diagnostic options containing the originating
+   *   failure in `cause`.
+   */
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+  }
+}
+
+/**
+ * Indicates that a workflow definition key is already registered.
+ */
+export class WorkflowDefinitionAlreadyRegisteredError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for duplicate definition registration.
+   */
+  readonly code = 'WORKFLOW_DEFINITION_ALREADY_REGISTERED'
+
+  /**
+   * Definition key that collided.
+   */
+  readonly definitionKey: string
+
+  // MARK: - Constructor
+
+  /**
+   * Creates an error for a duplicate workflow definition registration.
+   *
+   * @param definitionKey - Definition key that is already registered.
+   */
+  constructor(definitionKey: string) {
+    super(`Workflow definition already registered: ${definitionKey}`)
+    this.definitionKey = definitionKey
+  }
+}
+
+/**
+ * Indicates that a workflow definition failed structural validation.
+ */
+export class WorkflowDefinitionInvalidError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for invalid definitions.
+   */
+  readonly code = 'WORKFLOW_DEFINITION_INVALID'
+
+  /**
+   * Definition key that failed validation, when known.
+   */
+  readonly definitionKey: string
+
+  // MARK: - Constructor
+
+  /**
+   * Creates an error for an invalid workflow definition.
+   *
+   * @param definitionKey - Definition key under validation.
+   * @param message - Human-readable description of the validation failure.
+   */
+  constructor(definitionKey: string, message: string) {
+    super(message)
+    this.definitionKey = definitionKey
+  }
+}
+
+/**
+ * Indicates that no workflow definition is registered for the given key.
+ */
+export class WorkflowDefinitionNotFoundError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for missing definitions.
+   */
+  readonly code = 'WORKFLOW_DEFINITION_NOT_FOUND'
+
+  /**
+   * Definition key that was requested.
+   */
+  readonly definitionKey: string
+
+  // MARK: - Constructor
+
+  /**
+   * Creates an error for a missing workflow definition.
+   *
+   * @param definitionKey - Definition key that could not be resolved.
+   */
+  constructor(definitionKey: string) {
+    super(`Workflow definition not found: ${definitionKey}`)
+    this.definitionKey = definitionKey
+  }
+}

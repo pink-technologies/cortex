@@ -8,10 +8,11 @@ import { ConfigModule } from '@nestjs/config'
 import { APP_FILTER, RouterModule } from '@nestjs/core'
 import { DatabaseExceptionFilter, DatabaseModule } from './infraestructure/database'
 import { ExecutionModule } from './execution/execution.module'
+import { I18nModule as CortexI18nModule } from './i18n'
 import { NodesModule } from './nodes/nodes.module'
 import { StorageModule } from './infraestructure/storage/storage.module'
 import { WebhooksModule } from './webhooks'
-import { I18nModule as CortexI18nModule } from './i18n'
+import { WorkflowModule } from './workflow'
 import {
   AcceptLanguageResolver,
   I18nJsonLoader,
@@ -31,6 +32,7 @@ import {
     NodesModule,
     StorageModule,
     WebhooksModule,
+    WorkflowModule,
     I18nModule.forRoot({
       fallbackLanguage: 'en',
       loader: I18nJsonLoader,

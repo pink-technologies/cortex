@@ -1,7 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { NodeApplicationError } from '../../../error/error'
+import { NodeApplicationError } from '../../../../error/error'
+import type { CortexExecutionJobResource } from '../cortex-execution-job-resource'
 
 /**
  * Thrown when claiming an execution job fails.

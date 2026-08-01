@@ -3,7 +3,7 @@
 
 import { AgentExecuteJobKind } from '@cortex/protocol'
 import type { NodeConfiguration } from '../../../../src/configuration'
-import { ExecutionJobClient } from '../../../../src/execution/jobs/execution-job-client'
+import { CortexExecutionJobResource } from '../../../../src/cortex'
 import { ExecutionJobPoller } from '../../../../src/execution/jobs/polling'
 import {
   ExecutionJobProcessor,
@@ -55,11 +55,11 @@ function makeProcessingResult(): ExecutionJobProcessingResult {
 /**
  * Creates an execution-job client test double.
  */
-function makeExecutionJobClient(): {
+function makeCortexExecutionJobResource(): {
   claimNextAvailable: jest.Mock
   complete: jest.Mock
   fail: jest.Mock
-  client: ExecutionJobClient
+  client: CortexExecutionJobResource
 } {
   const claimNextAvailable = jest.fn()
   const complete = jest.fn()
@@ -73,7 +73,7 @@ function makeExecutionJobClient(): {
       claimNextAvailable,
       complete,
       fail,
-    } as unknown as ExecutionJobClient,
+    } as unknown as CortexExecutionJobResource,
   }
 }
 
@@ -108,7 +108,7 @@ describe('ExecutionJobPoller', () => {
       complete,
       fail,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -168,7 +168,7 @@ describe('ExecutionJobPoller', () => {
       complete,
       fail,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -208,7 +208,7 @@ describe('ExecutionJobPoller', () => {
       complete,
       fail,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -265,7 +265,7 @@ describe('ExecutionJobPoller', () => {
       complete,
       fail,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -316,7 +316,7 @@ describe('ExecutionJobPoller', () => {
     const {
       claimNextAvailable,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -347,7 +347,7 @@ describe('ExecutionJobPoller', () => {
       complete,
       fail,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -395,7 +395,7 @@ describe('ExecutionJobPoller', () => {
       claimNextAvailable,
       fail,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -434,7 +434,7 @@ describe('ExecutionJobPoller', () => {
       claimNextAvailable,
       fail,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -472,7 +472,7 @@ describe('ExecutionJobPoller', () => {
       claimNextAvailable,
       fail,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const {
       process,
       processor,
@@ -511,7 +511,7 @@ describe('ExecutionJobPoller', () => {
     const {
       claimNextAvailable,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const { processor } = makeExecutionJobProcessor()
 
     claimNextAvailable
@@ -544,7 +544,7 @@ describe('ExecutionJobPoller', () => {
     const {
       claimNextAvailable,
       client,
-    } = makeExecutionJobClient()
+    } = makeCortexExecutionJobResource()
     const { processor } = makeExecutionJobProcessor()
 
     claimNextAvailable.mockResolvedValue({ job: null })
@@ -566,7 +566,7 @@ describe('ExecutionJobPoller', () => {
 
   it('resolves immediately when the wait starts with an aborted signal', async () => {
     const controller = new AbortController()
-    const { client } = makeExecutionJobClient()
+    const { client } = makeCortexExecutionJobResource()
     const { processor } = makeExecutionJobProcessor()
     const poller = new ExecutionJobPoller(
       makeConfiguration(),
@@ -587,7 +587,7 @@ describe('ExecutionJobPoller', () => {
     jest.useFakeTimers()
 
     const controller = new AbortController()
-    const { client } = makeExecutionJobClient()
+    const { client } = makeCortexExecutionJobResource()
     const { processor } = makeExecutionJobProcessor()
     const poller = new ExecutionJobPoller(
       makeConfiguration(),
@@ -608,7 +608,7 @@ describe('ExecutionJobPoller', () => {
 
   it('finishes the wait when the signal is aborted during setup', async () => {
     const controller = new AbortController()
-    const { client } = makeExecutionJobClient()
+    const { client } = makeCortexExecutionJobResource()
     const { processor } = makeExecutionJobProcessor()
     const poller = new ExecutionJobPoller(
       makeConfiguration(),

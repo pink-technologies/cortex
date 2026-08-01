@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { NodeApplicationError } from '../../../error/error'
+import { NodeApplicationError } from '../../../../error/error'
 
 /**
  * Thrown when registering this Node with the Cortex API fails.

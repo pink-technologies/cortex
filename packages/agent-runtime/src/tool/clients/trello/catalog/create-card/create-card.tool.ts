@@ -1,9 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { TrelloCardResource, type TrelloClient } from '@cortex/integrations/trello';
 import { Tool } from '@/tools/tool';
-import { TrelloCardResource } from '../../resources/card';
-import { TrelloClient } from '../../trello-client';
 
 /**
  * Input required to create a Trello card.

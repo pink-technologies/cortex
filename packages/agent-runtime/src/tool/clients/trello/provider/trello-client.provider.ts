@@ -1,11 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { TrelloClient } from '@cortex/integrations/trello';
 import {
   TrelloAPIKeyNotConfiguredError,
   TrelloTokenNotConfiguredError,
 } from '../catalog/error/error';
-import { TrelloClient } from '../trello-client';
 
 /**
  * Builds a {@link TrelloClient} for the **current user / tenant** from stored credentials

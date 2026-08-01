@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { TrelloClient } from '../trello/trello-client';
+import type { TrelloClient } from '@cortex/integrations/trello';
 
 /**
  * Per-execution tool context: integrations scoped to the current user or tenant.

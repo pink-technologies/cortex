@@ -3,6 +3,7 @@
 
 import { HTTPMethod, JSONParameterEncoder } from '@cortex/networking'
 import { Injectable } from '@nestjs/common'
+import { CortexClient } from '../../cortex-client'
 import {
   ClaimExecutionJobRequestSchema,
   ClaimExecutionJobResponseSchema,
@@ -12,7 +13,7 @@ import {
   type CompleteExecutionJobRequest,
   type FailExecutionJobRequest,
 } from '@cortex/protocol'
-import { CortexClient } from '../../cortex-client'
+
 import {
   CortexExecutionJobClaimError,
   CortexExecutionJobCompleteError,
@@ -58,12 +59,14 @@ export class CortexExecutionJobResource {
 
     try {
       const request = ClaimExecutionJobRequestSchema.parse({ nodeId })
-      const body = await this.client.requestJson<unknown>('/internal/execution-jobs/claim', {
-        method: HTTPMethod.POST,
-        parameterEncoder: JSONParameterEncoder.default,
-        parameters: request,
-        signal,
-      })
+      const body = await this.client
+        .request('/internal/execution-jobs/claim', {
+          method: HTTPMethod.POST,
+          parameterEncoder: JSONParameterEncoder.default,
+          parameters: request,
+          signal,
+        })
+        .responseJson<unknown>()
 
       return ClaimExecutionJobResponseSchema.parse(body)
     } catch (error) {
@@ -89,12 +92,14 @@ export class CortexExecutionJobResource {
     try {
       const body = CompleteExecutionJobRequestSchema.parse(request)
 
-      await this.client.request(`/internal/execution-jobs/${encodeURIComponent(id)}/complete`, {
-        method: HTTPMethod.POST,
-        parameterEncoder: JSONParameterEncoder.default,
-        parameters: body,
-        signal,
-      })
+      await this.client
+        .request(`/internal/execution-jobs/${encodeURIComponent(id)}/complete`, {
+          method: HTTPMethod.POST,
+          parameterEncoder: JSONParameterEncoder.default,
+          parameters: body,
+          signal,
+        })
+        .response()
     } catch (error) {
       if (signal?.aborted) {
         throw error
@@ -118,12 +123,14 @@ export class CortexExecutionJobResource {
     try {
       const body = FailExecutionJobRequestSchema.parse(request)
 
-      await this.client.request(`/internal/execution-jobs/${encodeURIComponent(id)}/fail`, {
-        method: HTTPMethod.POST,
-        parameterEncoder: JSONParameterEncoder.default,
-        parameters: body,
-        signal,
-      })
+      await this.client
+        .request(`/internal/execution-jobs/${encodeURIComponent(id)}/fail`, {
+          method: HTTPMethod.POST,
+          parameterEncoder: JSONParameterEncoder.default,
+          parameters: body,
+          signal,
+        })
+        .response()
     } catch (error) {
       if (signal?.aborted) {
         throw error

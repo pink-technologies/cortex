@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@cortex/agent-runtime": "workspace:*",
+    "@cortex/integrations": "workspace:*",
     "@cortex/llm": "workspace:*",
     "@cortex/networking": "workspace:*",
     "@cortex/protocol": "workspace:*",

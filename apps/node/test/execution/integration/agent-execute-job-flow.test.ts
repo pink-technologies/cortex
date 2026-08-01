@@ -30,7 +30,7 @@ import { z } from 'zod'
 import { AgentExecuteJobHandler } from '../../../src/handlers'
 import type { NodeConfiguration } from '../../../src/configuration'
 import { ExecutionJobHandlerRegistry } from '../../../src/execution/handler'
-import { ExecutionJobClient } from '../../../src/execution/jobs/execution-job-client'
+import { CortexExecutionJobResource } from '../../../src/cortex'
 import { ExecutionJobPoller } from '../../../src/execution/jobs/polling'
 import {
   ExecutionJobProcessor,
@@ -257,14 +257,14 @@ function makeRuntime(llm: LLM, tool: TestAddTool): AgentRuntime {
 /**
  * Creates an execution-job client double.
  */
-function makeExecutionJobClient(
+function makeCortexExecutionJobResource(
   job: ClaimedExecutionJob,
   controller: AbortController,
 ): {
   readonly claimNextAvailable: jest.Mock
   readonly complete: jest.Mock
   readonly fail: jest.Mock
-  readonly client: ExecutionJobClient
+  readonly client: CortexExecutionJobResource
 } {
   const claimNextAvailable = jest.fn()
   const complete = jest.fn()
@@ -286,7 +286,7 @@ function makeExecutionJobClient(
       claimNextAvailable,
       complete,
       fail,
-    } as unknown as ExecutionJobClient,
+    } as unknown as CortexExecutionJobResource,
   }
 }
 
@@ -301,7 +301,7 @@ describe('agent.execute job flow', () => {
     const processor = new ExecutionJobProcessor(registry)
     const job = makeClaimedJob()
 
-    const { claimNextAvailable, complete, fail, client } = makeExecutionJobClient(job, controller)
+    const { claimNextAvailable, complete, fail, client } = makeCortexExecutionJobResource(job, controller)
 
     const poller = new ExecutionJobPoller(makeConfiguration(), client, processor)
 
