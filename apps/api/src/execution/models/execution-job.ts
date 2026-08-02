@@ -46,8 +46,6 @@ export class ExecutionJob {
       record.status as ExecutionJobStatus,
       record.updatedAt,
       source,
-      record.triggerIdentifier,
-      record.activeKey,
       record.claimToken,
       record.claimedByNodeId,
       record.completedAt,
@@ -77,8 +75,6 @@ export class ExecutionJob {
    * @param status - Current execution-job status.
    * @param updatedAt - Timestamp when the job row was last updated.
    * @param source - Optional provenance information.
-   * @param triggerIdentifier - Optional enqueue idempotency key.
-   * @param activeKey - Optional uniqueness key for concurrent jobs.
    * @param claimToken - Token issued when the job was claimed.
    * @param claimedByNodeId - Node that currently holds the claim.
    * @param completedAt - Timestamp when the job completed successfully.
@@ -102,8 +98,6 @@ export class ExecutionJob {
     readonly status: ExecutionJobStatus,
     readonly updatedAt: Date,
     readonly source?: ExecutionJobSource,
-    readonly triggerIdentifier?: string | null,
-    readonly activeKey?: string | null,
     readonly claimToken: string | null = null,
     readonly claimedByNodeId: string | null = null,
     readonly completedAt: Date | null = null,

@@ -41,7 +41,6 @@ describe('ExecutionJobController jira triages', () => {
     const now = new Date('2026-08-01T12:00:00.000Z')
 
     const firstStepJob = {
-      activeKey: null,
       attemptCount: 0,
       claimedAt: null,
       claimedByNodeId: null,

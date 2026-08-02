@@ -6,19 +6,14 @@ import { ExecutionJobPolicy, ExecutionJobRequirements, ExecutionJobSource } from
 /**
  * Input for creating a queued `ExecutionJob` via the execution job repository.
  *
- * Maps onto the Prisma `ExecutionJob` row: `policy` / `requirements` / `payload` as JSON,
- * optional `source` as `sourceType` + `sourceIdentifier`, and uniqueness for
- * `activeKey` / `triggerIdentifier` when set.
+ * Maps onto the Prisma `ExecutionJob` row: `policy` / `requirements` / `payload`
+ * as JSON and optional `source` as `sourceType` + `sourceIdentifier`.
+ * Enqueue idempotency is not handled here; deduplication keys live on the
+ * owning `WorkflowRun` (`triggerIdentifier` / `activeKey`).
  *
  * @typeParam Payload - Typed job body stored in `ExecutionJob.payload` (defaults to `unknown`).
  */
 export interface CreateExecutionJobParameters<Payload = unknown> {
-  /**
-   * When set, at most one non-terminal job may hold this key (`ExecutionJob.activeKey`, unique).
-   * Useful for “replace or skip if already running” semantics.
-   */
-  activeKey?: string
-
   /**
    * Earliest time the job may be claimed from the queue. Defaults to now when omitted.
    */
@@ -80,10 +75,4 @@ export interface CreateExecutionJobParameters<Payload = unknown> {
    * Set with {@link runId} when the job belongs to a workflow step.
    */
   stepId?: string
-
-  /**
-   * Idempotency key for enqueue (`ExecutionJob.triggerIdentifier`, unique).
-   * Re-submitting the same value should not create a duplicate job.
-   */
-  triggerIdentifier?: string
 }

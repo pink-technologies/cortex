@@ -148,10 +148,8 @@ model ExecutionJob {
   sourceType       String?
   sourceIdentifier String?
 
-  triggerIdentifier String? @unique
-  activeKey         String? @unique
-  claimToken        String?
-  claimedByNodeId   String?
+  claimToken      String?
+  claimedByNodeId String?
 
   maximumAttempts Int @default(1)
 

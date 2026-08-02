@@ -20,8 +20,8 @@ export const EXECUTION_JOB_REPOSITORY = Symbol('EXECUTION_JOB_REPOSITORY')
  * Persistence port for {@link ExecutionJob} rows.
  *
  * Implementations own mapping from {@link CreateExecutionJobParameters} onto the
- * Prisma model (including JSON fields and uniqueness for `activeKey` /
- * `triggerIdentifier`). Callers should not talk to Prisma directly for job CRUD.
+ * Prisma model (including JSON fields). Callers should not talk to Prisma
+ * directly for job CRUD.
  */
 export interface ExecutionJobRepository {
   /**
@@ -46,8 +46,7 @@ export interface ExecutionJobRepository {
   /**
    * Marks a running job as successfully completed.
    *
-   * The transition is conditional (`RUNNING` → `COMPLETED`) and releases the
-   * job's `activeKey` so another job may reuse it.
+   * The transition is conditional (`RUNNING` → `COMPLETED`).
    *
    * @param id - Primary key of the job to complete.
    * @param request - Request to complete the job.
@@ -63,7 +62,6 @@ export interface ExecutionJobRepository {
    * @param parameters - Enqueue parameters (kind, payload, policy, requirements, etc.).
    * @param options - Optional transaction client.
    * @returns The created {@link ExecutionJob}, including generated `id` and timestamps.
-   * @throws When `activeKey` or `triggerIdentifier` collide with an existing unique row.
    */
   create(
     parameters: CreateExecutionJobParameters,
@@ -73,8 +71,7 @@ export interface ExecutionJobRepository {
   /**
    * Marks a running job as failed.
    *
-   * The transition is conditional (`RUNNING` → `FAILED`) and releases the
-   * job's `activeKey` so another job may reuse it.
+   * The transition is conditional (`RUNNING` → `FAILED`).
    *
    * @param id - Primary key of the job to fail.
    * @param request - Request to fail the job.
@@ -124,7 +121,7 @@ export interface ExecutionJobRepository {
  * - claim jobs safely under concurrency through a conditional
  *   `QUEUED` → `RUNNING` update,
  * - perform guarded terminal transitions from `RUNNING` to `COMPLETED` or
- *   `FAILED`, releasing `activeKey` on either outcome.
+ *   `FAILED`.
  *
  * Claiming evaluates at most 100 ordered candidates per request. The
  * conditional update acts as an optimistic lock: if another worker claims a
@@ -233,8 +230,7 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
    * Marks a running job as successfully completed.
    *
    * Uses a conditional update as an optimistic state guard: jobs that are
-   * missing or not currently `RUNNING` are left unchanged. A successful
-   * transition also clears `activeKey`.
+   * missing or not currently `RUNNING` are left unchanged.
    *
    * @param id - Primary key of the job to complete.
    * @param request - Request to complete the job.
@@ -250,7 +246,6 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
         status: ExecutionJobStatus.RUNNING,
       },
       data: {
-        activeKey: null,
         completedAt: new Date(),
         failedAt: null,
         failure: Prisma.DbNull,
@@ -288,7 +283,6 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
    * @param parameters - Enqueue parameters (kind, payload, policy, requirements, etc.).
    * @param options - Optional transaction client.
    * @returns The created {@link ExecutionJob}, including generated `id` and timestamps.
-   * @throws When `activeKey` or `triggerIdentifier` collide with an existing unique row.
    */
   async create(
     parameters: CreateExecutionJobParameters,
@@ -297,7 +291,6 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
     const client = options?.transaction ?? this.database
     const executionJob = await client.executionJob.create({
       data: {
-        activeKey: parameters.activeKey,
         availableAt: parameters.availableAt ?? new Date(),
         kind: parameters.kind,
         maximumAttempts: parameters.maximumAttempts ?? 1,
@@ -309,7 +302,6 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
         sourceIdentifier: parameters.source?.identifier,
         sourceType: parameters.source?.type,
         stepId: parameters.stepId,
-        triggerIdentifier: parameters.triggerIdentifier,
         requirements: {
           allOf: parameters.requirements.allOf,
           ...(parameters.requirements.anyOf
@@ -338,8 +330,7 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
    * Marks a running job as failed.
    *
    * Uses a conditional update as an optimistic state guard: jobs that are
-   * missing or not currently `RUNNING` are left unchanged. A successful
-   * transition also clears `activeKey`.
+   * missing or not currently `RUNNING` are left unchanged.
    *
    * @param id - Primary key of the job to fail.
    * @param request - Request to fail the job.
@@ -355,7 +346,6 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
         status: ExecutionJobStatus.RUNNING,
       },
       data: {
-        activeKey: null,
         completedAt: null,
         failedAt: new Date(),
         failure: request.failure as Prisma.InputJsonValue,

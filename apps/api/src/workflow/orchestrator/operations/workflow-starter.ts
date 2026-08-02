@@ -51,8 +51,8 @@ export class WorkflowStarter {
    * when no builder is declared), marks the step `QUEUED`, and marks the run
    * `RUNNING`. Those writes run in a single transaction.
    *
-   * Idempotency keys (`triggerIdentifier`, `activeKey`) are stored on the run.
-   * Child jobs do not reuse those keys until uniqueness moves fully to runs.
+   * Idempotency keys (`triggerIdentifier`, `activeKey`) are stored on the run,
+   * which is the only place uniqueness is enforced; child jobs carry no keys.
    *
    * @param parameters - Definition key, input, and optional run idempotency keys.
    * @returns The activated run and the first-step child job.

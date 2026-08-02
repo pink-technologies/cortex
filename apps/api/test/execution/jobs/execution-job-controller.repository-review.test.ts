@@ -46,7 +46,6 @@ describe('ExecutionJobController repository reviews', () => {
     const now = new Date('2026-07-31T12:00:00.000Z')
 
     const firstStepJob = {
-      activeKey: null,
       attemptCount: 0,
       claimedAt: null,
       claimedByNodeId: null,
@@ -119,7 +118,6 @@ describe('ExecutionJobController repository reviews', () => {
     }
 
     findById.mockResolvedValue({
-      activeKey: null,
       attemptCount: 1,
       claimedAt: now,
       claimedByNodeId: null,
