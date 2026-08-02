@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { Injectable } from '@nestjs/common'
-import { WorkflowAdvancer, WorkflowApprovalHandler, WorkflowStarter } from './operations'
+import { WorkflowAdvancer, WorkflowApprovalHandler, WorkflowCanceller, WorkflowStarter } from './operations'
 import type { StartWorkflowRunResult } from '../models/start-workflow-run-result'
 import type { WorkflowRun } from '../models/workflow-run'
 import type { StartWorkflowRunParameters } from '../parameters/start-workflow-run-parameters'
@@ -17,6 +17,7 @@ import type { StartWorkflowRunParameters } from '../parameters/start-workflow-ru
  *   job reaches a terminal state.
  * - {@link WorkflowApprovalHandler} applies human decisions to runs parked in
  *   `AWAITING_APPROVAL`.
+ * - {@link WorkflowCanceller} cancels in-flight runs on operator request.
  *
  * Every flow applies its mutations inside a single database transaction so
  * run/step status and child job enqueue commit atomically. On job terminal,
@@ -32,11 +33,13 @@ export class WorkflowOrchestrator {
    *
    * @param advancer - Flow advancing or failing runs on job terminal states.
    * @param approvalHandler - Flow applying human approval decisions.
+   * @param canceller - Flow cancelling in-flight runs.
    * @param starter - Flow creating and activating new runs.
    */
   constructor(
     private readonly advancer: WorkflowAdvancer,
     private readonly approvalHandler: WorkflowApprovalHandler,
+    private readonly canceller: WorkflowCanceller,
     private readonly starter: WorkflowStarter,
   ) {}
 
@@ -56,6 +59,22 @@ export class WorkflowOrchestrator {
    */
   async approve(runId: string): Promise<WorkflowRun | null> {
     return this.approvalHandler.approve(runId)
+  }
+
+  /**
+   * Cancels an in-flight workflow run.
+   *
+   * Moves the run and its non-terminal steps to `CANCELLED` in one
+   * transaction, cancels the run's `QUEUED` child jobs, and flags `RUNNING`
+   * child jobs with a cancellation request. Concurrent terminal transitions
+   * win the race; the cancellation then fails instead of overwriting them.
+   *
+   * @param runId - Primary key of the run to cancel.
+   * @returns The refreshed run after cancellation; `null` when the run does not exist.
+   * @throws {@link WorkflowCancelError} When the run is already terminal.
+   */
+  async cancel(runId: string): Promise<WorkflowRun | null> {
+    return this.canceller.cancel(runId)
   }
 
   /**

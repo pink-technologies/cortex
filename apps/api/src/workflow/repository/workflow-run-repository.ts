@@ -12,9 +12,12 @@ import {
   WorkflowStepUpdateError,
 } from '../error/error'
 
+import type { WorkflowRunPage } from '../models/workflow-run-page'
 import type {
   CreateWorkflowRunParameters,
+  FindWorkflowRunsParameters,
   RepositoryWriteOptions,
+  RunRepositoryWriteOptions,
   UpdateWorkflowRunStatusParameters,
   UpdateWorkflowStepStatusParameters,
 } from '../parameters'
@@ -62,18 +65,32 @@ export interface WorkflowRunRepository {
   findById(id: string, options?: RepositoryWriteOptions): Promise<WorkflowRun | null>
 
   /**
+   * Lists a page of runs ordered by creation time descending, including steps.
+   *
+   * Optional status and definition-key filters combine with logical AND. The
+   * page also reports the total match count so callers can compute page
+   * boundaries.
+   *
+   * @param parameters - Filters and 1-based paging values.
+   * @returns The matching page of runs with the total match count.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  findMany(parameters: FindWorkflowRunsParameters): Promise<WorkflowRunPage>
+
+  /**
    * Updates a run's status and optional terminal fields.
    *
    * @param id - Primary key of the run to update.
    * @param parameters - Target status and optional result/failure/timestamps.
-   * @param options - Optional transaction client.
-   * @returns `true` when one row was updated; `false` when the run does not exist.
+   * @param options - Optional transaction client and status guard.
+   * @returns `true` when one row was updated; `false` when the run does not
+   *   exist or fails the status guard.
    * @throws {WorkflowRunUpdateError} When the persistence operation fails.
    */
   updateRunStatus(
     id: string,
     parameters: UpdateWorkflowRunStatusParameters,
-    options?: RepositoryWriteOptions,
+    options?: RunRepositoryWriteOptions,
   ): Promise<boolean>
 
   /**
@@ -195,18 +212,61 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
   }
 
   /**
+   * Lists a page of runs ordered by creation time descending, including steps.
+   *
+   * @param parameters - Filters and 1-based paging values.
+   * @returns The matching page of runs with the total match count.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  async findMany(parameters: FindWorkflowRunsParameters): Promise<WorkflowRunPage> {
+    try {
+      const where: Prisma.WorkflowRunWhereInput = {
+        ...(parameters.definitionKey ? { definitionKey: parameters.definitionKey } : {}),
+        ...(parameters.status ? { status: parameters.status } : {}),
+      }
+
+      const [records, total] = await Promise.all([
+        this.database.workflowRun.findMany({
+          where,
+          include: {
+            steps: {
+              orderBy: {
+                position: 'asc',
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          skip: Math.max(0, (parameters.page - 1) * parameters.limit),
+          take: parameters.limit,
+        }),
+        this.database.workflowRun.count({ where }),
+      ])
+
+      return {
+        items: records.map(WorkflowRun.from),
+        total,
+      }
+    } catch (error) {
+      throw new WorkflowRunReadError('Failed to list workflow runs', { cause: error })
+    }
+  }
+
+  /**
    * Updates a run's status and optional terminal fields.
    *
    * @param id - Primary key of the run to update.
    * @param parameters - Target status and optional result/failure/timestamps.
-   * @param options - Optional transaction client.
-   * @returns `true` when one row was updated; `false` when the run does not exist.
+   * @param options - Optional transaction client and status guard.
+   * @returns `true` when one row was updated; `false` when the run does not
+   *   exist or fails the status guard.
    * @throws {WorkflowRunUpdateError} When the persistence operation fails.
    */
   async updateRunStatus(
     id: string,
     parameters: UpdateWorkflowRunStatusParameters,
-    options?: RepositoryWriteOptions,
+    options?: RunRepositoryWriteOptions,
   ): Promise<boolean> {
     try {
       const client = options?.transaction ?? this.database
@@ -243,6 +303,13 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
       const result = await client.workflowRun.updateMany({
         where: {
           id,
+          ...(options?.onlyIfStatusIn
+            ? {
+                status: {
+                  in: [...options.onlyIfStatusIn],
+                },
+              }
+            : {}),
         },
         data,
       })

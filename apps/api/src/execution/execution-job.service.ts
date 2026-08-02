@@ -10,6 +10,7 @@ import { ExecutionJob } from './models/execution-job'
 import { CreateExecutionJobParameters } from './parameters/create-execution-job-parameters'
 import { WorkflowOrchestrator } from '../workflow/orchestrator'
 import {
+  ExecutionJobCancelError,
   ExecutionJobClaimError,
   ExecutionJobCompleteError,
   ExecutionJobCreateError,
@@ -161,6 +162,28 @@ export class ExecutionJobService {
       return await this.executionJobRepository.findById(id)
     } catch (error) {
       throw new ExecutionJobReadError('Failed to retrieve execution job', { cause: error })
+    }
+  }
+
+  /**
+   * Requests cancellation of a workflow run's active execution jobs.
+   *
+   * `QUEUED` jobs move directly to `CANCELLED`; `RUNNING` jobs are flagged
+   * with `cancellationRequestedAt` so the executing node can observe the
+   * request. Terminal jobs are left unchanged.
+   *
+   * @param runId - Primary key of the owning workflow run.
+   * @param options - Optional transaction client.
+   * @throws ExecutionJobCancelError When the persistence operation fails.
+   */
+  async requestCancellationForRun(
+    runId: string,
+    options?: { transaction?: DatabaseTransaction },
+  ): Promise<void> {
+    try {
+      await this.executionJobRepository.requestCancellationForRun(runId, options)
+    } catch (error) {
+      throw new ExecutionJobCancelError('Failed to request execution job cancellation', { cause: error })
     }
   }
 }

@@ -271,6 +271,43 @@ export class WorkflowApprovalError extends WorkflowModuleError {
 }
 
 /**
+ * Indicates that a cancellation request could not be applied.
+ *
+ * Raised when the run is already terminal (`COMPLETED`, `FAILED`, or
+ * `CANCELLED`), including when a concurrent transition wins the race against
+ * the cancellation. Missing runs are not represented by this error; the
+ * orchestrator returns `null`.
+ */
+export class WorkflowCancelError extends WorkflowModuleError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for cancellation failures.
+   */
+  readonly code = 'WORKFLOW_CANCEL_ERROR'
+
+  /**
+   * Run id whose cancellation failed.
+   */
+  readonly runId: string
+
+  // MARK: - Constructor
+
+  /**
+   * Creates a workflow cancellation error.
+   *
+   * @param runId - Run whose cancellation failed.
+   * @param message - Human-readable description of the cancellation failure.
+   * @param options - Optional diagnostic options containing the originating
+   *   failure in `cause`.
+   */
+  constructor(runId: string, message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.runId = runId
+  }
+}
+
+/**
  * Indicates that starting a workflow run failed for a domain reason.
  *
  * Examples: the first step is not a `JOB`, or activation could not complete.

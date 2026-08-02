@@ -2,6 +2,7 @@
 // https://pink-tech.io/
 
 export * from './create-workflow-run-parameters'
+export * from './find-workflow-runs-parameters'
 export * from './repository-write-options'
 export * from './start-workflow-run-parameters'
 export * from './update-workflow-run-status-parameters'

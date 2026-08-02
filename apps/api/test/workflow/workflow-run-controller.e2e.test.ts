@@ -23,9 +23,11 @@ describe('workflow-run controller (e2e)', () => {
   let orchestrator: WorkflowOrchestrator
 
   const createdRunIds: string[] = []
+  const operatorToken = `workflow-operator-e2e:${randomUUID()}`
 
   beforeAll(async () => {
     process.env.NODE_ENV ??= 'development'
+    process.env.WORKFLOW_OPERATOR_TOKEN = operatorToken
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -128,9 +130,7 @@ describe('workflow-run controller (e2e)', () => {
   it('returns a parked run with ordered step progress on get', async () => {
     const runId = await startRunParkedOnApproval('JC-30')
 
-    const response = await request(app.getHttpServer())
-      .get(`/api/workflow-runs/${runId}`)
-      .expect(200)
+    const response = await request(app.getHttpServer()).get(`/api/workflow-runs/${runId}`).expect(200)
 
     expect(response.body.id).toBe(runId)
     expect(response.body.definitionKey).toBe(IssueImplementFlowDefinitionKey)
@@ -145,9 +145,7 @@ describe('workflow-run controller (e2e)', () => {
   })
 
   it('returns 404 for an unknown run on get', async () => {
-    await request(app.getHttpServer())
-      .get(`/api/workflow-runs/${randomUUID()}`)
-      .expect(404)
+    await request(app.getHttpServer()).get(`/api/workflow-runs/${randomUUID()}`).expect(404)
   })
 
   it('approves a parked run and returns the completed run', async () => {
@@ -155,6 +153,7 @@ describe('workflow-run controller (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/approve`)
+      .set('Authorization', `Bearer ${operatorToken}`)
       .expect(200)
 
     expect(response.body.status).toBe('COMPLETED')
@@ -173,6 +172,7 @@ describe('workflow-run controller (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/reject`)
+      .set('Authorization', `Bearer ${operatorToken}`)
       .expect(200)
 
     expect(response.body.status).toBe('FAILED')
@@ -189,10 +189,12 @@ describe('workflow-run controller (e2e)', () => {
 
     await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/approve`)
+      .set('Authorization', `Bearer ${operatorToken}`)
       .expect(200)
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/reject`)
+      .set('Authorization', `Bearer ${operatorToken}`)
       .expect(409)
 
     expect(response.body.code).toBe('WORKFLOW_APPROVAL_ERROR')
@@ -201,10 +203,84 @@ describe('workflow-run controller (e2e)', () => {
   it('returns 404 for an unknown run on approve and reject', async () => {
     await request(app.getHttpServer())
       .post(`/api/workflow-runs/${randomUUID()}/approve`)
+      .set('Authorization', `Bearer ${operatorToken}`)
       .expect(404)
 
     await request(app.getHttpServer())
       .post(`/api/workflow-runs/${randomUUID()}/reject`)
+      .set('Authorization', `Bearer ${operatorToken}`)
+      .expect(404)
+  })
+
+  it('returns 401 on mutating endpoints without a valid operator token', async () => {
+    const runId = await startRunParkedOnApproval('JC-34')
+
+    await request(app.getHttpServer()).post(`/api/workflow-runs/${runId}/approve`).expect(401)
+
+    await request(app.getHttpServer())
+      .post(`/api/workflow-runs/${runId}/reject`)
+      .set('Authorization', 'Bearer wrong-token')
+      .expect(401)
+
+    await request(app.getHttpServer())
+      .post(`/api/workflow-runs/${runId}/cancel`)
+      .set('Authorization', `Basic ${operatorToken}`)
+      .expect(401)
+
+    const untouched = await request(app.getHttpServer()).get(`/api/workflow-runs/${runId}`).expect(200)
+    expect(untouched.body.status).toBe('AWAITING_APPROVAL')
+  })
+
+  it('lists runs filtered by status and definition key with paging metadata', async () => {
+    const runId = await startRunParkedOnApproval('JC-35')
+
+    const response = await request(app.getHttpServer())
+      .get('/api/workflow-runs')
+      .query({
+        definitionKey: IssueImplementFlowDefinitionKey,
+        limit: 100,
+        status: 'AWAITING_APPROVAL',
+      })
+      .expect(200)
+
+    expect(response.body.limit).toBe(100)
+    expect(response.body.page).toBe(1)
+    expect(response.body.total).toBeGreaterThanOrEqual(1)
+
+    const listed = response.body.items.find((item: { id: string }) => item.id === runId)
+    expect(listed).toBeDefined()
+    expect(listed.status).toBe('AWAITING_APPROVAL')
+    expect(listed.definitionKey).toBe(IssueImplementFlowDefinitionKey)
+    expect(listed.steps).toHaveLength(4)
+  })
+
+  it('rejects unknown listing query parameters', async () => {
+    await request(app.getHttpServer()).get('/api/workflow-runs').query({ unexpected: 'value' }).expect(400)
+  })
+
+  it('cancels a parked run and returns 409 for a second cancellation', async () => {
+    const runId = await startRunParkedOnApproval('JC-36')
+
+    const response = await request(app.getHttpServer())
+      .post(`/api/workflow-runs/${runId}/cancel`)
+      .set('Authorization', `Bearer ${operatorToken}`)
+      .expect(200)
+
+    expect(response.body.status).toBe('CANCELLED')
+    expect(response.body.steps[3].status).toBe('CANCELLED')
+
+    const conflict = await request(app.getHttpServer())
+      .post(`/api/workflow-runs/${runId}/cancel`)
+      .set('Authorization', `Bearer ${operatorToken}`)
+      .expect(409)
+
+    expect(conflict.body.code).toBe('WORKFLOW_CANCEL_ERROR')
+  })
+
+  it('returns 404 for an unknown run on cancel', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/workflow-runs/${randomUUID()}/cancel`)
+      .set('Authorization', `Bearer ${operatorToken}`)
       .expect(404)
   })
 })

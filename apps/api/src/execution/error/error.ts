@@ -110,6 +110,37 @@ export class ExecutionJobCompleteError extends ExecutionJobError {
 }
 
 /**
+ * Indicates that an unexpected failure occurred while requesting cancellation
+ * of a run's execution jobs.
+ *
+ * This wraps operational failures thrown by the repository. Finding no
+ * cancellable jobs is an expected outcome and is not represented by this
+ * error.
+ */
+export class ExecutionJobCancelError extends ExecutionJobError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for execution-job cancellation failures.
+   */
+  readonly code = 'EXECUTION_JOB_CANCEL_ERROR'
+
+  // MARK: - Constructor
+
+  /**
+   * Creates an execution-job cancellation error.
+   *
+   * @param message - Human-readable description of the cancellation failure.
+   * @param errorOptions - Optional diagnostic options containing the
+   *   originating failure in `cause`. These details are for internal logging
+   *   and must not be exposed directly in public responses.
+   */
+  constructor(message: string, errorOptions?: ErrorOptions) {
+    super(message, errorOptions)
+  }
+}
+
+/**
  * Indicates that an unexpected failure occurred while creating (enqueueing) an
  * execution job.
  *

@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { WorkflowApprovalError, WorkflowModuleError } from '../error/error'
+import { WorkflowApprovalError, WorkflowCancelError, WorkflowModuleError } from '../error/error'
 import type { Response } from 'express'
 import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/common'
 
@@ -15,6 +15,8 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/commo
  * Mapping:
  * - {@link WorkflowApprovalError} → HTTP 409 (`Conflict`) — the run has no
  *   step awaiting approval (not reached, already decided, or terminal).
+ * - {@link WorkflowCancelError} → HTTP 409 (`Conflict`) — the run is already
+ *   terminal and cannot be cancelled.
  * - Any other {@link WorkflowModuleError} → HTTP 503 (`Service Unavailable`).
  *
  * Responsibilities:
@@ -41,7 +43,7 @@ export class WorkflowExceptionFilter implements ExceptionFilter {
   catch(exception: WorkflowModuleError, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>()
 
-    if (exception instanceof WorkflowApprovalError) {
+    if (exception instanceof WorkflowApprovalError || exception instanceof WorkflowCancelError) {
       response.status(HttpStatus.CONFLICT).json({
         statusCode: HttpStatus.CONFLICT,
         code: exception.code,

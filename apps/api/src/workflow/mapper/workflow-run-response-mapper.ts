@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { WorkflowRunResponseSchema, type WorkflowRunResponse } from '@cortex/protocol'
 import type { WorkflowRun } from '../models'
+import { WorkflowRunResponseSchema, type WorkflowRunResponse } from '@cortex/protocol'
 
 /**
  * Maps a domain {@link WorkflowRun} into the public workflow-run response.

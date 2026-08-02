@@ -229,6 +229,84 @@ describe('WorkflowRunRepository', () => {
     ).rejects.toBeInstanceOf(WorkflowRunCreateError)
   })
 
+  it('lists runs newest first with paging, filters, and totals', async () => {
+    const definitionKey = `list-test:${randomUUID()}`
+    const steps = [
+      {
+        key: 'main',
+        jobKind: 'agent.execute',
+        kind: WorkflowStepKind.JOB,
+        position: 0,
+      },
+    ]
+
+    const first = await repository.create({ definitionKey, input: { order: 1 }, steps })
+    const second = await repository.create({ definitionKey, input: { order: 2 }, steps })
+    const third = await repository.create({ definitionKey, input: { order: 3 }, steps })
+    createdRunIds.push(first.id, second.id, third.id)
+
+    await repository.updateRunStatus(second.id, { status: WorkflowRunStatus.RUNNING })
+
+    const firstPage = await repository.findMany({ definitionKey, limit: 2, page: 1 })
+
+    expect(firstPage.total).toBe(3)
+    expect(firstPage.items.map((run) => run.id)).toEqual([third.id, second.id])
+    expect(firstPage.items[0]?.steps.map((step) => step.key)).toEqual(['main'])
+
+    const secondPage = await repository.findMany({ definitionKey, limit: 2, page: 2 })
+
+    expect(secondPage.total).toBe(3)
+    expect(secondPage.items.map((run) => run.id)).toEqual([first.id])
+
+    const runningOnly = await repository.findMany({
+      definitionKey,
+      limit: 10,
+      page: 1,
+      status: WorkflowRunStatus.RUNNING,
+    })
+
+    expect(runningOnly.total).toBe(1)
+    expect(runningOnly.items.map((run) => run.id)).toEqual([second.id])
+  })
+
+  it('guards run status updates with onlyIfStatusIn', async () => {
+    const created = await repository.create({
+      definitionKey: 'agent.execute.flow',
+      input: {},
+      steps: [
+        {
+          key: 'main',
+          jobKind: 'agent.execute',
+          kind: WorkflowStepKind.JOB,
+          position: 0,
+        },
+      ],
+    })
+    createdRunIds.push(created.id)
+
+    await expect(
+      repository.updateRunStatus(
+        created.id,
+        { status: WorkflowRunStatus.CANCELLED },
+        { onlyIfStatusIn: [WorkflowRunStatus.RUNNING] },
+      ),
+    ).resolves.toBe(false)
+
+    const untouched = await repository.findById(created.id)
+    expect(untouched?.status).toBe(WorkflowRunStatus.PENDING)
+
+    await expect(
+      repository.updateRunStatus(
+        created.id,
+        { status: WorkflowRunStatus.CANCELLED },
+        { onlyIfStatusIn: [WorkflowRunStatus.PENDING] },
+      ),
+    ).resolves.toBe(true)
+
+    const cancelled = await repository.findById(created.id)
+    expect(cancelled?.status).toBe(WorkflowRunStatus.CANCELLED)
+  })
+
   it('wraps unexpected update failures', async () => {
     const created = await repository.create({
       definitionKey: 'agent.execute.flow',

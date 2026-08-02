@@ -108,6 +108,19 @@ export interface ExecutionJobRepository {
    * @returns The jobs for this page (may be shorter than {@link limit} on the last page).
    */
   findAll(limit: number, page: number): Promise<ExecutionJob[]>
+
+  /**
+   * Requests cancellation of a run's active jobs.
+   *
+   * `QUEUED` jobs were never claimed and move directly to `CANCELLED`.
+   * `RUNNING` jobs stay `RUNNING` with `cancellationRequestedAt` set so the
+   * executing node can observe the request; their eventual terminal callback
+   * is neutralized by the workflow step guards.
+   *
+   * @param runId - Primary key of the owning workflow run.
+   * @param options - Optional transaction client.
+   */
+  requestCancellationForRun(runId: string, options?: { transaction?: DatabaseTransaction }): Promise<void>
 }
 
 /**
@@ -425,6 +438,43 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
     })
 
     return executionJobs.map(ExecutionJob.from)
+  }
+
+  /**
+   * Requests cancellation of a run's active jobs.
+   *
+   * Applies two conditional bulk updates: `QUEUED` jobs (never claimed) move
+   * directly to `CANCELLED`, while `RUNNING` jobs keep their status and only
+   * record `cancellationRequestedAt` for the executing node to observe. Jobs
+   * already terminal are left unchanged.
+   *
+   * @param runId - Primary key of the owning workflow run.
+   * @param options - Optional transaction client.
+   */
+  async requestCancellationForRun(runId: string, options?: { transaction?: DatabaseTransaction }): Promise<void> {
+    const client = options?.transaction ?? this.database
+    const cancellationRequestedAt = new Date()
+
+    await client.executionJob.updateMany({
+      where: {
+        runId,
+        status: ExecutionJobStatus.QUEUED,
+      },
+      data: {
+        cancellationRequestedAt,
+        status: ExecutionJobStatus.CANCELLED,
+      },
+    })
+
+    await client.executionJob.updateMany({
+      where: {
+        runId,
+        status: ExecutionJobStatus.RUNNING,
+      },
+      data: {
+        cancellationRequestedAt,
+      },
+    })
   }
 
   // MARK: - Private methods
