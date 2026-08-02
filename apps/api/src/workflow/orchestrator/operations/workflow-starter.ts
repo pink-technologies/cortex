@@ -4,6 +4,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { Database } from '@/infraestructure/database'
 import { WorkflowRunStatus, WorkflowStepKind } from '../../datatypes'
+import { resolveWorkflowStepPayload } from '../../definitions/payload'
 import { WorkflowDefinitionRegistry } from '../../definitions/registry'
 import { WorkflowStartError } from '../../error/error'
 import { WorkflowTransitioner } from '../transitions'
@@ -45,9 +46,10 @@ export class WorkflowStarter {
    * Starts a workflow run for the given definition key.
    *
    * Creates the run and all definition steps in `PENDING`, then activates the
-   * first step when it is a `JOB`: enqueues a child execution job whose payload
-   * is the run input, marks the step `QUEUED`, and marks the run `RUNNING`.
-   * Those writes run in a single transaction.
+   * first step when it is a `JOB`: enqueues a child execution job whose
+   * payload is the definition step's `buildPayload` result (the run input
+   * when no builder is declared), marks the step `QUEUED`, and marks the run
+   * `RUNNING`. Those writes run in a single transaction.
    *
    * Idempotency keys (`triggerIdentifier`, `activeKey`) are stored on the run.
    * Child jobs do not reuse those keys until uniqueness moves fully to runs.
@@ -55,7 +57,8 @@ export class WorkflowStarter {
    * @param parameters - Definition key, input, and optional run idempotency keys.
    * @returns The activated run and the first-step child job.
    * @throws {@link WorkflowDefinitionNotFoundError} When the definition key is unknown.
-   * @throws {@link WorkflowStartError} When the first step is not an activatable `JOB`.
+   * @throws {@link WorkflowStartError} When the first step is not an activatable
+   *   `JOB`, or its payload builder rejects the input.
    * @throws {@link WorkflowRunCreateError} When run persistence fails (including unique collisions).
    */
   async start(parameters: StartWorkflowRunParameters): Promise<StartWorkflowRunResult> {
@@ -70,6 +73,21 @@ export class WorkflowStarter {
       throw new WorkflowStartError(
         definition.key,
         `Workflow definition ${definition.key} first step must be a JOB with jobKind`,
+      )
+    }
+
+    let firstStepPayload: unknown
+    try {
+      firstStepPayload = resolveWorkflowStepPayload(firstStepDefinition, {
+        input: parameters.input,
+        latestOutput: undefined,
+        outputs: {},
+      })
+    } catch (error) {
+      throw new WorkflowStartError(
+        definition.key,
+        `Workflow definition ${definition.key} could not build the payload for first step ${firstStepDefinition.key}`,
+        { cause: error },
       )
     }
 
@@ -100,7 +118,7 @@ export class WorkflowStarter {
       }
 
       const job = await this.transitioner.activateJobStep({
-        payload: parameters.input,
+        payload: firstStepPayload,
         priority: parameters.priority,
         source: parameters.source,
         step: firstStep,

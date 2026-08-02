@@ -42,10 +42,11 @@ export class WorkflowApprovalHandler {
    * Applies a positive approval decision to a parked run.
    *
    * Completes the step awaiting approval, then activates the next `JOB` step
-   * (returning the run to `RUNNING`), parks again when the next step is
-   * another `APPROVAL`, or completes the run when no steps remain. All writes
-   * commit in one transaction; concurrent decisions are resolved by an
-   * optimistic status guard so only one decision applies.
+   * (returning the run to `RUNNING`) with a payload resolved from the run's
+   * definition, parks again when the next step is another `APPROVAL`, or
+   * completes the run when no steps remain. All writes commit in one
+   * transaction; concurrent decisions are resolved by an optimistic status
+   * guard so only one decision applies.
    *
    * @param runId - Primary key of the run awaiting approval.
    * @returns The refreshed run after the decision; `null` when the run does not exist.
@@ -59,13 +60,10 @@ export class WorkflowApprovalHandler {
     }
 
     const approvalStep = this.resolveAwaitingApprovalStep(run)
-    const payload = this.resolveApprovalPayload(run, approvalStep)
 
     await this.database.withTransaction(async (transaction) => {
       await this.transitioner.completeStepAndAdvance({
         guardStatuses: [WorkflowStepStatus.AWAITING_APPROVAL],
-        payload,
-        result: payload,
         run,
         step: approvalStep,
         transaction,
@@ -112,14 +110,6 @@ export class WorkflowApprovalHandler {
   }
 
   // MARK: - Private methods
-
-  private resolveApprovalPayload(run: WorkflowRun, approvalStep: WorkflowStep): unknown {
-    const priorStepWithOutput = [...run.steps]
-      .filter((candidate) => candidate.position < approvalStep.position && candidate.output != null)
-      .at(-1)
-
-    return priorStepWithOutput?.output ?? run.input
-  }
 
   private resolveAwaitingApprovalStep(run: WorkflowRun): WorkflowStep {
     const approvalStep = run.steps.find((candidate) => candidate.status === WorkflowStepStatus.AWAITING_APPROVAL)

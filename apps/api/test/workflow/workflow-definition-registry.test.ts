@@ -56,7 +56,7 @@ describe('WorkflowDefinitionRegistry', () => {
     expect(registry.resolve(AgentExecuteFlowDefinitionKey).steps[0]?.jobKind).toBe(AgentExecuteJobKind)
   })
 
-  it('resolves the issue.implement.flow stub with triage through approval', () => {
+  it('resolves the issue.implement.flow with triage through approval', () => {
     const registry = new WorkflowDefinitionRegistry()
     registerBuiltInFlows(registry)
 
@@ -79,6 +79,12 @@ describe('WorkflowDefinitionRegistry', () => {
       AgentExecuteJobKind,
       RepositoryReviewJobKind,
       undefined,
+    ])
+    expect(definition.steps.map((step) => typeof step.buildPayload)).toEqual([
+      'function',
+      'function',
+      'function',
+      'undefined',
     ])
   })
 
@@ -156,6 +162,20 @@ describe('WorkflowDefinitionRegistry', () => {
             key: 'approval',
             kind: WorkflowStepKind.APPROVAL,
             jobKind: JiraTriageJobKind,
+            position: 0,
+          },
+        ],
+      }),
+    ).toThrow(WorkflowDefinitionInvalidError)
+
+    expect(() =>
+      registry.register({
+        key: 'approval.with.build-payload.flow',
+        steps: [
+          {
+            buildPayload: () => ({}),
+            key: 'approval',
+            kind: WorkflowStepKind.APPROVAL,
             position: 0,
           },
         ],

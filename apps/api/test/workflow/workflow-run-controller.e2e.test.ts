@@ -10,6 +10,11 @@ import { Database } from '../../src/infraestructure/database'
 import { ExecutionJobStatus } from '../../src/execution/datatypes/execution-job-status'
 import { ExecutionJobService } from '../../src/execution/execution-job.service'
 import { IssueImplementFlowDefinitionKey, WorkflowOrchestrator } from '../../src/workflow'
+import {
+  issueImplementFlowInput,
+  issueImplementResultForKind,
+  repositoryReviewJobResult,
+} from './issue-implement-fixtures'
 
 describe('workflow-run controller (e2e)', () => {
   let app: INestApplication
@@ -71,7 +76,7 @@ describe('workflow-run controller (e2e)', () => {
     await app.close()
   })
 
-  async function completeJob(jobId: string): Promise<void> {
+  async function completeJob(jobId: string, result: unknown): Promise<void> {
     const claimToken = randomUUID()
     const nodeId = `node-${randomUUID()}`
 
@@ -87,25 +92,25 @@ describe('workflow-run controller (e2e)', () => {
       },
     })
 
-    await executionJobService.complete(jobId, { claimToken, nodeId })
+    await executionJobService.complete(jobId, { claimToken, nodeId, result })
   }
 
   /**
    * Drives an issue-implement run through its three JOB steps so the run
    * parks on the trailing approval step.
    */
-  async function startRunParkedOnApproval(input: unknown): Promise<string> {
+  async function startRunParkedOnApproval(issueKey: string): Promise<string> {
     const { job, run } = await orchestrator.start({
       definitionKey: IssueImplementFlowDefinitionKey,
-      input,
+      input: issueImplementFlowInput(issueKey),
       triggerIdentifier: `workflow-run-e2e:${randomUUID()}`,
     })
     createdRunIds.push(run.id)
 
-    let currentJobId: string | undefined = job.id
+    let currentJob: { id: string; kind: string } | undefined = job
 
-    while (currentJobId) {
-      await completeJob(currentJobId)
+    while (currentJob) {
+      await completeJob(currentJob.id, issueImplementResultForKind(currentJob.kind, issueKey))
 
       const nextJob = await database.executionJob.findFirst({
         where: {
@@ -114,14 +119,14 @@ describe('workflow-run controller (e2e)', () => {
         },
       })
 
-      currentJobId = nextJob?.id
+      currentJob = nextJob ?? undefined
     }
 
     return run.id
   }
 
   it('returns a parked run with ordered step progress on get', async () => {
-    const runId = await startRunParkedOnApproval({ issueKey: 'JC-30' })
+    const runId = await startRunParkedOnApproval('JC-30')
 
     const response = await request(app.getHttpServer())
       .get(`/api/workflow-runs/${runId}`)
@@ -146,8 +151,7 @@ describe('workflow-run controller (e2e)', () => {
   })
 
   it('approves a parked run and returns the completed run', async () => {
-    const input = { issueKey: 'JC-31' }
-    const runId = await startRunParkedOnApproval(input)
+    const runId = await startRunParkedOnApproval('JC-31')
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/approve`)
@@ -155,7 +159,7 @@ describe('workflow-run controller (e2e)', () => {
 
     expect(response.body.status).toBe('COMPLETED')
     expect(response.body.completedAt).toEqual(expect.any(String))
-    expect(response.body.result).toEqual(input)
+    expect(response.body.result).toEqual(repositoryReviewJobResult())
     expect(response.body.steps.map((step: { status: string }) => step.status)).toEqual([
       'COMPLETED',
       'COMPLETED',
@@ -165,7 +169,7 @@ describe('workflow-run controller (e2e)', () => {
   })
 
   it('rejects a parked run and returns the failed run', async () => {
-    const runId = await startRunParkedOnApproval({ issueKey: 'JC-32' })
+    const runId = await startRunParkedOnApproval('JC-32')
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/reject`)
@@ -181,7 +185,7 @@ describe('workflow-run controller (e2e)', () => {
   })
 
   it('returns 409 when the run has no step awaiting approval', async () => {
-    const runId = await startRunParkedOnApproval({ issueKey: 'JC-33' })
+    const runId = await startRunParkedOnApproval('JC-33')
 
     await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/approve`)

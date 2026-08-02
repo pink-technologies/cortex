@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { JiraProjectRepoMapping } from '../../../connection'
-import type { JiraIssue } from '../../../jira'
+import type { JiraIssue } from '@cortex/integrations/jira'
 import type { JiraRepoResolution } from '../models'
 
 /**

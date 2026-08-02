@@ -12,7 +12,7 @@ import type { ExecutionJobHandler, ExecutionJobHandlerContext } from '../../../e
 import { AgentProcessResolver } from '../../../agent/agent-process-resolver'
 import { ConfigSourceControlConnectionStore } from '../../../connection'
 import { EXECUTION_ENGINE, type ExecutionEngine } from '../../../execution-engine'
-import { GitHubClient, GitHubIssueCommentResource, GitHubPullResource } from '../../../github'
+import { GitHubClient, GitHubIssueCommentResource, GitHubPullResource } from '@cortex/integrations/github'
 import { GitWorkspaceManager } from '../../../workspace'
 import {
   buildRepositoryReviewUserContext,

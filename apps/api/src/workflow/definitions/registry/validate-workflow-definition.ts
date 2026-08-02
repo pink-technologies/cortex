@@ -9,7 +9,8 @@ import type { WorkflowDefinition } from '../models'
  * Validates a {@link WorkflowDefinition} before registration.
  *
  * Checks non-empty key/steps, unique step keys and positions, and that `JOB`
- * steps declare `jobKind` while `APPROVAL` steps do not.
+ * steps declare `jobKind` while `APPROVAL` steps declare neither `jobKind`
+ * nor `buildPayload`.
  *
  * @param definition - Definition to validate.
  * @throws {@link WorkflowDefinitionInvalidError} when the definition is malformed.
@@ -62,6 +63,13 @@ export function validateWorkflowDefinition(definition: WorkflowDefinition): void
       throw new WorkflowDefinitionInvalidError(
         definition.key,
         `Workflow definition ${definition.key} step ${step.key} is APPROVAL but sets jobKind`,
+      )
+    }
+
+    if (step.kind === WorkflowStepKind.APPROVAL && step.buildPayload != null) {
+      throw new WorkflowDefinitionInvalidError(
+        definition.key,
+        `Workflow definition ${definition.key} step ${step.key} is APPROVAL but sets buildPayload`,
       )
     }
 

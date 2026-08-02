@@ -7,13 +7,17 @@ import { ExecutionJobService } from '../../../execution/execution-job.service'
 import type { ExecutionJob } from '../../../execution/models/execution-job'
 import type { ExecutionJobSource } from '../../../execution/models/execution-job-source'
 import { WorkflowRunStatus, WorkflowStepKind, WorkflowStepStatus } from '../../datatypes'
+import type { WorkflowStepPayloadContext } from '../../definitions/models'
+import { resolveWorkflowStepPayload } from '../../definitions/payload'
+import { WorkflowDefinitionRegistry } from '../../definitions/registry'
 import { WorkflowAdvanceError } from '../../error/error'
 import type { WorkflowRun } from '../../models/workflow-run'
 import type { WorkflowStep } from '../../models/workflow-step'
 import { WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../../repository'
 
 /**
- * Parameters for activating an `APPROVAL` step.
+ * Parameters for {@link WorkflowTransitioner.activateApprovalStep} — parking
+ * a run on a human approval gate.
  */
 interface ActivateApprovalStepParameters {
   /**
@@ -30,12 +34,15 @@ interface ActivateApprovalStepParameters {
 }
 
 /**
- * Parameters for activating a `JOB` step.
+ * Parameters for {@link WorkflowTransitioner.activateJobStep} — enqueueing a
+ * child execution job and queueing its step.
  */
 interface ActivateJobStepParameters {
   /**
-   * Opaque payload handed to the child execution job. Typically the run input
-   * for the first step, or the previous step's output afterwards.
+   * Opaque payload carried by the child execution job and validated by the
+   * Node handler for the step's `jobKind`. Callers resolve it from the run's
+   * definition: the step's `buildPayload` when declared, otherwise the most
+   * recent step output falling back to the run input.
    */
   readonly payload: unknown
 
@@ -65,7 +72,9 @@ interface ActivateJobStepParameters {
 }
 
 /**
- * Parameters for completing a step and advancing its run.
+ * Parameters for {@link WorkflowTransitioner.completeStepAndAdvance} —
+ * finishing a step and moving its run to the next step, an approval park, or
+ * completion.
  */
 interface CompleteStepAndAdvanceParameters {
   /**
@@ -79,27 +88,20 @@ interface CompleteStepAndAdvanceParameters {
 
   /**
    * Output persisted on the completed step, such as the child job's result.
+   * It also enters the payload context handed to the next `JOB` step's
+   * builder and, when this was the last step, becomes the run's `result`.
    * Omit when the step produces none (for example an approval decision);
-   * the step's stored output is then left untouched.
+   * the step's stored output is then left untouched and the most recent
+   * prior output carries forward instead.
    */
   readonly output?: unknown
 
   /**
-   * Payload handed to the next `JOB` step when one is activated. Ignored when
-   * the run completes or parks on an approval instead.
-   */
-  readonly payload: unknown
-
-  /**
-   * Result persisted on the run when the completed step was the last one.
-   * Ignored while more steps remain.
-   */
-  readonly result: unknown
-
-  /**
-   * Run that owns {@link CompleteStepAndAdvanceParameters#step}. Its loaded
-   * `steps` decide what comes next and its `status` decides whether a resume
-   * write back to `RUNNING` is needed.
+   * Run that owns {@link CompleteStepAndAdvanceParameters#step}. Supplies the
+   * ordered `steps` that decide what comes next and whose stored outputs feed
+   * payload building, the `definitionKey` resolved for `buildPayload` lookups,
+   * the `input` used as the payload fallback, and the `status` that decides
+   * whether a resume write back to `RUNNING` is needed.
    */
   readonly run: WorkflowRun
 
@@ -116,7 +118,8 @@ interface CompleteStepAndAdvanceParameters {
 }
 
 /**
- * Parameters for failing a step together with its run.
+ * Parameters for {@link WorkflowTransitioner.failStepAndRun} — failing a step
+ * and its run terminally.
  */
 interface FailStepAndRunParameters {
   /**
@@ -173,10 +176,15 @@ interface FailStepAndRunParameters {
  * atomically with the caller's other writes — and any error thrown here rolls
  * the whole flow back.
  *
+ * Next-step payloads are resolved from the run's registered definition: a
+ * step's `buildPayload` when declared, otherwise the most recent step output
+ * falling back to the run input. Payload-builder failures surface as
+ * {@link WorkflowAdvanceError} with the original error in `cause`.
+ *
  * Persistence failures propagate as the repository's domain errors
  * (`WorkflowStepUpdateError`, `WorkflowRunUpdateError`) or the execution
- * module's `ExecutionJobCreateError`; this class adds no error handling of
- * its own.
+ * module's `ExecutionJobCreateError`; this class adds no other error
+ * handling of its own.
  */
 @Injectable()
 export class WorkflowTransitioner {
@@ -185,10 +193,12 @@ export class WorkflowTransitioner {
   /**
    * Creates a workflow transitioner.
    *
+   * @param definitionRegistry - Registry resolving definitions for payload building.
    * @param executionJobService - Service used to enqueue child execution jobs.
    * @param workflowRunRepository - Persistence port for runs and steps.
    */
   constructor(
+    private readonly definitionRegistry: WorkflowDefinitionRegistry,
     @Inject(forwardRef(() => ExecutionJobService))
     private readonly executionJobService: ExecutionJobService,
     @Inject(WORKFLOW_RUN_REPOSITORY)
@@ -294,33 +304,39 @@ export class WorkflowTransitioner {
    *
    * When the guard wins, exactly one of three outcomes follows, by position
    * order of the run's steps:
-   * - **No step remains** — the run moves to `COMPLETED` with the given
-   *   result and its `activeKey` is released for reuse by a later run.
+   * - **No step remains** — the run moves to `COMPLETED` with the most
+   *   recent step output as its result (`null` when no step produced any)
+   *   and its `activeKey` is released for reuse by a later run.
    * - **Next step is `APPROVAL`** — the run parks via
    *   {@link activateApprovalStep}.
    * - **Next step is `JOB`** — the step is activated via
-   *   {@link activateJobStep} with the given payload; when the run was parked
-   *   (for example resuming from an approval), it is first moved back to
-   *   `RUNNING`.
+   *   {@link activateJobStep} with a payload resolved from the run's
+   *   definition: the definition step's `buildPayload` when declared,
+   *   otherwise the most recent step output falling back to the run input.
+   *   When the run was parked (for example resuming from an approval), it is
+   *   first moved back to `RUNNING`.
    *
-   * @param parameters - Guard, step outcome, next-step payload, and transaction.
-   * @throws {@link WorkflowAdvanceError} When the next step cannot be activated.
+   * @param parameters - Guard, step outcome, and transaction.
+   * @throws {@link WorkflowAdvanceError} When the next step cannot be
+   *   activated, is missing from the registered definition, or its payload
+   *   builder throws.
+   * @throws {@link WorkflowDefinitionNotFoundError} When the run's definition
+   *   is no longer registered.
    */
   async completeStepAndAdvance(parameters: CompleteStepAndAdvanceParameters): Promise<void> {
-    const { guardStatuses, output, payload, result, run, step, transaction } = parameters
     const completedAt = new Date()
-    const nextStep = run.steps.find((candidate) => candidate.position > step.position)
-
+    const nextStep = parameters.run.steps.find((candidate) => candidate.position > parameters.step.position)
+    const context = this.buildPayloadContext(parameters.run, parameters.step, parameters.output)
     const stepped = await this.workflowRunRepository.updateStepStatus(
-      step.id,
+      parameters.step.id,
       {
         completedAt,
-        output,
+        output: parameters.output,
         status: WorkflowStepStatus.COMPLETED,
       },
       {
-        onlyIfStatusIn: guardStatuses,
-        transaction,
+        onlyIfStatusIn: parameters.guardStatuses,
+        transaction: parameters.transaction,
       },
     )
 
@@ -330,37 +346,37 @@ export class WorkflowTransitioner {
 
     if (!nextStep) {
       await this.workflowRunRepository.updateRunStatus(
-        run.id,
+        parameters.run.id,
         {
           activeKey: null,
           completedAt,
-          result,
+          result: context.latestOutput ?? null,
           status: WorkflowRunStatus.COMPLETED,
         },
-        { transaction },
+        { transaction: parameters.transaction },
       )
       return
     }
 
     if (nextStep.kind === WorkflowStepKind.APPROVAL) {
-      await this.activateApprovalStep({ step: nextStep, transaction })
+      await this.activateApprovalStep({ step: nextStep, transaction: parameters.transaction })
       return
     }
 
-    if (run.status !== WorkflowRunStatus.RUNNING) {
+    if (parameters.run.status !== WorkflowRunStatus.RUNNING) {
       await this.workflowRunRepository.updateRunStatus(
-        run.id,
+        parameters.run.id,
         {
           status: WorkflowRunStatus.RUNNING,
         },
-        { transaction },
+        { transaction: parameters.transaction },
       )
     }
 
     await this.activateJobStep({
-      payload,
+      payload: this.resolveNextStepPayload(parameters.run, nextStep, context),
       step: nextStep,
-      transaction,
+      transaction: parameters.transaction,
     })
   }
 
@@ -409,5 +425,63 @@ export class WorkflowTransitioner {
       },
       { transaction },
     )
+  }
+
+  // MARK: - Private methods
+
+  private buildPayloadContext(
+    run: WorkflowRun,
+    completingStep: WorkflowStep,
+    output: unknown,
+  ): WorkflowStepPayloadContext {
+    const outputs: Record<string, unknown> = {}
+    let latestOutput: unknown
+
+    const orderedSteps = [...run.steps].sort((left, right) => left.position - right.position)
+
+    for (const candidate of orderedSteps) {
+      if (candidate.position > completingStep.position) {
+        continue
+      }
+
+      const candidateOutput = candidate.id === completingStep.id ? output : candidate.output
+
+      if (candidateOutput != null) {
+        outputs[candidate.key] = candidateOutput
+        latestOutput = candidateOutput
+      }
+    }
+
+    return {
+      input: run.input,
+      latestOutput,
+      outputs,
+    }
+  }
+
+  private resolveNextStepPayload(
+    run: WorkflowRun,
+    nextStep: WorkflowStep,
+    context: WorkflowStepPayloadContext,
+  ): unknown {
+    const definition = this.definitionRegistry.resolve(run.definitionKey)
+    const stepDefinition = definition.steps.find((candidate) => candidate.key === nextStep.key)
+
+    if (!stepDefinition) {
+      throw new WorkflowAdvanceError(
+        run.id,
+        `Workflow run ${run.id} step ${nextStep.key} is not part of definition ${run.definitionKey}`,
+      )
+    }
+
+    try {
+      return resolveWorkflowStepPayload(stepDefinition, context)
+    } catch (error) {
+      throw new WorkflowAdvanceError(
+        run.id,
+        `Workflow run ${run.id} could not build the payload for step ${nextStep.key}`,
+        { cause: error },
+      )
+    }
   }
 }

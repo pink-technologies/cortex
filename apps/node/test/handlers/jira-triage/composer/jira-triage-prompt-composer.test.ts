@@ -6,7 +6,7 @@ import {
   buildJiraFixPrompt,
   composeJiraClassifyPrompt,
 } from '../../../../src/handlers/jira-triage/composer/jira-triage-prompt-composer'
-import { JiraIssue } from '../../../../src/jira'
+import { JiraIssue } from '@cortex/integrations/jira'
 
 function issue(partial: {
   customFields?: Readonly<Record<string, unknown>>

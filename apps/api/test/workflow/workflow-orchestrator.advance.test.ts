@@ -21,6 +21,11 @@ import {
   WorkflowRunStatus,
   WorkflowStepStatus,
 } from '../../src/workflow'
+import {
+  agentExecuteJobResult,
+  issueImplementFlowInput,
+  jiraTriageJobResult,
+} from './issue-implement-fixtures'
 
 describe('WorkflowOrchestrator advance', () => {
   let database: Database
@@ -132,20 +137,33 @@ describe('WorkflowOrchestrator advance', () => {
     expect(updated?.steps[0]?.status).toBe(WorkflowStepStatus.COMPLETED)
   })
 
-  it('advances JOB→JOB and parks before APPROVAL', async () => {
+  it('advances JOB→JOB with built payloads and parks before APPROVAL', async () => {
+    const input = issueImplementFlowInput('JC-11')
     const { job, run } = await orchestrator.start({
       definitionKey: IssueImplementFlowDefinitionKey,
-      input: { issueKey: 'JC-11' },
+      input,
       triggerIdentifier: `workflow-advance-multi:${randomUUID()}`,
     })
     createdRunIds.push(run.id)
 
     expect(job.kind).toBe(JiraTriageJobKind)
+    expect(job.payload).toEqual({
+      connectionId: input.jiraConnectionId,
+      issueKey: input.issueKey,
+      options: {
+        attemptFix: false,
+        dryRunTests: false,
+      },
+      repository: input.repository,
+      sourceControlConnectionId: input.sourceControlConnectionId,
+    })
 
+    const triageResult = jiraTriageJobResult(input.issueKey)
     const firstClaim = await markRunning(job.id)
     await executionJobService.complete(job.id, {
       claimToken: firstClaim.claimToken,
       nodeId: firstClaim.nodeId,
+      result: triageResult,
     })
 
     const afterFirst = await database.workflowRun.findUnique({
@@ -179,12 +197,17 @@ describe('WorkflowOrchestrator advance', () => {
     expect(secondJob).not.toBeNull()
     expect(secondJob?.kind).toBe(AgentExecuteJobKind)
     expect(secondJob?.status).toBe(ExecutionJobStatus.QUEUED)
-    expect(secondJob?.payload).toEqual({ issueKey: 'JC-11' })
+
+    const implementPayload = secondJob?.payload as { agentId: string; input: string; toolNames: string[] }
+    expect(implementPayload.agentId).toBe(input.agentId)
+    expect(implementPayload.input).toContain(input.issueKey)
+    expect(implementPayload.input).toContain(triageResult.classification.rationale)
 
     const secondClaim = await markRunning(secondJob!.id)
     await executionJobService.complete(secondJob!.id, {
       claimToken: secondClaim.claimToken,
       nodeId: secondClaim.nodeId,
+      result: agentExecuteJobResult(),
     })
 
     const thirdJob = await database.executionJob.findFirst({
@@ -194,6 +217,19 @@ describe('WorkflowOrchestrator advance', () => {
       },
     })
     expect(thirdJob).not.toBeNull()
+    expect(thirdJob?.payload).toEqual({
+      change: {
+        headRef: input.repository.defaultBranch,
+      },
+      connectionId: input.sourceControlConnectionId,
+      instructions: `Review the implementation for Jira issue ${input.issueKey}.`,
+      repository: {
+        cloneUrl: input.repository.cloneUrl,
+        name: input.repository.name,
+        owner: input.repository.owner,
+      },
+      reviewMode: 'full',
+    })
 
     const thirdClaim = await markRunning(thirdJob!.id)
     await executionJobService.complete(thirdJob!.id, {
@@ -228,6 +264,52 @@ describe('WorkflowOrchestrator advance', () => {
       WorkflowStepStatus.AWAITING_APPROVAL,
     ])
     expect(parked?.steps[3]?.startedAt).toBeInstanceOf(Date)
+  })
+
+  it('fails the advance without completing the step when the payload builder rejects the output', async () => {
+    const input = issueImplementFlowInput('JC-16')
+    const { job, run } = await orchestrator.start({
+      definitionKey: IssueImplementFlowDefinitionKey,
+      input,
+      triggerIdentifier: `workflow-advance-bad-output:${randomUUID()}`,
+    })
+    createdRunIds.push(run.id)
+
+    const claim = await markRunning(job.id)
+
+    // Triage completes with an output the implement builder cannot parse.
+    await expect(
+      executionJobService.complete(job.id, {
+        claimToken: claim.claimToken,
+        nodeId: claim.nodeId,
+      }),
+    ).rejects.toThrow()
+
+    const updated = await database.workflowRun.findUnique({
+      where: {
+        id: run.id,
+      },
+      include: {
+        steps: {
+          orderBy: {
+            position: 'asc',
+          },
+        },
+      },
+    })
+
+    // The advance transaction rolled back: run still RUNNING, no step advanced.
+    expect(updated?.status).toBe(WorkflowRunStatus.RUNNING)
+    expect(updated?.steps[0]?.status).toBe(WorkflowStepStatus.QUEUED)
+    expect(updated?.steps[1]?.status).toBe(WorkflowStepStatus.PENDING)
+
+    const implementJob = await database.executionJob.findFirst({
+      where: {
+        runId: run.id,
+        kind: AgentExecuteJobKind,
+      },
+    })
+    expect(implementJob).toBeNull()
   })
 
   it('fails the run when a linked job fails', async () => {

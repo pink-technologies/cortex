@@ -13,7 +13,7 @@ import {
   JiraIssue,
   JiraIssueAssignee,
   JiraIssueResource,
-} from '../../../../src/jira'
+} from '@cortex/integrations/jira'
 import type { GitWorkspaceManager } from '../../../../src/workspace'
 import type { TestRunner } from '../../../../src/handlers/jira-triage/runner/test-runner'
 import { ExecutionJobHandlerRegistry } from '../../../../src/execution/handler'

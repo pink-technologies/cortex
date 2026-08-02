@@ -16,6 +16,11 @@ import {
   WorkflowRunStatus,
   WorkflowStepStatus,
 } from '../../src/workflow'
+import {
+  issueImplementFlowInput,
+  issueImplementResultForKind,
+  repositoryReviewJobResult,
+} from './issue-implement-fixtures'
 
 describe('WorkflowOrchestrator approval', () => {
   let database: Database
@@ -74,7 +79,7 @@ describe('WorkflowOrchestrator approval', () => {
     await database.$disconnect()
   })
 
-  async function completeJob(jobId: string): Promise<void> {
+  async function completeJob(jobId: string, result: unknown): Promise<void> {
     const claimToken = randomUUID()
     const nodeId = `node-${randomUUID()}`
 
@@ -90,25 +95,25 @@ describe('WorkflowOrchestrator approval', () => {
       },
     })
 
-    await executionJobService.complete(jobId, { claimToken, nodeId })
+    await executionJobService.complete(jobId, { claimToken, nodeId, result })
   }
 
   /**
    * Drives an issue-implement run through its three JOB steps so the run
    * parks on the trailing approval step.
    */
-  async function startRunParkedOnApproval(input: unknown): Promise<string> {
+  async function startRunParkedOnApproval(issueKey: string): Promise<string> {
     const { job, run } = await orchestrator.start({
       definitionKey: IssueImplementFlowDefinitionKey,
-      input,
+      input: issueImplementFlowInput(issueKey),
       triggerIdentifier: `workflow-approval:${randomUUID()}`,
     })
     createdRunIds.push(run.id)
 
-    let currentJobId: string | undefined = job.id
+    let currentJob: { id: string; kind: string } | undefined = job
 
-    while (currentJobId) {
-      await completeJob(currentJobId)
+    while (currentJob) {
+      await completeJob(currentJob.id, issueImplementResultForKind(currentJob.kind, issueKey))
 
       const nextJob = await database.executionJob.findFirst({
         where: {
@@ -117,14 +122,14 @@ describe('WorkflowOrchestrator approval', () => {
         },
       })
 
-      currentJobId = nextJob?.id
+      currentJob = nextJob ?? undefined
     }
 
     return run.id
   }
 
   it('parks the run awaiting approval after the last JOB step', async () => {
-    const runId = await startRunParkedOnApproval({ issueKey: 'JC-20' })
+    const runId = await startRunParkedOnApproval('JC-20')
 
     const parked = await database.workflowRun.findUnique({
       where: {
@@ -145,14 +150,13 @@ describe('WorkflowOrchestrator approval', () => {
   })
 
   it('approve completes the approval step and the run', async () => {
-    const input = { issueKey: 'JC-21' }
-    const runId = await startRunParkedOnApproval(input)
+    const runId = await startRunParkedOnApproval('JC-21')
 
     const approved = await orchestrator.approve(runId)
 
     expect(approved?.status).toBe(WorkflowRunStatus.COMPLETED)
     expect(approved?.completedAt).toBeInstanceOf(Date)
-    expect(approved?.result).toEqual(input)
+    expect(approved?.result).toEqual(repositoryReviewJobResult())
     expect(approved?.steps.map((step) => step.status)).toEqual([
       WorkflowStepStatus.COMPLETED,
       WorkflowStepStatus.COMPLETED,
@@ -162,7 +166,7 @@ describe('WorkflowOrchestrator approval', () => {
   })
 
   it('reject fails the approval step and the run', async () => {
-    const runId = await startRunParkedOnApproval({ issueKey: 'JC-22' })
+    const runId = await startRunParkedOnApproval('JC-22')
 
     const rejected = await orchestrator.reject(runId)
 
@@ -178,7 +182,7 @@ describe('WorkflowOrchestrator approval', () => {
   it('throws when no step is awaiting approval', async () => {
     const { run } = await orchestrator.start({
       definitionKey: IssueImplementFlowDefinitionKey,
-      input: { issueKey: 'JC-23' },
+      input: issueImplementFlowInput('JC-23'),
       triggerIdentifier: `workflow-approval-early:${randomUUID()}`,
     })
     createdRunIds.push(run.id)
@@ -188,7 +192,7 @@ describe('WorkflowOrchestrator approval', () => {
   })
 
   it('rejects a second decision after approval is applied', async () => {
-    const runId = await startRunParkedOnApproval({ issueKey: 'JC-24' })
+    const runId = await startRunParkedOnApproval('JC-24')
 
     await orchestrator.approve(runId)
 

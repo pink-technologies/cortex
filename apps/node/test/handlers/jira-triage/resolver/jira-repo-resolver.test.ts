@@ -5,7 +5,7 @@ import {
   parseGitHubRepositoryReference,
   resolveJiraRepository,
 } from '../../../../src/handlers/jira-triage/resolver/jira-repo-resolver'
-import { JiraIssue, JiraIssueRemoteLink } from '../../../../src/jira'
+import { JiraIssue, JiraIssueRemoteLink } from '@cortex/integrations/jira'
 
 function issue(partial: {
   customFields?: Readonly<Record<string, unknown>>

@@ -69,9 +69,11 @@ export class WorkflowAdvancer {
    * Advances the workflow after a child execution job completes successfully.
    *
    * No-ops when the job is not linked to a run/step, or when the step is already
-   * terminal (idempotent retries of complete). Completes the current step, then
-   * activates the next `JOB` step, completes the run when no steps remain, or
-   * parks the run in `AWAITING_APPROVAL` when the next step is `APPROVAL`.
+   * terminal (idempotent retries of complete). Completes the current step with
+   * the job's result as its output, then activates the next `JOB` step with a
+   * payload resolved from the run's definition, completes the run when no
+   * steps remain, or parks the run in `AWAITING_APPROVAL` when the next step
+   * is `APPROVAL`.
    *
    * Workflow writes run in a single transaction with an optimistic step-status
    * guard so concurrent completes do not double-advance.
@@ -91,8 +93,6 @@ export class WorkflowAdvancer {
       await this.transitioner.completeStepAndAdvance({
         guardStatuses: [WorkflowStepStatus.QUEUED, WorkflowStepStatus.RUNNING],
         output: job.result,
-        payload: job.result ?? run.input,
-        result: job.result,
         run,
         step,
         transaction,

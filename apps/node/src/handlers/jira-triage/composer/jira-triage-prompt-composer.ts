@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { JiraIssue } from '../../../jira'
+import type { JiraIssue } from '@cortex/integrations/jira'
 
 /**
  * Builds the user context block for ticket classification.

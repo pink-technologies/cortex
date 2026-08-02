@@ -6,7 +6,7 @@ export type { CreateJiraTriageJobRequest } from './create-jira-triage-job-reques
 export { JiraTriageJobKind } from './jira-triage-job-kind'
 export { JiraTriageJobPayloadSchema } from './jira-triage-job-payload'
 export type { JiraTriageJobPayload } from './jira-triage-job-payload'
-export { JiraTriageClassificationSchema } from './jira-triage-job-result'
+export { JiraTriageClassificationSchema, JiraTriageJobResultSchema } from './jira-triage-job-result'
 export type {
   JiraTriageClassification,
   JiraTriageEscalation,

@@ -2,6 +2,6 @@
 // https://pink-tech.io/
 
 export { agentExecuteFlow } from './agent-execute.flow'
-export { issueImplementFlow } from './issue-implement.flow'
+export * from './issue-implement'
 export { jiraTriageFlow } from './jira-triage.flow'
 export { repositoryReviewFlow } from './repository-review.flow'

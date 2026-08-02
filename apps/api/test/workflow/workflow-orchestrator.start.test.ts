@@ -14,9 +14,11 @@ import {
   WorkflowModule,
   WorkflowOrchestrator,
   WorkflowRunStatus,
+  WorkflowStartError,
   WorkflowStepKind,
   WorkflowStepStatus,
 } from '../../src/workflow'
+import { issueImplementFlowInput } from './issue-implement-fixtures'
 
 describe('WorkflowOrchestrator.start', () => {
   let database: Database
@@ -117,10 +119,11 @@ describe('WorkflowOrchestrator.start', () => {
     expect(persistedJob?.stepId).toBe(step.id)
   })
 
-  it('starts issue.implement.flow by activating the triage JOB step', async () => {
+  it('starts issue.implement.flow by activating the triage JOB step with a built payload', async () => {
+    const input = issueImplementFlowInput('JC-99')
     const { job, run } = await orchestrator.start({
       definitionKey: 'issue.implement.flow',
-      input: { issueKey: 'JC-99' },
+      input,
       triggerIdentifier: `workflow-start-multi:${randomUUID()}`,
     })
     createdRunIds.push(run.id)
@@ -132,6 +135,26 @@ describe('WorkflowOrchestrator.start', () => {
     expect(run.steps.slice(1).every((step) => step.status === WorkflowStepStatus.PENDING)).toBe(true)
     expect(job.kind).toBe(JiraTriageJobKind)
     expect(job.stepId).toBe(run.steps[0]?.id)
+    expect(job.payload).toEqual({
+      connectionId: input.jiraConnectionId,
+      issueKey: input.issueKey,
+      options: {
+        attemptFix: false,
+        dryRunTests: false,
+      },
+      repository: input.repository,
+      sourceControlConnectionId: input.sourceControlConnectionId,
+    })
+  })
+
+  it('rejects a start whose input fails the first step payload builder', async () => {
+    await expect(
+      orchestrator.start({
+        definitionKey: 'issue.implement.flow',
+        input: { issueKey: 'JC-98' },
+        triggerIdentifier: `workflow-start-invalid:${randomUUID()}`,
+      }),
+    ).rejects.toThrow(WorkflowStartError)
   })
 
   it('records the source on the first child job', async () => {
