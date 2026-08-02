@@ -69,6 +69,20 @@ describe('POST /execution-jobs/:id/fail (e2e)', () => {
 
   afterEach(async () => {
     if (createdJobIds.length > 0) {
+      const linkedRuns = await database.executionJob.findMany({
+        select: {
+          runId: true,
+        },
+        where: {
+          id: {
+            in: [...createdJobIds],
+          },
+        },
+      })
+      const runIds = linkedRuns
+        .map((job) => job.runId)
+        .filter((runId): runId is string => runId != null)
+
       await database.executionJob.deleteMany({
         where: {
           id: {
@@ -76,6 +90,17 @@ describe('POST /execution-jobs/:id/fail (e2e)', () => {
           },
         },
       })
+
+      if (runIds.length > 0) {
+        await database.workflowRun.deleteMany({
+          where: {
+            id: {
+              in: runIds,
+            },
+          },
+        })
+      }
+
       createdJobIds.length = 0
     }
 
@@ -198,6 +223,7 @@ describe('POST /execution-jobs/:id/fail (e2e)', () => {
       id: jobId,
       kind: AgentExecuteJobKind,
       result: null,
+      runId: expect.any(String),
       status: ExecutionJobStatus.FAILED,
     })
 

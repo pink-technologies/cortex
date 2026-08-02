@@ -134,6 +134,28 @@ describe('WorkflowOrchestrator.start', () => {
     expect(job.stepId).toBe(run.steps[0]?.id)
   })
 
+  it('records the source on the first child job', async () => {
+    const { job, run } = await orchestrator.start({
+      definitionKey: JiraTriageFlowDefinitionKey,
+      input: { issueKey: 'JC-30' },
+      source: {
+        identifier: 'delivery-42',
+        type: 'webhook',
+      },
+      triggerIdentifier: `workflow-start-source:${randomUUID()}`,
+    })
+    createdRunIds.push(run.id)
+
+    const persistedJob = await database.executionJob.findUnique({
+      where: {
+        id: job.id,
+      },
+    })
+
+    expect(persistedJob?.sourceType).toBe('webhook')
+    expect(persistedJob?.sourceIdentifier).toBe('delivery-42')
+  })
+
   it('throws when the definition key is unknown', async () => {
     await expect(
       orchestrator.start({

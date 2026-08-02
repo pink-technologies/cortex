@@ -2,16 +2,16 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common'
-import { ExecutionModule } from '@/execution/execution.module'
+import { WorkflowModule } from '@/workflow/workflow.module'
 import { JiraWebhookController } from './controller/jira-webhook.controller'
 import { JiraWebhookService } from './jira-webhook.service'
 
 /**
- * Jira webhook ingress for jira.triage enqueue.
+ * Jira webhook ingress starting jira.triage workflow runs.
  */
 @Module({
   controllers: [JiraWebhookController],
-  imports: [ExecutionModule],
+  imports: [WorkflowModule],
   providers: [JiraWebhookService],
 })
 export class JiraWebhookModule {}

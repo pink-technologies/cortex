@@ -3,73 +3,84 @@
 
 import { ZodValidationPipe } from '@/http/pipes/zod-validation.pipe'
 import { Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, UseFilters } from '@nestjs/common'
+import { WorkflowExceptionFilter } from '@/workflow/filter/exception.filter'
+import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobService } from '../execution-job.service'
 import { ExecutionJobExceptionFilter } from '../filter/exception.filter'
 import { ExecutionJobProtocolMapper, ExecutionJobResponseMapper } from '../mapper'
 import {
-  AgentExecuteJobKind,
   CreateAgentExecuteJobRequestSchema,
   CreateJiraTriageJobRequestSchema,
   CreateRepositoryReviewJobRequestSchema,
-  JiraTriageJobKind,
-  RepositoryReviewJobKind,
   type CreateAgentExecuteJobRequest,
   type CreateJiraTriageJobRequest,
   type CreateRepositoryReviewJobRequest,
   type ExecutionJob,
-  type GetExecutionJobResponse,
+  type ExecutionJobResponse,
 } from '@cortex/protocol'
+
+import {
+  AgentExecuteFlowDefinitionKey,
+  JiraTriageFlowDefinitionKey,
+  RepositoryReviewFlowDefinitionKey,
+} from '@/workflow/definitions/keys'
 
 /**
  * HTTP transport for public execution-job operations.
  *
  * Accepts requests to enqueue agent executions, repository reviews, and Jira
  * triage jobs, and to retrieve their current lifecycle state and persisted
- * outcome.
+ * outcome. Each create starts a one-step workflow run and responds with the
+ * run's first-step job; the owning run is reachable through the job's `runId`
+ * at `GET /workflow-runs/:id`.
  *
  * Exposes:
- * - `POST /execution-jobs/agent-executions` — enqueue an `agent.execute` job.
- * - `POST /execution-jobs/repository-reviews` — enqueue a `repository.review` job.
- * - `POST /execution-jobs/jira-triages` — enqueue a `jira.triage` job.
+ * - `POST /execution-jobs/agent-executions` — start an `agent.execute.flow` run.
+ * - `POST /execution-jobs/repository-reviews` — start a `repository.review.flow` run.
+ * - `POST /execution-jobs/jira-triages` — start a `jira.triage.flow` run.
  * - `GET /execution-jobs/:id` — retrieve a job's status and persisted outcome.
  *
  * Node-facing claim and terminal-state operations are exposed separately by
  * `InternalExecutionJobController`.
  *
  * Unexpected execution-job domain failures are converted to sanitized HTTP
- * responses by {@link ExecutionJobExceptionFilter}.
+ * responses by {@link ExecutionJobExceptionFilter}; workflow start failures by
+ * {@link WorkflowExceptionFilter}.
  */
 @Controller('execution-jobs')
-@UseFilters(ExecutionJobExceptionFilter)
+@UseFilters(ExecutionJobExceptionFilter, WorkflowExceptionFilter)
 export class ExecutionJobController {
   // MARK: - Constructor
 
   /**
    * Creates the public execution-job HTTP controller.
    *
-   * @param executionJobService - Application service used to create and
-   * retrieve execution jobs.
+   * @param executionJobService - Application service used to retrieve
+   * execution jobs.
+   * @param orchestrator - Orchestrator used to start one-step workflow runs
+   * for each enqueue request.
    */
-  constructor(private readonly executionJobService: ExecutionJobService) {}
+  constructor(
+    private readonly executionJobService: ExecutionJobService,
+    private readonly orchestrator: WorkflowOrchestrator,
+  ) {}
 
   // MARK: - Instance methods
 
   /**
-   * Enqueues an `agent.execute` execution job.
+   * Starts an `agent.execute.flow` workflow run.
    *
    * Validates the request body with
-   * {@link CreateAgentExecuteJobRequestSchema}, then persists a queued job with
-   * kind {@link AgentExecuteJobKind}.
-   *
-   * The controller applies the initial payload version, empty policy defaults,
-   * and an empty capability requirement set. Any Node advertising support for
-   * `agent.execute` may claim the job.
+   * {@link CreateAgentExecuteJobRequestSchema}, then starts a one-step run
+   * whose first step enqueues an `agent.execute` job carrying the request
+   * payload.
    *
    * @param request - Validated request containing the agent payload and
    * optional queue priority.
-   * @returns The persisted execution job mapped to its protocol representation.
+   * @returns The first-step execution job mapped to its protocol
+   * representation, including the owning `runId`.
    * @throws ZodValidationException If the request body is invalid.
-   * @throws ExecutionJobCreateError If the execution job cannot be persisted.
+   * @throws WorkflowRunCreateError If the workflow run cannot be persisted.
    */
   @Post('agent-executions')
   @HttpCode(HttpStatus.CREATED)
@@ -77,32 +88,29 @@ export class ExecutionJobController {
     @Body(new ZodValidationPipe(CreateAgentExecuteJobRequestSchema))
     request: CreateAgentExecuteJobRequest,
   ): Promise<ExecutionJob> {
-    const executionJob = await this.executionJobService.create({
-      kind: AgentExecuteJobKind,
-      payload: request.payload,
-      payloadVersion: 1,
-      policy: {},
+    const { job } = await this.orchestrator.start({
+      definitionKey: AgentExecuteFlowDefinitionKey,
+      input: request.payload,
       priority: request.priority,
-      requirements: {
-        allOf: [],
-      },
     })
 
-    return ExecutionJobProtocolMapper.from(executionJob)
+    return ExecutionJobProtocolMapper.from(job)
   }
 
   /**
-   * Enqueues a `repository.review` execution job.
+   * Starts a `repository.review.flow` workflow run.
    *
    * Validates the request body with
-   * {@link CreateRepositoryReviewJobRequestSchema}, then persists a queued job
-   * with kind {@link RepositoryReviewJobKind}.
+   * {@link CreateRepositoryReviewJobRequestSchema}, then starts a one-step run
+   * whose first step enqueues a `repository.review` job carrying the request
+   * payload.
    *
    * @param request - Validated request containing the review payload and
    * optional queue priority.
-   * @returns The persisted execution job mapped to its protocol representation.
+   * @returns The first-step execution job mapped to its protocol
+   * representation, including the owning `runId`.
    * @throws ZodValidationException If the request body is invalid.
-   * @throws ExecutionJobCreateError If the execution job cannot be persisted.
+   * @throws WorkflowRunCreateError If the workflow run cannot be persisted.
    */
   @Post('repository-reviews')
   @HttpCode(HttpStatus.CREATED)
@@ -110,30 +118,28 @@ export class ExecutionJobController {
     @Body(new ZodValidationPipe(CreateRepositoryReviewJobRequestSchema))
     request: CreateRepositoryReviewJobRequest,
   ): Promise<ExecutionJob> {
-    const executionJob = await this.executionJobService.create({
-      kind: RepositoryReviewJobKind,
-      payload: request.payload,
-      payloadVersion: 1,
-      policy: {},
+    const { job } = await this.orchestrator.start({
+      definitionKey: RepositoryReviewFlowDefinitionKey,
+      input: request.payload,
       priority: request.priority,
-      requirements: {
-        allOf: [],
-      },
     })
 
-    return ExecutionJobProtocolMapper.from(executionJob)
+    return ExecutionJobProtocolMapper.from(job)
   }
 
   /**
-   * Enqueues a `jira.triage` execution job.
+   * Starts a `jira.triage.flow` workflow run.
    *
    * Validates the request body with
-   * {@link CreateJiraTriageJobRequestSchema}, then persists a queued job with
-   * kind {@link JiraTriageJobKind}.
+   * {@link CreateJiraTriageJobRequestSchema}, then starts a one-step run whose
+   * first step enqueues a `jira.triage` job carrying the request payload.
    *
    * @param request - Validated request containing the triage payload and
    * optional queue priority.
-   * @returns The persisted execution job mapped to its protocol representation.
+   * @returns The first-step execution job mapped to its protocol
+   * representation, including the owning `runId`.
+   * @throws ZodValidationException If the request body is invalid.
+   * @throws WorkflowRunCreateError If the workflow run cannot be persisted.
    */
   @Post('jira-triages')
   @HttpCode(HttpStatus.CREATED)
@@ -141,18 +147,13 @@ export class ExecutionJobController {
     @Body(new ZodValidationPipe(CreateJiraTriageJobRequestSchema))
     request: CreateJiraTriageJobRequest,
   ): Promise<ExecutionJob> {
-    const executionJob = await this.executionJobService.create({
-      kind: JiraTriageJobKind,
-      payload: request.payload,
-      payloadVersion: 1,
-      policy: {},
+    const { job } = await this.orchestrator.start({
+      definitionKey: JiraTriageFlowDefinitionKey,
+      input: request.payload,
       priority: request.priority,
-      requirements: {
-        allOf: [],
-      },
     })
 
-    return ExecutionJobProtocolMapper.from(executionJob)
+    return ExecutionJobProtocolMapper.from(job)
   }
 
   /**
@@ -168,7 +169,7 @@ export class ExecutionJobController {
    */
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  async findById(@Param('id') id: string): Promise<GetExecutionJobResponse> {
+  async findById(@Param('id') id: string): Promise<ExecutionJobResponse> {
     const executionJob = await this.executionJobService.findById(id)
 
     if (!executionJob) {

@@ -2,16 +2,16 @@
 // https://pink-tech.io/
 
 import { Module } from '@nestjs/common'
-import { ExecutionModule } from '@/execution/execution.module'
+import { WorkflowModule } from '@/workflow/workflow.module'
 import { GitHubWebhookController } from './controller/github-webhook.controller'
 import { GitHubWebhookService } from './github-webhook.service'
 
 /**
- * GitHub webhook ingress for repository-review enqueue.
+ * GitHub webhook ingress starting repository-review workflow runs.
  */
 @Module({
   controllers: [GitHubWebhookController],
-  imports: [ExecutionModule],
+  imports: [WorkflowModule],
   providers: [GitHubWebhookService],
 })
 export class GitHubWebhookModule {}

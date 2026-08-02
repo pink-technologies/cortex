@@ -3,16 +3,18 @@
 
 import { Test } from '@nestjs/testing'
 import { JiraTriageJobKind } from '@cortex/protocol'
+import { JiraTriageFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobController } from '../../../src/execution/controller/execution-job.controller'
 import { ExecutionJobService } from '../../../src/execution/execution-job.service'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
 
 describe('ExecutionJobController jira triages', () => {
   let controller: ExecutionJobController
-  let create: jest.Mock
+  let start: jest.Mock
 
   beforeEach(async () => {
-    create = jest.fn()
+    start = jest.fn()
 
     const module = await Test.createTestingModule({
       controllers: [ExecutionJobController],
@@ -20,8 +22,13 @@ describe('ExecutionJobController jira triages', () => {
         {
           provide: ExecutionJobService,
           useValue: {
-            create,
             findById: jest.fn(),
+          },
+        },
+        {
+          provide: WorkflowOrchestrator,
+          useValue: {
+            start,
           },
         },
       ],
@@ -30,10 +37,10 @@ describe('ExecutionJobController jira triages', () => {
     controller = module.get(ExecutionJobController)
   })
 
-  it('enqueues a jira.triage job', async () => {
+  it('starts a jira.triage.flow run and returns its first-step job', async () => {
     const now = new Date('2026-08-01T12:00:00.000Z')
 
-    create.mockResolvedValue({
+    const firstStepJob = {
       activeKey: null,
       attemptCount: 0,
       claimedAt: null,
@@ -58,11 +65,14 @@ describe('ExecutionJobController jira triages', () => {
       priority: 0,
       requirements: { allOf: [] },
       result: null,
+      runId: 'run-jira-1',
       sourceIdentifier: null,
       sourceType: null,
       status: ExecutionJobStatus.QUEUED,
       updatedAt: now,
-    })
+    }
+
+    start.mockResolvedValue({ job: firstStepJob, run: { id: 'run-jira-1' } })
 
     const response = await controller.createJiraTriage({
       payload: {
@@ -73,13 +83,14 @@ describe('ExecutionJobController jira triages', () => {
       priority: 0,
     })
 
-    expect(create).toHaveBeenCalledWith(
+    expect(start).toHaveBeenCalledWith(
       expect.objectContaining({
-        kind: JiraTriageJobKind,
-        payload: expect.objectContaining({ issueKey: 'JC-1' }),
+        definitionKey: JiraTriageFlowDefinitionKey,
+        input: expect.objectContaining({ issueKey: 'JC-1' }),
       }),
     )
     expect(response.id).toBe('job-jira-1')
     expect(response.kind).toBe(JiraTriageJobKind)
+    expect(response.runId).toBe('run-jira-1')
   })
 })

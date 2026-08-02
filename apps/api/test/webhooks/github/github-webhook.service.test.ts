@@ -6,9 +6,10 @@ import { ConfigService } from '@nestjs/config'
 import { Test, type TestingModule } from '@nestjs/testing'
 import { Prisma } from '@prisma/client'
 import { RepositoryReviewJobKind } from '@cortex/protocol'
-import { ExecutionJobService } from '../../../src/execution/execution-job.service'
+import { RepositoryReviewFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { WorkflowOrchestrator } from '@/workflow/orchestrator'
+import { WorkflowRunCreateError } from '@/workflow/error/error'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
-import { ExecutionJobCreateError } from '../../../src/execution/error/error'
 import {
   GitHubWebhookService,
   signGitHubWebhookPayload,
@@ -32,10 +33,10 @@ describe('GitHubWebhookService', () => {
   }
 
   let service: GitHubWebhookService
-  let create: jest.Mock
+  let start: jest.Mock
 
   beforeEach(async () => {
-    create = jest.fn()
+    start = jest.fn()
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,9 +62,9 @@ describe('GitHubWebhookService', () => {
           },
         },
         {
-          provide: ExecutionJobService,
+          provide: WorkflowOrchestrator,
           useValue: {
-            create,
+            start,
           },
         },
       ],
@@ -86,16 +87,21 @@ describe('GitHubWebhookService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException)
   })
 
-  it('enqueues a repository.review job for pull_request opened', async () => {
+  it('starts a repository.review.flow run for pull_request opened', async () => {
     const rawBody = Buffer.from(JSON.stringify(pullRequestBody), 'utf8')
     const now = new Date('2026-07-31T12:00:00.000Z')
 
-    create.mockResolvedValue({
-      id: 'job-1',
-      kind: RepositoryReviewJobKind,
-      status: ExecutionJobStatus.QUEUED,
-      createdAt: now,
-      updatedAt: now,
+    start.mockResolvedValue({
+      job: {
+        id: 'job-1',
+        kind: RepositoryReviewJobKind,
+        status: ExecutionJobStatus.QUEUED,
+        createdAt: now,
+        updatedAt: now,
+      },
+      run: {
+        id: 'run-1',
+      },
     })
 
     const result = await service.handle({
@@ -110,23 +116,22 @@ describe('GitHubWebhookService', () => {
       action: 'enqueued',
       jobId: 'job-1',
       ok: true,
+      runId: 'run-1',
     })
 
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: RepositoryReviewJobKind,
-        source: {
-          identifier: 'delivery-1',
-          type: 'webhook',
-        },
-        triggerIdentifier: 'github:pull_request:pink-tech/cortex:42:abc123',
-        payload: expect.objectContaining({
-          connectionId: 'github-main',
-          instructions: 'Focus on bugs.',
-          reviewMode: 'diff',
-        }),
+    expect(start).toHaveBeenCalledWith({
+      definitionKey: RepositoryReviewFlowDefinitionKey,
+      input: expect.objectContaining({
+        connectionId: 'github-main',
+        instructions: 'Focus on bugs.',
+        reviewMode: 'diff',
       }),
-    )
+      source: {
+        identifier: 'delivery-1',
+        type: 'webhook',
+      },
+      triggerIdentifier: 'github:pull_request:pink-tech/cortex:42:abc123',
+    })
   })
 
   it('returns already_enqueued on unique triggerIdentifier collisions', async () => {
@@ -136,8 +141,8 @@ describe('GitHubWebhookService', () => {
       code: 'P2002',
     })
 
-    create.mockRejectedValue(
-      new ExecutionJobCreateError('Failed to create execution job', {
+    start.mockRejectedValue(
+      new WorkflowRunCreateError('Failed to create workflow run', {
         cause: prismaError,
       }),
     )
@@ -157,7 +162,26 @@ describe('GitHubWebhookService', () => {
     })
   })
 
-  it('acknowledges ping without creating a job', async () => {
+  it('rethrows non-unique start failures', async () => {
+    const rawBody = Buffer.from(JSON.stringify(pullRequestBody), 'utf8')
+    const failure = new WorkflowRunCreateError('Failed to create workflow run', {
+      cause: new Error('connection reset'),
+    })
+
+    start.mockRejectedValue(failure)
+
+    await expect(
+      service.handle({
+        body: pullRequestBody,
+        deliveryId: 'delivery-1',
+        event: 'pull_request',
+        rawBody,
+        signatureHeader: signGitHubWebhookPayload(rawBody, secret),
+      }),
+    ).rejects.toBe(failure)
+  })
+
+  it('acknowledges ping without starting a run', async () => {
     const rawBody = Buffer.from('{"zen":"Keep it logically awesome."}', 'utf8')
 
     const result = await service.handle({
@@ -173,6 +197,6 @@ describe('GitHubWebhookService', () => {
       ok: true,
       reason: 'ping',
     })
-    expect(create).not.toHaveBeenCalled()
+    expect(start).not.toHaveBeenCalled()
   })
 })

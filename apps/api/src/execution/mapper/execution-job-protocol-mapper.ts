@@ -29,6 +29,7 @@ export class ExecutionJobProtocolMapper {
       payload: executionJob.payload,
       payloadVersion: executionJob.payloadVersion,
       priority: executionJob.priority,
+      runId: executionJob.runId,
       status: executionJob.status,
       updatedAt: executionJob.updatedAt.toISOString(),
       policy: {

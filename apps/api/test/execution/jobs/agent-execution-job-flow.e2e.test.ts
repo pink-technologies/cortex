@@ -107,6 +107,20 @@ describe('agent.execute job flow (e2e)', () => {
 
   afterEach(async () => {
     if (createdJobIds.length > 0) {
+      const linkedRuns = await database.executionJob.findMany({
+        select: {
+          runId: true,
+        },
+        where: {
+          id: {
+            in: [...createdJobIds],
+          },
+        },
+      })
+      const runIds = linkedRuns
+        .map((job) => job.runId)
+        .filter((runId): runId is string => runId != null)
+
       await database.executionJob.deleteMany({
         where: {
           id: {
@@ -114,6 +128,17 @@ describe('agent.execute job flow (e2e)', () => {
           },
         },
       })
+
+      if (runIds.length > 0) {
+        await database.workflowRun.deleteMany({
+          where: {
+            id: {
+              in: runIds,
+            },
+          },
+        })
+      }
+
       createdJobIds.length = 0
     }
 
@@ -138,7 +163,7 @@ describe('agent.execute job flow (e2e)', () => {
    */
   async function createAgentExecutionJob() {
     const response = await request(app.getHttpServer())
-      .post('/api/internal/execution-jobs/agent-executions')
+      .post('/api/execution-jobs/agent-executions')
       .send({
         payload: agentExecutePayload,
         priority: 0,

@@ -6,6 +6,8 @@ import { ExecutionModule } from '../execution/execution.module'
 import { WorkflowRunController } from './controller/workflow-run.controller'
 import { WorkflowDefinitionRegistry } from './definitions/registry'
 import { WorkflowOrchestrator } from './orchestrator'
+import { WorkflowAdvancer, WorkflowApprovalHandler, WorkflowStarter } from './orchestrator/operations'
+import { WorkflowTransitioner } from './orchestrator/transitions'
 import { WORKFLOW_RUN_REPOSITORY, WorkflowRunRepositoryImpl } from './repository'
 import {
   agentExecuteFlow,
@@ -26,7 +28,11 @@ import {
   exports: [WORKFLOW_RUN_REPOSITORY, WorkflowDefinitionRegistry, WorkflowOrchestrator],
   imports: [forwardRef(() => ExecutionModule)],
   providers: [
+    WorkflowAdvancer,
+    WorkflowApprovalHandler,
     WorkflowOrchestrator,
+    WorkflowStarter,
+    WorkflowTransitioner,
     {
       provide: WORKFLOW_RUN_REPOSITORY,
       useClass: WorkflowRunRepositoryImpl,

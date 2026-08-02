@@ -6,17 +6,19 @@ import {
   AgentExecuteJobKind,
   RepositoryReviewJobKind,
 } from '@cortex/protocol'
+import { RepositoryReviewFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobController } from '../../../src/execution/controller/execution-job.controller'
 import { ExecutionJobService } from '../../../src/execution/execution-job.service'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
 
 describe('ExecutionJobController repository reviews', () => {
   let controller: ExecutionJobController
-  let create: jest.Mock
+  let start: jest.Mock
   let findById: jest.Mock
 
   beforeEach(async () => {
-    create = jest.fn()
+    start = jest.fn()
     findById = jest.fn()
 
     const module: TestingModule = await Test.createTestingModule({
@@ -25,8 +27,13 @@ describe('ExecutionJobController repository reviews', () => {
         {
           provide: ExecutionJobService,
           useValue: {
-            create,
             findById,
+          },
+        },
+        {
+          provide: WorkflowOrchestrator,
+          useValue: {
+            start,
           },
         },
       ],
@@ -35,10 +42,10 @@ describe('ExecutionJobController repository reviews', () => {
     controller = module.get(ExecutionJobController)
   })
 
-  it('enqueues a repository.review job', async () => {
+  it('starts a repository.review.flow run and returns its first-step job', async () => {
     const now = new Date('2026-07-31T12:00:00.000Z')
 
-    create.mockResolvedValue({
+    const firstStepJob = {
       activeKey: null,
       attemptCount: 0,
       claimedAt: null,
@@ -68,11 +75,14 @@ describe('ExecutionJobController repository reviews', () => {
       priority: 1,
       requirements: { allOf: [] },
       result: null,
+      runId: 'run-1',
       sourceIdentifier: null,
       sourceType: null,
       status: ExecutionJobStatus.QUEUED,
       updatedAt: now,
-    })
+    }
+
+    start.mockResolvedValue({ job: firstStepJob, run: { id: 'run-1' } })
 
     const response = await controller.createRepositoryReview({
       payload: {
@@ -88,20 +98,16 @@ describe('ExecutionJobController repository reviews', () => {
       priority: 1,
     })
 
-    expect(create).toHaveBeenCalledWith({
-      kind: RepositoryReviewJobKind,
-      payload: expect.objectContaining({
+    expect(start).toHaveBeenCalledWith({
+      definitionKey: RepositoryReviewFlowDefinitionKey,
+      input: expect.objectContaining({
         connectionId: 'github-main',
       }),
-      payloadVersion: 1,
-      policy: {},
       priority: 1,
-      requirements: {
-        allOf: [],
-      },
     })
     expect(response.kind).toBe(RepositoryReviewJobKind)
     expect(response.id).toBe('job-1')
+    expect(response.runId).toBe('run-1')
   })
 
   it('returns a completed repository.review result from findById', async () => {
@@ -133,6 +139,7 @@ describe('ExecutionJobController repository reviews', () => {
       priority: 0,
       requirements: { allOf: [] },
       result,
+      runId: null,
       sourceIdentifier: null,
       sourceType: null,
       status: ExecutionJobStatus.COMPLETED,

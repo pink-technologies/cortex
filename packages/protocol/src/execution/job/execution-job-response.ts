@@ -53,8 +53,9 @@ export type ExecutionJobResult = z.infer<typeof ExecutionJobResultSchema>
  *   result-producing job completes successfully
  * - `failure` — sanitized failure payload when present; `null` until the job
  *   fails
+ * - `runId` — owning workflow-run identifier; `null` for standalone jobs
  */
-export const GetExecutionJobResponseSchema = z
+export const ExecutionJobResponseSchema = z
   .object({
     /**
      * Stable identifier of the execution job.
@@ -105,6 +106,14 @@ export const GetExecutionJobResponseSchema = z
     result: ExecutionJobResultSchema.nullable(),
 
     /**
+     * Identifier of the workflow run that owns this job as one of its steps.
+     *
+     * Follow it to `GET /workflow-runs/:id` to observe overall run progress.
+     * `null` for jobs that do not belong to a workflow run.
+     */
+    runId: z.string().min(1).nullable(),
+
+    /**
      * Current lifecycle status of the job.
      *
      * Aligns with the execution-job status vocabulary used by persistence
@@ -115,9 +124,9 @@ export const GetExecutionJobResponseSchema = z
   .strict()
 
 /**
- * Validated get-execution-job response exchanged through the shared protocol.
+ * Validated execution-job read response exchanged through the shared protocol.
  *
- * Derived from {@link GetExecutionJobResponseSchema} so runtime validation and
+ * Derived from {@link ExecutionJobResponseSchema} so runtime validation and
  * the TypeScript representation remain synchronized.
  */
-export type GetExecutionJobResponse = z.infer<typeof GetExecutionJobResponseSchema>
+export type ExecutionJobResponse = z.infer<typeof ExecutionJobResponseSchema>

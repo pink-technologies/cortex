@@ -4,8 +4,10 @@
 import { UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
-import { JiraTriageJobKind } from '@cortex/protocol'
-import { ExecutionJobService } from '../../../src/execution/execution-job.service'
+import { Prisma } from '@prisma/client'
+import { JiraTriageFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { WorkflowOrchestrator } from '@/workflow/orchestrator'
+import { WorkflowRunCreateError } from '@/workflow/error/error'
 import {
   JiraWebhookService,
   signJiraWebhookPayload,
@@ -25,10 +27,10 @@ describe('JiraWebhookService', () => {
   }
 
   let service: JiraWebhookService
-  let create: jest.Mock
+  let start: jest.Mock
 
   beforeEach(async () => {
-    create = jest.fn().mockResolvedValue({ id: 'job-1' })
+    start = jest.fn().mockResolvedValue({ job: { id: 'job-1' }, run: { id: 'run-1' } })
 
     const module = await Test.createTestingModule({
       providers: [
@@ -45,8 +47,8 @@ describe('JiraWebhookService', () => {
           },
         },
         {
-          provide: ExecutionJobService,
-          useValue: { create },
+          provide: WorkflowOrchestrator,
+          useValue: { start },
         },
       ],
     }).compile()
@@ -66,7 +68,7 @@ describe('JiraWebhookService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException)
   })
 
-  it('enqueues jira.triage jobs', async () => {
+  it('starts jira.triage.flow runs', async () => {
     const rawBody = Buffer.from(JSON.stringify(body), 'utf8')
 
     await expect(
@@ -79,14 +81,41 @@ describe('JiraWebhookService', () => {
       action: 'enqueued',
       jobId: 'job-1',
       ok: true,
+      runId: 'run-1',
     })
 
-    expect(create).toHaveBeenCalledWith(
+    expect(start).toHaveBeenCalledWith(
       expect.objectContaining({
         activeKey: 'jira.triage:JC-7',
-        kind: JiraTriageJobKind,
+        definitionKey: JiraTriageFlowDefinitionKey,
         triggerIdentifier: 'jira:issue:JC-7:2026-08-01T12:00:00.000+0000',
       }),
     )
+  })
+
+  it('returns already_enqueued on unique key collisions', async () => {
+    const rawBody = Buffer.from(JSON.stringify(body), 'utf8')
+    const prismaError = new Prisma.PrismaClientKnownRequestError('Unique', {
+      clientVersion: 'test',
+      code: 'P2002',
+    })
+
+    start.mockRejectedValue(
+      new WorkflowRunCreateError('Failed to create workflow run', {
+        cause: prismaError,
+      }),
+    )
+
+    await expect(
+      service.handle({
+        body,
+        rawBody,
+        signatureHeader: signJiraWebhookPayload(rawBody, secret),
+      }),
+    ).resolves.toEqual({
+      action: 'already_enqueued',
+      ok: true,
+      reason: 'jira:issue:JC-7:2026-08-01T12:00:00.000+0000',
+    })
   })
 })

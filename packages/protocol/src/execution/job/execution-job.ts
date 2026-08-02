@@ -47,6 +47,14 @@ export const ExecutionJobSchema = z.object({
    */
   claimToken: z.uuid().nullable(),
 
+  /**
+   * Identifier of the workflow run that owns this job as one of its steps.
+   *
+   * Follow it to `GET /workflow-runs/:id` to observe overall run progress.
+   * `null` for jobs that do not belong to a workflow run.
+   */
+  runId: z.string().min(1).nullable(),
+
   /** Current lifecycle state of the execution job. */
   status: ExecutionJobStatusSchema,
 

@@ -268,6 +268,71 @@ describe('WorkflowOrchestrator advance', () => {
     expect(updated?.steps[0]?.status).toBe(WorkflowStepStatus.FAILED)
   })
 
+  it('releases the run activeKey when the run completes', async () => {
+    const activeKey = `workflow-advance-release:${randomUUID()}`
+
+    const { job, run } = await orchestrator.start({
+      activeKey,
+      definitionKey: JiraTriageFlowDefinitionKey,
+      input: { issueKey: 'JC-14' },
+    })
+    createdRunIds.push(run.id)
+
+    const claim = await markRunning(job.id)
+    await executionJobService.complete(job.id, {
+      claimToken: claim.claimToken,
+      nodeId: claim.nodeId,
+    })
+
+    const updated = await database.workflowRun.findUnique({
+      where: {
+        id: run.id,
+      },
+    })
+
+    expect(updated?.status).toBe(WorkflowRunStatus.COMPLETED)
+    expect(updated?.activeKey).toBeNull()
+
+    const successor = await orchestrator.start({
+      activeKey,
+      definitionKey: JiraTriageFlowDefinitionKey,
+      input: { issueKey: 'JC-14' },
+    })
+    createdRunIds.push(successor.run.id)
+
+    expect(successor.run.status).toBe(WorkflowRunStatus.RUNNING)
+  })
+
+  it('releases the run activeKey when the run fails', async () => {
+    const activeKey = `workflow-advance-release-fail:${randomUUID()}`
+
+    const { job, run } = await orchestrator.start({
+      activeKey,
+      definitionKey: JiraTriageFlowDefinitionKey,
+      input: { issueKey: 'JC-15' },
+    })
+    createdRunIds.push(run.id)
+
+    const claim = await markRunning(job.id)
+    await executionJobService.fail(job.id, {
+      claimToken: claim.claimToken,
+      failure: {
+        code: 'TRIAGE_FAILED',
+        message: 'classifier unavailable',
+      },
+      nodeId: claim.nodeId,
+    })
+
+    const updated = await database.workflowRun.findUnique({
+      where: {
+        id: run.id,
+      },
+    })
+
+    expect(updated?.status).toBe(WorkflowRunStatus.FAILED)
+    expect(updated?.activeKey).toBeNull()
+  })
+
   it('does not advance standalone jobs without a run', async () => {
     const job = await executionJobService.create({
       kind: JiraTriageJobKind,

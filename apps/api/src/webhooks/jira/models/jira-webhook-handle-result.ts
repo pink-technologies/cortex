@@ -7,12 +7,12 @@
 export type JiraWebhookHandleResult =
   | {
       /**
-       * Delivery produced a new queued execution job.
+       * Delivery started a workflow run with a queued first-step job.
        */
       readonly action: 'enqueued'
 
       /**
-       * Identifier of the created execution job.
+       * Identifier of the first-step execution job.
        */
       readonly jobId: string
 
@@ -20,6 +20,11 @@ export type JiraWebhookHandleResult =
        * Always `true` for a handled delivery acknowledgement.
        */
       readonly ok: true
+
+      /**
+       * Identifier of the started workflow run.
+       */
+      readonly runId: string
     }
   | {
       /**

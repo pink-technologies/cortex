@@ -8,8 +8,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { JiraTriageJobKind } from '@cortex/protocol'
-import { ExecutionJobService } from '@/execution/execution-job.service'
+import { JiraTriageFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { mapJiraWebhookToTriageEnqueue } from './mapper'
 import {
   type JiraWebhookHandleInput,
@@ -18,7 +18,8 @@ import {
 import { verifyJiraWebhookSignature } from './signature'
 
 /**
- * Verifies Jira webhook authenticity and enqueues `jira.triage` jobs.
+ * Verifies Jira webhook authenticity and starts `jira.triage.flow` workflow
+ * runs.
  *
  * Configuration (from env via {@link ConfigService}):
  * - `JIRA_WEBHOOK_SECRET` — shared HMAC secret
@@ -33,11 +34,11 @@ export class JiraWebhookService {
    * Creates a Jira webhook verification and enqueue service.
    *
    * @param configService - Nest config providing webhook secret and defaults.
-   * @param executionJobService - Service used to enqueue `jira.triage` jobs.
+   * @param orchestrator - Orchestrator used to start triage workflow runs.
    */
   constructor(
     private readonly configService: ConfigService,
-    private readonly executionJobService: ExecutionJobService,
+    private readonly orchestrator: WorkflowOrchestrator,
   ) {}
 
   // MARK: - Instance methods
@@ -46,7 +47,7 @@ export class JiraWebhookService {
    * Handles one Jira webhook delivery.
    *
    * @param input - Raw body, signature header, and parsed JSON body.
-   * @returns Acknowledgement describing whether a job was enqueued or ignored.
+   * @returns Acknowledgement describing whether a run was started or ignored.
    */
   async handle(input: JiraWebhookHandleInput): Promise<JiraWebhookHandleResult> {
     const configuration = this.requireConfiguration()
@@ -76,16 +77,10 @@ export class JiraWebhookService {
     }
 
     try {
-      const job = await this.executionJobService.create({
+      const { job, run } = await this.orchestrator.start({
         activeKey: `jira.triage:${mapping.payload.issueKey}`,
-        kind: JiraTriageJobKind,
-        payload: mapping.payload,
-        payloadVersion: 1,
-        policy: {},
-        priority: 0,
-        requirements: {
-          allOf: [],
-        },
+        definitionKey: JiraTriageFlowDefinitionKey,
+        input: mapping.payload,
         source: {
           identifier: mapping.triggerIdentifier,
           type: 'webhook',
@@ -97,6 +92,7 @@ export class JiraWebhookService {
         action: 'enqueued',
         jobId: job.id,
         ok: true,
+        runId: run.id,
       }
     } catch (error) {
       if (isUniqueConstraintError(error)) {

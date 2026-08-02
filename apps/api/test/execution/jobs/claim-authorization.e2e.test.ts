@@ -80,6 +80,20 @@ describe('execution-job claim authorization (e2e)', () => {
 
   afterEach(async () => {
     if (createdJobIds.length > 0) {
+      const linkedRuns = await database.executionJob.findMany({
+        select: {
+          runId: true,
+        },
+        where: {
+          id: {
+            in: [...createdJobIds],
+          },
+        },
+      })
+      const runIds = linkedRuns
+        .map((job) => job.runId)
+        .filter((runId): runId is string => runId != null)
+
       await database.executionJob.deleteMany({
         where: {
           id: {
@@ -87,6 +101,17 @@ describe('execution-job claim authorization (e2e)', () => {
           },
         },
       })
+
+      if (runIds.length > 0) {
+        await database.workflowRun.deleteMany({
+          where: {
+            id: {
+              in: runIds,
+            },
+          },
+        })
+      }
+
       createdJobIds.length = 0
     }
 

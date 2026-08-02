@@ -214,6 +214,10 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
         status: parameters.status,
       }
 
+      if (parameters.activeKey !== undefined) {
+        data.activeKey = parameters.activeKey
+      }
+
       if (parameters.startedAt !== undefined) {
         data.startedAt = parameters.startedAt
       }

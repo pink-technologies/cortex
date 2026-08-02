@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { z } from 'zod'
-import { ExecutionJobResultSchema } from './get-execution-job-response'
+import { ExecutionJobResultSchema } from './execution-job-response'
 
 /**
  * Validates the request body a Node sends when marking an execution job complete.

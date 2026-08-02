@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type { ExecutionJobSource } from '../../execution/models/execution-job-source'
+
 /**
  * Inputs for {@link WorkflowOrchestrator.start}.
  *
@@ -31,6 +33,13 @@ export interface StartWorkflowRunParameters {
    * Queue priority for the first child job. Defaults to `0` when omitted.
    */
   readonly priority?: number
+
+  /**
+   * External origin recorded on the first child job (for example a webhook
+   * delivery). Later steps' jobs carry no source; they originate from the
+   * workflow itself.
+   */
+  readonly source?: ExecutionJobSource
 
   /**
    * Idempotency key for start.

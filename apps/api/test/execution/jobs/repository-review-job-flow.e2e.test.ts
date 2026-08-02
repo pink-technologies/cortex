@@ -93,27 +93,57 @@ describe('repository.review job flow (e2e)', () => {
     })
   })
 
-  afterAll(async () => {
+  afterEach(async () => {
     if (database && createdJobIds.length > 0) {
-      await database.executionJob.deleteMany({
+      const linkedRuns = await database.executionJob.findMany({
+        select: {
+          runId: true,
+        },
         where: {
           id: {
-            in: createdJobIds,
+            in: [...createdJobIds],
           },
         },
       })
+      const runIds = linkedRuns
+        .map((job) => job.runId)
+        .filter((runId): runId is string => runId != null)
+
+      await database.executionJob.deleteMany({
+        where: {
+          id: {
+            in: [...createdJobIds],
+          },
+        },
+      })
+
+      if (runIds.length > 0) {
+        await database.workflowRun.deleteMany({
+          where: {
+            id: {
+              in: runIds,
+            },
+          },
+        })
+      }
+
+      createdJobIds.length = 0
     }
 
     if (database && createdNodeIds.length > 0) {
       await database.executionNode.deleteMany({
         where: {
           id: {
-            in: createdNodeIds,
+            in: [...createdNodeIds],
           },
         },
       })
-    }
 
+      createdNodeIds.length = 0
+    }
+  })
+
+  afterAll(async () => {
     await app?.close()
   })
 
@@ -133,7 +163,7 @@ describe('repository.review job flow (e2e)', () => {
 
   async function registerNode(body: ReturnType<typeof makeCompatibleNodeRegistration>) {
     const response = await request(app.getHttpServer())
-      .post('/api/nodes')
+      .post('/api/internal/nodes/register')
       .send(body)
       .expect(HttpStatus.CREATED)
 
@@ -149,6 +179,7 @@ describe('repository.review job flow (e2e)', () => {
       expect.objectContaining({
         id: expect.any(String),
         kind: RepositoryReviewJobKind,
+        runId: expect.any(String),
         status: ExecutionJobStatus.QUEUED,
       }),
     )
@@ -162,9 +193,32 @@ describe('repository.review job flow (e2e)', () => {
         id: created.id,
         kind: RepositoryReviewJobKind,
         result: null,
+        runId: created.runId,
         status: ExecutionJobStatus.QUEUED,
       }),
     )
+  })
+
+  it('starts a workflow run that the returned runId resolves to', async () => {
+    const created = await createRepositoryReviewJob()
+
+    const run = await request(app.getHttpServer())
+      .get(`/api/workflow-runs/${created.runId}`)
+      .expect(HttpStatus.OK)
+
+    expect(run.body).toEqual(
+      expect.objectContaining({
+        id: created.runId,
+        definitionKey: 'repository.review.flow',
+        status: 'RUNNING',
+      }),
+    )
+    expect(run.body.steps).toEqual([
+      expect.objectContaining({
+        key: 'main',
+        status: 'QUEUED',
+      }),
+    ])
   })
 
   it('completes a claimed repository.review job and returns the result on get', async () => {
@@ -199,6 +253,18 @@ describe('repository.review job flow (e2e)', () => {
         kind: RepositoryReviewJobKind,
         result: reviewResult,
         status: ExecutionJobStatus.COMPLETED,
+      }),
+    )
+
+    const run = await request(app.getHttpServer())
+      .get(`/api/workflow-runs/${created.runId}`)
+      .expect(HttpStatus.OK)
+
+    expect(run.body).toEqual(
+      expect.objectContaining({
+        id: created.runId,
+        result: reviewResult,
+        status: 'COMPLETED',
       }),
     )
   })

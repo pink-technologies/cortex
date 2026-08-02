@@ -12,6 +12,14 @@ import type { WorkflowRunStatus } from '../datatypes'
  */
 export interface UpdateWorkflowRunStatusParameters {
   /**
+   * Uniqueness key controlling "at most one active run" semantics.
+   *
+   * Pass `null` on terminal transitions to release the key so a later run may
+   * reuse it. Omit to leave the stored value unchanged.
+   */
+  readonly activeKey?: string | null
+
+  /**
    * Completion timestamp for a successful terminal transition.
    *
    * Typically set with {@link status} `COMPLETED`. Omit to leave unchanged;

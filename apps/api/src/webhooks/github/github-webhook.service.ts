@@ -4,8 +4,8 @@
 import { Prisma } from '@prisma/client'
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { RepositoryReviewJobKind } from '@cortex/protocol'
-import { ExecutionJobService } from '@/execution/execution-job.service'
+import { RepositoryReviewFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { mapGitHubWebhookToReviewEnqueue } from './mapper'
 import {
   type GitHubWebhookHandleInput,
@@ -14,7 +14,8 @@ import {
 import { verifyGitHubWebhookSignature } from './signature'
 
 /**
- * Verifies GitHub webhook authenticity and enqueues `repository.review` jobs.
+ * Verifies GitHub webhook authenticity and starts `repository.review.flow`
+ * workflow runs.
  *
  * Configuration (from env via {@link ConfigService}):
  * - `GITHUB_WEBHOOK_SECRET` — shared HMAC secret
@@ -29,11 +30,11 @@ export class GitHubWebhookService {
    * Creates a GitHub webhook verification and enqueue service.
    *
    * @param configService - Nest config providing webhook secret and defaults.
-   * @param executionJobService - Service used to enqueue `repository.review` jobs.
+   * @param orchestrator - Orchestrator used to start review workflow runs.
    */
   constructor(
     private readonly configService: ConfigService,
-    private readonly executionJobService: ExecutionJobService,
+    private readonly orchestrator: WorkflowOrchestrator,
   ) {}
 
   // MARK: - Instance methods
@@ -42,7 +43,7 @@ export class GitHubWebhookService {
    * Handles one GitHub webhook delivery.
    *
    * @param input - Raw body, signature headers, and parsed JSON body.
-   * @returns Acknowledgement describing whether a job was enqueued or ignored.
+   * @returns Acknowledgement describing whether a run was started or ignored.
    */
   async handle(input: GitHubWebhookHandleInput): Promise<GitHubWebhookHandleResult> {
     const configuration = this.requireConfiguration()
@@ -67,15 +68,9 @@ export class GitHubWebhookService {
     }
 
     try {
-      const job = await this.executionJobService.create({
-        kind: RepositoryReviewJobKind,
-        payload: mapping.payload,
-        payloadVersion: 1,
-        policy: {},
-        priority: 0,
-        requirements: {
-          allOf: [],
-        },
+      const { job, run } = await this.orchestrator.start({
+        definitionKey: RepositoryReviewFlowDefinitionKey,
+        input: mapping.payload,
         source: {
           identifier: input.deliveryId ?? mapping.triggerIdentifier,
           type: 'webhook',
@@ -87,6 +82,7 @@ export class GitHubWebhookService {
         action: 'enqueued',
         jobId: job.id,
         ok: true,
+        runId: run.id,
       }
     } catch (error) {
       if (isUniqueConstraintError(error)) {

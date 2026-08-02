@@ -5,6 +5,8 @@ import { BadRequestException } from '@nestjs/common'
 import { Test, type TestingModule } from '@nestjs/testing'
 import { AgentExecuteJobKind, CreateAgentExecuteJobRequestSchema } from '@cortex/protocol'
 import { ZodValidationPipe } from '@/http/pipes/zod-validation.pipe'
+import { AgentExecuteFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
 import { ExecutionJobController } from '../../../src/execution/controller/execution-job.controller'
 import { ExecutionJobService } from '../../../src/execution/execution-job.service'
@@ -16,23 +18,18 @@ const agentExecutePayload = {
   toolNames: [] as string[],
 }
 
-const expectedCreateParameters = {
-  kind: AgentExecuteJobKind,
-  payload: {
+const expectedStartParameters = {
+  definitionKey: AgentExecuteFlowDefinitionKey,
+  input: {
     agentId: 'assistant',
     input: 'Reply with hello.',
     toolNames: [],
   },
-  payloadVersion: 1,
-  policy: {},
   priority: 0,
-  requirements: {
-    allOf: [],
-  },
 }
 
 /**
- * Creates a domain execution job returned by the service double.
+ * Creates a domain execution job returned by the orchestrator double.
  */
 function makeDomainExecutionJob(
   overrides: Partial<{
@@ -68,10 +65,10 @@ function parseCreateRequest(body: unknown) {
 
 describe('ExecutionJobController', () => {
   let controller: ExecutionJobController
-  let create: jest.MockedFunction<ExecutionJobService['create']>
+  let start: jest.Mock
 
   beforeEach(async () => {
-    create = jest.fn()
+    start = jest.fn()
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ExecutionJobController],
@@ -79,10 +76,13 @@ describe('ExecutionJobController', () => {
         {
           provide: ExecutionJobService,
           useValue: {
-            claimNextAvailable: jest.fn(),
-            complete: jest.fn(),
-            create,
-            fail: jest.fn(),
+            findById: jest.fn(),
+          },
+        },
+        {
+          provide: WorkflowOrchestrator,
+          useValue: {
+            start,
           },
         },
       ],
@@ -92,7 +92,7 @@ describe('ExecutionJobController', () => {
   })
 
   describe('createAgentExecution', () => {
-    it('creates an agent execution job', async () => {
+    it('starts an agent.execute.flow run and returns the first-step job', async () => {
       const request = parseCreateRequest({
         payload: {
           agentId: 'assistant',
@@ -101,11 +101,11 @@ describe('ExecutionJobController', () => {
       })
       const domainJob = makeDomainExecutionJob()
 
-      create.mockResolvedValue(domainJob)
+      start.mockResolvedValue({ job: domainJob, run: { id: 'run-1' } })
 
       const response = await controller.createAgentExecution(request)
 
-      expect(create).toHaveBeenCalledWith(expectedCreateParameters)
+      expect(start).toHaveBeenCalledWith(expectedStartParameters)
 
       expect(response).toEqual({
         id: 'execution-job-1',
@@ -119,12 +119,13 @@ describe('ExecutionJobController', () => {
           maximumDurationSeconds: undefined,
           preserveWorkspaceOnFailure: undefined,
         },
+        runId: null,
         status: 'QUEUED',
         updatedAt: '2026-07-30T12:00:00.000Z',
       })
     })
 
-    it('uses the agent.execute job kind', async () => {
+    it('uses the agent.execute.flow definition', async () => {
       const request = parseCreateRequest({
         payload: {
           agentId: 'assistant',
@@ -132,19 +133,19 @@ describe('ExecutionJobController', () => {
         },
       })
 
-      create.mockResolvedValue(makeDomainExecutionJob())
+      start.mockResolvedValue({ job: makeDomainExecutionJob(), run: { id: 'run-1' } })
 
       await controller.createAgentExecution(request)
 
-      expect(create).toHaveBeenCalledWith(
+      expect(start).toHaveBeenCalledWith(
         expect.objectContaining({
-          kind: AgentExecuteJobKind,
+          definitionKey: AgentExecuteFlowDefinitionKey,
         }),
       )
-      expect(AgentExecuteJobKind).toBe('agent.execute')
+      expect(AgentExecuteFlowDefinitionKey).toBe('agent.execute.flow')
     })
 
-    it('forwards the payload and priority', async () => {
+    it('forwards the payload and priority as run input', async () => {
       const request = parseCreateRequest({
         payload: {
           agentId: 'assistant',
@@ -152,11 +153,11 @@ describe('ExecutionJobController', () => {
         },
       })
 
-      create.mockResolvedValue(makeDomainExecutionJob())
+      start.mockResolvedValue({ job: makeDomainExecutionJob(), run: { id: 'run-1' } })
 
       await controller.createAgentExecution(request)
 
-      expect(create).toHaveBeenCalledWith(expectedCreateParameters)
+      expect(start).toHaveBeenCalledWith(expectedStartParameters)
     })
 
     it('rejects an invalid agent execution payload', () => {
@@ -178,12 +179,12 @@ describe('ExecutionJobController', () => {
         },
       })
 
-      create.mockResolvedValue(makeDomainExecutionJob())
+      start.mockResolvedValue({ job: makeDomainExecutionJob(), run: { id: 'run-1' } })
 
       await controller.createAgentExecution(request)
 
       expect(request.priority).toBe(0)
-      expect(create).toHaveBeenCalledWith(expectedCreateParameters)
+      expect(start).toHaveBeenCalledWith(expectedStartParameters)
     })
   })
 })
