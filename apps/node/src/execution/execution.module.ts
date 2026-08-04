@@ -5,7 +5,7 @@ import { Module } from '@nestjs/common'
 import { AgentModule } from '../agent'
 import { NodeConfigurationModule } from '../configuration/node-configuration.module'
 import { ConfigJiraConnectionStore, ConfigSourceControlConnectionStore } from '../connection'
-import { CortexModule, CortexExecutionJobResource } from '../cortex'
+import { CortexModule } from '../cortex'
 import { AgentRuntimeExecutionEngine, CursorExecutionEngine, EXECUTION_ENGINE } from '../execution-engine'
 import { AgentExecuteJobHandler, JiraTriageJobHandler, RepositoryReviewJobHandler, TestRunner } from '../handlers'
 import { GitWorkspaceManager } from '../workspace'
@@ -15,7 +15,7 @@ import { ExecutionJobProcessingResult, ExecutionJobProcessor } from './jobs/proc
 
 @Module({
   imports: [AgentModule, CortexModule, NodeConfigurationModule],
-  exports: [CortexExecutionJobResource, ExecutionJobHandlerRegistry, ExecutionJobPoller, ExecutionJobProcessor],
+  exports: [ExecutionJobHandlerRegistry, ExecutionJobPoller, ExecutionJobProcessor],
   providers: [
     AgentExecuteJobHandler,
     AgentRuntimeExecutionEngine,

@@ -3,7 +3,12 @@
 
 import { Injectable } from '@nestjs/common'
 import { ExecutionJobHandlerRegistry } from '../../handler'
-import { type ClaimExecutionJobResponse, type ExecutionJobResult } from '@cortex/protocol'
+import {
+  type AgentExecuteJobResult,
+  type ClaimExecutionJobResponse,
+  type JiraTriageJobResult,
+  type RepositoryReviewJobResult,
+} from '@cortex/protocol'
 
 /**
  * Execution job returned when a claim succeeds with work available.
@@ -17,11 +22,17 @@ export type ClaimedExecutionJob = NonNullable<ClaimExecutionJobResponse['job']>
 /**
  * Result produced by processing an execution job.
  *
- * Result-producing kinds return a member of {@link ExecutionJobResult}
- * (`agent.execute`, `repository.review`, …). Kinds that produce no protocol
- * result, such as `"system.test"`, resolve to `undefined`.
+ * Result-producing kinds return the contract result for their kind:
+ * {@link AgentExecuteJobResult} (`agent.execute`),
+ * {@link JiraTriageJobResult} (`jira.triage`), or
+ * {@link RepositoryReviewJobResult} (`repository.review`). Kinds that produce
+ * no protocol result, such as `"system.test"`, resolve to `undefined`.
  */
-export type ExecutionJobProcessingResult = ExecutionJobResult | undefined
+export type ExecutionJobProcessingResult =
+  | AgentExecuteJobResult
+  | JiraTriageJobResult
+  | RepositoryReviewJobResult
+  | undefined
 
 /**
  * Dispatches a claimed execution job to the handler for its kind.

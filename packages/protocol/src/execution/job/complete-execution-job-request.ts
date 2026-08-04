@@ -2,7 +2,6 @@
 // https://pink-tech.io/
 
 import { z } from 'zod'
-import { ExecutionJobResultSchema } from './execution-job-response'
 
 /**
  * Validates the request body a Node sends when marking an execution job complete.
@@ -14,9 +13,11 @@ import { ExecutionJobResultSchema } from './execution-job-response'
  * Field semantics:
  * - `claimToken` — UUID issued at claim time; required to authorize completion
  * - `nodeId` — identifier of the Node that holds the claim
- * - `result` — optional; omit for kinds with no protocol outcome (for example
- *   `"system.test"`); include a member of {@link ExecutionJobResultSchema} for
- *   kinds such as `agent.execute`
+ * - `result` — optional, opaque handler outcome; omit for kinds with no
+ *   protocol outcome (for example `"system.test"`). The shared protocol does
+ *   not interpret this value; the API validates it against the contract schema
+ *   published for the job's kind (for example the agent-execute result schema
+ *   for `agent.execute`)
  */
 export const CompleteExecutionJobRequestSchema = z
   .object({
@@ -33,12 +34,13 @@ export const CompleteExecutionJobRequestSchema = z
     nodeId: z.string().min(1),
 
     /**
-     * Outcome of a result-producing job, when applicable.
+     * Opaque outcome of a result-producing job, when applicable.
      *
      * Absent or undefined for jobs that only need a lifecycle transition to
-     * completed. When present, must satisfy {@link ExecutionJobResultSchema}.
+     * completed. When present, the API validates it against the contract
+     * schema registered for the job's kind.
      */
-    result: ExecutionJobResultSchema.optional(),
+    result: z.unknown().optional(),
   })
   .strict()
 

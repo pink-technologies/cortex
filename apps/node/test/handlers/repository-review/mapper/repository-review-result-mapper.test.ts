@@ -5,65 +5,84 @@ import {
   buildRepositoryReviewUserContext,
   composeRepositoryReviewPrompt,
   mapRepositoryReviewResult,
-  readAgentsMarkdown,
 } from '../../../../src/handlers'
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { repositoryReviewResult } from '../fixtures/repository-review-result.fixture'
 
 describe('mapRepositoryReviewResult', () => {
   it('parses a fenced JSON review result', () => {
-    const output = [
-      'Here is the review:',
-      '```json',
-      JSON.stringify({
-        findings: [
-          {
-            detail: 'Avoid force unwrap.',
-            path: 'src/main.ts',
-            severity: 'warning',
-            startLine: 10,
-            title: 'Unsafe unwrap',
-          },
-        ],
-        reviewMode: 'diff',
-        summary: 'One warning found.',
-      }),
-      '```',
-    ].join('\n')
-
-    expect(mapRepositoryReviewResult(output, 'diff')).toEqual({
+    const payload = repositoryReviewResult({
+      decision: 'comment',
       findings: [
         {
-          detail: 'Avoid force unwrap.',
-          path: 'src/main.ts',
-          severity: 'warning',
-          startLine: 10,
+          category: 'hardening',
+          confidence: 'high',
+          disposition: 'follow_up',
+          evidence: ['src/main.ts:10 force unwrap'],
+          id: 'finding-1',
+          impact: 'Crash on nil input.',
+          location: {
+            line: 10,
+            path: 'src/main.ts',
+          },
+          problem: 'Force unwrap on optional value.',
+          recommendation: 'Use guard let and return a typed error.',
+          severity: 'medium',
           title: 'Unsafe unwrap',
+          verification: ['Unit test covering nil input.'],
         },
       ],
-      reviewMode: 'diff',
-      summary: 'One warning found.',
+      summary: 'One finding found.',
     })
+
+    const output = ['Here is the review:', '```json', JSON.stringify(payload), '```'].join('\n')
+
+    expect(mapRepositoryReviewResult(output)).toEqual(payload)
   })
 
-  it('injects reviewMode when the engine omits it', () => {
-    const output = JSON.stringify({
-      findings: [],
-      summary: 'Clean review.',
+  it('parses fenced JSON when finding recommendations contain nested Markdown fences', () => {
+    const recommendation = [
+      'Prefer a declarative descriptor:',
+      '',
+      '```swift',
+      'public struct Icon: Sendable {',
+      '  public let source: Source',
+      '}',
+      '```',
+      '',
+      'Resolve once into UIImage.',
+    ].join('\n')
+
+    const payload = repositoryReviewResult({
+      decision: 'request_changes',
+      findings: [
+        {
+          category: 'api_design',
+          confidence: 'high',
+          disposition: 'required_before_merge',
+          evidence: ['Sources/Appearance/CameraIcons.swift:89'],
+          id: 'icon-api',
+          impact: 'UIKit consumers can receive blank icons.',
+          location: {
+            line: 89,
+            path: 'Sources/Appearance/CameraIcons.swift',
+          },
+          problem: 'IconImage forces framework-specific images.',
+          recommendation,
+          severity: 'high',
+          title: 'Replace IconImage with declarative Icon',
+          verification: ['Invalid SF Symbol retains SDK default.'],
+        },
+      ],
+      summary: 'Public icon API needs a declarative rewrite.',
     })
 
-    expect(mapRepositoryReviewResult(output, 'full')).toEqual({
-      findings: [],
-      reviewMode: 'full',
-      summary: 'Clean review.',
-    })
+    const output = ['```json', JSON.stringify(payload, null, 2), '```'].join('\n')
+
+    expect(mapRepositoryReviewResult(output)).toEqual(payload)
   })
 
   it('rejects invalid JSON', () => {
-    expect(() => mapRepositoryReviewResult('not-json', 'diff')).toThrow(
-      /not valid JSON/,
-    )
+    expect(() => mapRepositoryReviewResult('not-json')).toThrow(/not valid JSON/)
   })
 
   it('rejects JSON that fails the protocol schema', () => {
@@ -73,7 +92,6 @@ describe('mapRepositoryReviewResult', () => {
           findings: [],
           summary: '',
         }),
-        'diff',
       ),
     ).toThrow()
   })
@@ -111,9 +129,9 @@ describe('composeRepositoryReviewPrompt', () => {
     expect(prompt).not.toContain('Repository agent guidelines')
   })
 
-  it('injects AGENTS.md and skill prompts when provided', () => {
+  it('injects guidelines and skill prompts when provided', () => {
     const prompt = composeRepositoryReviewPrompt({
-      agentsMarkdown: 'Prefer early returns.',
+      guidelinesPrompt: 'Prefer early returns.',
       skillPrompts: ['# Diff review skill\nFocus on the change set.'],
       systemPrompt: 'System',
       userContext: 'Context',
@@ -123,38 +141,5 @@ describe('composeRepositoryReviewPrompt', () => {
     expect(prompt).toContain('Prefer early returns.')
     expect(prompt).toContain('Authorized skill')
     expect(prompt).toContain('Focus on the change set.')
-  })
-})
-
-describe('readAgentsMarkdown', () => {
-  let workspacePath: string
-
-  beforeEach(async () => {
-    workspacePath = await mkdtemp(join(tmpdir(), 'cortex-agents-md-'))
-  })
-
-  afterEach(async () => {
-    await rm(workspacePath, { force: true, recursive: true })
-  })
-
-  it('returns undefined when no AGENTS.md is present', async () => {
-    await expect(readAgentsMarkdown(workspacePath)).resolves.toBeUndefined()
-  })
-
-  it('reads AGENTS.md from the workspace root', async () => {
-    await writeFile(join(workspacePath, 'AGENTS.md'), 'Use strict typing.\n', 'utf8')
-
-    await expect(readAgentsMarkdown(workspacePath)).resolves.toBe('Use strict typing.')
-  })
-
-  it('falls back to .cursor/AGENTS.md', async () => {
-    await mkdir(join(workspacePath, '.cursor'), { recursive: true, mode: 0o755 })
-    await writeFile(
-      join(workspacePath, '.cursor', 'AGENTS.md'),
-      'Cursor-local guidelines.\n',
-      'utf8',
-    )
-
-    await expect(readAgentsMarkdown(workspacePath)).resolves.toBe('Cursor-local guidelines.')
   })
 })

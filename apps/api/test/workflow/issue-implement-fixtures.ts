@@ -74,9 +74,17 @@ export function agentExecuteJobResult(): AgentExecuteJobResult {
  */
 export function repositoryReviewJobResult(): RepositoryReviewJobResult {
   return {
+    appliedPolicies: [],
+    appliedSkills: ['code-review-diff'],
+    decision: 'approve',
     findings: [],
-    reviewMode: 'full',
+    limitations: [],
+    strengths: ['Implementation looks coherent.'],
     summary: 'Implementation looks correct.',
+    validation: {
+      notPerformed: ['Build and tests were not executed.'],
+      performed: ['Inspected the prepared workspace.'],
+    },
   }
 }
 

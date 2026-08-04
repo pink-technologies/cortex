@@ -13,6 +13,11 @@ import type { WorkspaceManager } from './workspace-manager'
 const execFileAsync = promisify(execFile)
 
 /**
+ * Depth increments used when a shallow clone cannot yet resolve merge-base.
+ */
+const MERGE_BASE_DEEPEN_STEPS = [50, 100, 200, 500] as const
+
+/**
  * File-system {@link WorkspaceManager} that clones repositories with git.
  */
 @Injectable()
@@ -32,8 +37,11 @@ export class GitWorkspaceManager implements WorkspaceManager {
    * Creates a temporary directory, clones the repository, and checks out
    * {@link PrepareWorkspaceRequest.headRef}.
    *
+   * When {@link PrepareWorkspaceRequest.baseRef} is set, fetches that ref and
+   * deepens (or unshallows) history until a merge base with `HEAD` is found.
+   *
    * @param request - Clone parameters and cancellation signal.
-   * @returns The prepared workspace.
+   * @returns The prepared workspace, optionally including `mergeBaseSha`.
    */
   async prepare(request: PrepareWorkspaceRequest): Promise<PreparedWorkspace> {
     request.signal.throwIfAborted()
@@ -55,8 +63,13 @@ export class GitWorkspaceManager implements WorkspaceManager {
 
     request.signal.throwIfAborted()
 
+    const mergeBaseSha = request.baseRef
+      ? await this.resolveMergeBase(repositoryPath, request.baseRef, request.signal)
+      : undefined
+
     return {
       path: repositoryPath,
+      ...(mergeBaseSha ? { mergeBaseSha } : {}),
     }
   }
 
@@ -124,6 +137,75 @@ export class GitWorkspaceManager implements WorkspaceManager {
   // MARK: - Private methods
 
   /**
+   * Fetches {@link baseRef} and deepens history until merge-base resolves.
+   *
+   * @returns The merge-base SHA, or `undefined` when it cannot be resolved.
+   */
+  private async resolveMergeBase(
+    repositoryPath: string,
+    baseRef: string,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    const remoteBaseRef = `refs/remotes/origin/${baseRef}`
+
+    try {
+      await this.runGit(
+        ['fetch', '--depth', '1', 'origin', `+${baseRef}:${remoteBaseRef}`],
+        signal,
+        repositoryPath,
+      )
+    } catch {
+      return undefined
+    }
+
+    const mergeBase = await this.tryMergeBase(repositoryPath, remoteBaseRef, signal)
+
+    if (mergeBase) {
+      return mergeBase
+    }
+
+    for (const deepen of MERGE_BASE_DEEPEN_STEPS) {
+      signal.throwIfAborted()
+
+      try {
+        await this.runGit(['fetch', `--deepen=${deepen}`, 'origin'], signal, repositoryPath)
+      } catch {
+        break
+      }
+
+      const deepened = await this.tryMergeBase(repositoryPath, remoteBaseRef, signal)
+
+      if (deepened) {
+        return deepened
+      }
+    }
+
+    try {
+      await this.runGit(['fetch', '--unshallow', 'origin'], signal, repositoryPath)
+    } catch {
+      // Already complete or remote does not support unshallow.
+    }
+
+    return this.tryMergeBase(repositoryPath, remoteBaseRef, signal)
+  }
+
+  private async tryMergeBase(
+    repositoryPath: string,
+    remoteBaseRef: string,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    try {
+      const sha = (
+        await this.runGitCapture(['merge-base', 'HEAD', remoteBaseRef], signal, repositoryPath)
+      ).trim()
+
+      return sha.length > 0 ? sha : undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
    * Injects a token into an HTTPS clone URL without logging credentials.
    */
   private injectAccessToken(cloneUrl: string, accessToken: string): string {
@@ -140,11 +222,26 @@ export class GitWorkspaceManager implements WorkspaceManager {
   }
 
   private async runGit(args: readonly string[], signal: AbortSignal, cwd?: string): Promise<void> {
+    await this.runGitCapture(args, signal, cwd)
+  }
+
+  private async runGitCapture(
+    args: readonly string[],
+    signal: AbortSignal,
+    cwd?: string,
+  ): Promise<string> {
     signal.throwIfAborted()
 
-    await execFileAsync('git', [...args], {
+    const result = await execFileAsync('git', [...args], {
       cwd,
+      encoding: 'utf8',
       signal,
     })
+
+    if (typeof result === 'string') {
+      return result
+    }
+
+    return result.stdout ?? ''
   }
 }

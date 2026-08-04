@@ -2,10 +2,7 @@
 // https://pink-tech.io/
 
 import { Test, type TestingModule } from '@nestjs/testing'
-import {
-  AgentExecuteJobKind,
-  RepositoryReviewJobKind,
-} from '@cortex/protocol'
+import { AgentExecuteJobKind, RepositoryReviewJobKind } from '@cortex/protocol'
 import { RepositoryReviewFlowDefinitionKey } from '@/workflow/definitions/keys'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobController } from '../../../src/execution/controller/execution-job.controller'

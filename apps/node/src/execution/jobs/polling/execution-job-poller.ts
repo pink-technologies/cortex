@@ -2,16 +2,18 @@
 // https://pink-tech.io/
 
 import { Inject, Injectable, Logger } from '@nestjs/common'
+import { CompleteExecutionJobRequest, FailExecutionJobRequest } from '@cortex/protocol'
 import { NODE_CONFIGURATION, type NodeConfiguration } from '../../../configuration'
 import { CortexExecutionJobResource } from '../../../cortex'
-import { ExecutionJobProcessor, mapExecutionJobFailure, type ClaimedExecutionJob, type ExecutionJobProcessingResult } from '../processing'
-import { CompleteExecutionJobRequest, FailExecutionJobRequest } from '@cortex/protocol'
+import { ExecutionJobProcessor, mapExecutionJobFailure, type ClaimedExecutionJob } from '../processing'
 
 /**
  * Periodically claims and executes jobs assigned to a registered Cortex Node.
  *
  * Jobs are processed sequentially. The poller does not claim another job until
- * the current job has completed or failed.
+ * the current job has completed or failed. Handler and engine failures are
+ * reported through the fail API; the polling loop stays alive so later jobs
+ * can still be claimed.
  */
 @Injectable()
 export class ExecutionJobPoller {
@@ -40,8 +42,9 @@ export class ExecutionJobPoller {
   /**
    * Polls and processes execution jobs until cancellation.
    *
-   * Polling failures are logged without terminating the loop. A delay is
-   * applied whenever no job is available or an operation fails.
+   * Claim, processing, and reporting failures are logged without terminating
+   * the loop. A delay is applied whenever no job is available or an operation
+   * fails so the Node keeps attempting work.
    *
    * @param nodeId - Registered Cortex Node identifier.
    * @param signal - Signal used to stop polling and active execution.
@@ -67,8 +70,6 @@ export class ExecutionJobPoller {
             `Execution-job polling failed with an unknown error: ${String(error)}`,
           )
         }
-
-        return
       }
 
       if (!didExecuteJob && !signal.aborted) {
@@ -95,11 +96,31 @@ export class ExecutionJobPoller {
 
     this.logger.log(`Executing job ${job.id} (${job.kind})`)
 
-    const result = await this.processClaimedJob(job, nodeId, signal)
+    let result
+
+    try {
+      result = await this.executionJobProcessor.process(job, signal)
+    } catch (error) {
+      await this.reportFailure(job, nodeId, error, signal)
+
+      if (error instanceof Error) {
+        this.logger.error(
+          `Execution job ${job.id} failed: ${error.message}`,
+          error.stack,
+        )
+      } else {
+        this.logger.error(
+          `Execution job ${job.id} failed with an unknown error: ${String(error)}`,
+        )
+      }
+
+      return true
+    }
+
     const request: CompleteExecutionJobRequest = {
       claimToken: job.claimToken,
       nodeId,
-      result
+      result,
     }
 
     await this.executionJobs.complete(job.id, request, signal)
@@ -109,25 +130,11 @@ export class ExecutionJobPoller {
     return true
   }
 
-  private async processClaimedJob(
+  private async reportFailure(
     job: ClaimedExecutionJob,
     nodeId: string,
-    signal: AbortSignal,
-  ): Promise<ExecutionJobProcessingResult> {
-    try {
-      return await this.executionJobProcessor.process(job, signal)
-    } catch (error) {
-      await this.reportFailure(job, nodeId, error, signal)
-
-      throw error
-    }
-  }
-
-  private async reportFailure(
-    job: ClaimedExecutionJob, 
-    nodeId: string, 
     executionError: unknown,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): Promise<void> {
     try {
       if (job.claimToken === null) {
@@ -137,7 +144,7 @@ export class ExecutionJobPoller {
       const request: FailExecutionJobRequest = {
         claimToken: job.claimToken,
         nodeId,
-        failure: mapExecutionJobFailure(executionError)
+        failure: mapExecutionJobFailure(executionError),
       }
 
       await this.executionJobs.fail(job.id, request, signal)

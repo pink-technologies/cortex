@@ -378,10 +378,9 @@ describe('ExecutionJobPoller', () => {
       job.id,
       {
         claimToken: job.claimToken,
-        failure: {
-          code: 'EXECUTION_JOB_FAILED',
-          message: 'Execution job failed with an unknown error',
-        },
+        failure: expect.objectContaining({
+          message: expect.any(String),
+        }),
         nodeId: 'node-1',
       },
       controller.signal,
@@ -389,7 +388,10 @@ describe('ExecutionJobPoller', () => {
     expect(complete).not.toHaveBeenCalled()
   })
 
-  it('stops polling after logging a processing error', async () => {
+  it('keeps polling after a processing error once the job is reported failed', async () => {
+    jest.useFakeTimers()
+
+    const controller = new AbortController()
     const job = makeClaimedJob()
     const {
       claimNextAvailable,
@@ -401,7 +403,14 @@ describe('ExecutionJobPoller', () => {
       processor,
     } = makeExecutionJobProcessor()
 
-    claimNextAvailable.mockResolvedValue({ job })
+    claimNextAvailable
+      .mockResolvedValueOnce({ job })
+      .mockImplementationOnce(async () => {
+        controller.abort()
+
+        return { job: null }
+      })
+
     process.mockRejectedValue(new Error('Agent execution failed'))
     fail.mockResolvedValue(undefined)
 
@@ -411,7 +420,11 @@ describe('ExecutionJobPoller', () => {
       processor,
     )
 
-    await poller.run('node-1', new AbortController().signal)
+    const runPromise = poller.run('node-1', controller.signal)
+
+    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(0)
+    await runPromise
 
     expect(fail).toHaveBeenCalledWith(
       job.id,
@@ -425,10 +438,13 @@ describe('ExecutionJobPoller', () => {
       },
       expect.any(AbortSignal),
     )
-    expect(claimNextAvailable).toHaveBeenCalledTimes(1)
+    expect(claimNextAvailable).toHaveBeenCalledTimes(2)
   })
 
-  it('stops polling after logging an unknown processing error', async () => {
+  it('keeps polling after an unknown processing error once the job is reported failed', async () => {
+    jest.useFakeTimers()
+
+    const controller = new AbortController()
     const job = makeClaimedJob()
     const {
       claimNextAvailable,
@@ -440,7 +456,14 @@ describe('ExecutionJobPoller', () => {
       processor,
     } = makeExecutionJobProcessor()
 
-    claimNextAvailable.mockResolvedValue({ job })
+    claimNextAvailable
+      .mockResolvedValueOnce({ job })
+      .mockImplementationOnce(async () => {
+        controller.abort()
+
+        return { job: null }
+      })
+
     process.mockRejectedValue('boom')
     fail.mockResolvedValue(undefined)
 
@@ -450,7 +473,11 @@ describe('ExecutionJobPoller', () => {
       processor,
     )
 
-    await poller.run('node-1', new AbortController().signal)
+    const runPromise = poller.run('node-1', controller.signal)
+
+    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(0)
+    await runPromise
 
     expect(fail).toHaveBeenCalledWith(
       job.id,
@@ -464,9 +491,13 @@ describe('ExecutionJobPoller', () => {
       },
       expect.any(AbortSignal),
     )
+    expect(claimNextAvailable).toHaveBeenCalledTimes(2)
   })
 
-  it('throws AggregateError when failure reporting also fails', async () => {
+  it('keeps polling after AggregateError when failure reporting also fails', async () => {
+    jest.useFakeTimers()
+
+    const controller = new AbortController()
     const job = makeClaimedJob()
     const {
       claimNextAvailable,
@@ -478,7 +509,14 @@ describe('ExecutionJobPoller', () => {
       processor,
     } = makeExecutionJobProcessor()
 
-    claimNextAvailable.mockResolvedValue({ job })
+    claimNextAvailable
+      .mockResolvedValueOnce({ job })
+      .mockImplementationOnce(async () => {
+        controller.abort()
+
+        return { job: null }
+      })
+
     process.mockRejectedValue(new Error('Agent execution failed'))
     fail.mockRejectedValue(new Error('Failure request failed'))
 
@@ -488,7 +526,11 @@ describe('ExecutionJobPoller', () => {
       processor,
     )
 
-    await poller.run('node-1', new AbortController().signal)
+    const runPromise = poller.run('node-1', controller.signal)
+
+    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(1_000)
+    await runPromise
 
     expect(fail).toHaveBeenCalledWith(
       job.id,
@@ -502,6 +544,158 @@ describe('ExecutionJobPoller', () => {
       },
       expect.any(AbortSignal),
     )
+    expect(claimNextAvailable).toHaveBeenCalledTimes(2)
+  })
+
+  it('surfaces AggregateError when failure reporting sees a null claim token', async () => {
+    jest.useFakeTimers()
+
+    const controller = new AbortController()
+    const job = makeClaimedJob()
+    const {
+      claimNextAvailable,
+      fail,
+      client,
+    } = makeCortexExecutionJobResource()
+    const {
+      process,
+      processor,
+    } = makeExecutionJobProcessor()
+
+    claimNextAvailable
+      .mockResolvedValueOnce({ job })
+      .mockImplementationOnce(async () => {
+        controller.abort()
+
+        return { job: null }
+      })
+
+    process.mockImplementation(async () => {
+      ;(job as { claimToken: string | null }).claimToken = null
+      throw new Error('Agent execution failed')
+    })
+
+    const poller = new ExecutionJobPoller(
+      makeConfiguration(),
+      client,
+      processor,
+    )
+
+    const runPromise = poller.run('node-1', controller.signal)
+
+    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(1_000)
+    await runPromise
+
+    expect(fail).not.toHaveBeenCalled()
+    expect(claimNextAvailable).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws when a claimed job has a null claim token', async () => {
+    jest.useFakeTimers()
+
+    const controller = new AbortController()
+    const job = {
+      ...makeClaimedJob(),
+      claimToken: null,
+    }
+    const {
+      claimNextAvailable,
+      complete,
+      fail,
+      client,
+    } = makeCortexExecutionJobResource()
+    const { processor } = makeExecutionJobProcessor()
+
+    claimNextAvailable
+      .mockResolvedValueOnce({ job })
+      .mockImplementationOnce(async () => {
+        controller.abort()
+
+        return { job: null }
+      })
+
+    const poller = new ExecutionJobPoller(
+      makeConfiguration(),
+      client,
+      processor,
+    )
+
+    const runPromise = poller.run('node-1', controller.signal)
+
+    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(1_000)
+    await runPromise
+
+    expect(complete).not.toHaveBeenCalled()
+    expect(fail).not.toHaveBeenCalled()
+    expect(claimNextAvailable).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps polling after an unknown claim transport error', async () => {
+    jest.useFakeTimers()
+
+    const controller = new AbortController()
+    const {
+      claimNextAvailable,
+      client,
+    } = makeCortexExecutionJobResource()
+    const { processor } = makeExecutionJobProcessor()
+
+    claimNextAvailable
+      .mockRejectedValueOnce('claim boom')
+      .mockImplementationOnce(async () => {
+        controller.abort()
+
+        return { job: null }
+      })
+
+    const poller = new ExecutionJobPoller(
+      makeConfiguration(),
+      client,
+      processor,
+    )
+
+    const runPromise = poller.run('node-1', controller.signal)
+
+    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(1_000)
+    await runPromise
+
+    expect(claimNextAvailable).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps polling after a claim transport error', async () => {
+    jest.useFakeTimers()
+
+    const controller = new AbortController()
+    const {
+      claimNextAvailable,
+      client,
+    } = makeCortexExecutionJobResource()
+    const { processor } = makeExecutionJobProcessor()
+
+    claimNextAvailable
+      .mockRejectedValueOnce(new Error('Failed to claim next execution job'))
+      .mockImplementationOnce(async () => {
+        controller.abort()
+
+        return { job: null }
+      })
+
+    const poller = new ExecutionJobPoller(
+      makeConfiguration(),
+      client,
+      processor,
+    )
+
+    const runPromise = poller.run('node-1', controller.signal)
+
+    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(1_000)
+    await runPromise
+
+    expect(claimNextAvailable).toHaveBeenCalledTimes(2)
   })
 
   it('waits before claiming again when no job is available', async () => {

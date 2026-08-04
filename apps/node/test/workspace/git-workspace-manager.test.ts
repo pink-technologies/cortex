@@ -23,10 +23,15 @@ describe('GitWorkspaceManager', () => {
     execFileMock.mockReset()
     execFileMock.mockImplementation((
       _file: string,
-      _args: readonly string[],
+      args: readonly string[],
       _options: unknown,
       callback: (error: Error | null, stdout: string, stderr: string) => void,
     ) => {
+      if (args[0] === 'merge-base') {
+        callback(null, 'abc123mergebase\n', '')
+        return
+      }
+
       callback(null, '', '')
     })
   })
@@ -51,10 +56,182 @@ describe('GitWorkspaceManager', () => {
         expect.stringContaining('/repo'),
       ],
       expect.objectContaining({
+        encoding: 'utf8',
         signal: expect.any(AbortSignal),
       }),
       expect.any(Function),
     )
+    expect(workspace.mergeBaseSha).toBeUndefined()
+
+    await manager.cleanup(workspace)
+  })
+
+  it('fetches baseRef and resolves merge-base for diff reviews', async () => {
+    const workspace = await manager.prepare({
+      accessToken: 'ghp_test',
+      baseRef: 'develop',
+      cloneUrl: 'https://github.com/pink-tech/cortex.git',
+      headRef: 'feature',
+      signal: new AbortController().signal,
+    })
+
+    const gitArgs = execFileMock.mock.calls.map((call) => call[1] as string[])
+
+    expect(gitArgs).toEqual(
+      expect.arrayContaining([
+        [
+          'fetch',
+          '--depth',
+          '1',
+          'origin',
+          '+develop:refs/remotes/origin/develop',
+        ],
+        ['merge-base', 'HEAD', 'refs/remotes/origin/develop'],
+      ]),
+    )
+    expect(workspace.mergeBaseSha).toBe('abc123mergebase')
+
+    await manager.cleanup(workspace)
+  })
+
+  it('deepens history when the first merge-base attempt fails', async () => {
+    execFileMock.mockImplementation((
+      _file: string,
+      args: readonly string[],
+      _options: unknown,
+      callback: (error: Error | null, stdout: string, stderr: string) => void,
+    ) => {
+      if (args[0] === 'merge-base') {
+        const deepenCalls = execFileMock.mock.calls.filter((call) =>
+          (call[1] as string[]).some((arg) => arg.startsWith('--deepen=')),
+        )
+
+        if (deepenCalls.length === 0) {
+          callback(new Error('no merge base'), '', '')
+          return
+        }
+
+        callback(null, 'def456mergebase\n', '')
+        return
+      }
+
+      callback(null, '', '')
+    })
+
+    const workspace = await manager.prepare({
+      accessToken: 'ghp_test',
+      baseRef: 'main',
+      cloneUrl: 'https://github.com/pink-tech/cortex.git',
+      headRef: 'feature',
+      signal: new AbortController().signal,
+    })
+
+    const gitArgs = execFileMock.mock.calls.map((call) => call[1] as string[])
+    expect(gitArgs).toEqual(expect.arrayContaining([['fetch', '--deepen=50', 'origin']]))
+    expect(workspace.mergeBaseSha).toBe('def456mergebase')
+
+    await manager.cleanup(workspace)
+  })
+
+  it('returns undefined mergeBaseSha when baseRef fetch fails', async () => {
+    execFileMock.mockImplementation((
+      _file: string,
+      args: readonly string[],
+      _options: unknown,
+      callback: (error: Error | null, stdout: string, stderr: string) => void,
+    ) => {
+      if (args[0] === 'fetch' && args.includes('+missing:refs/remotes/origin/missing')) {
+        callback(new Error('could not find ref'), '', '')
+        return
+      }
+
+      callback(null, '', '')
+    })
+
+    const workspace = await manager.prepare({
+      accessToken: 'ghp_test',
+      baseRef: 'missing',
+      cloneUrl: 'https://github.com/pink-tech/cortex.git',
+      headRef: 'feature',
+      signal: new AbortController().signal,
+    })
+
+    expect(workspace.mergeBaseSha).toBeUndefined()
+    await manager.cleanup(workspace)
+  })
+
+  it('stops deepening when fetch --deepen fails and still attempts unshallow', async () => {
+    execFileMock.mockImplementation((
+      _file: string,
+      args: readonly string[],
+      _options: unknown,
+      callback: (error: Error | null, stdout: string, stderr: string) => void,
+    ) => {
+      if (args.some((arg) => arg.startsWith('--deepen='))) {
+        callback(new Error('deepen failed'), '', '')
+        return
+      }
+
+      if (args.includes('--unshallow')) {
+        callback(new Error('unshallow failed'), '', '')
+        return
+      }
+
+      if (args[0] === 'merge-base') {
+        callback(null, '   \n', '')
+        return
+      }
+
+      callback(null, '', '')
+    })
+
+    const workspace = await manager.prepare({
+      accessToken: 'ghp_test',
+      baseRef: 'main',
+      cloneUrl: 'https://github.com/pink-tech/cortex.git',
+      headRef: 'feature',
+      signal: new AbortController().signal,
+    })
+
+    expect(workspace.mergeBaseSha).toBeUndefined()
+    await manager.cleanup(workspace)
+  })
+
+  it('unshallows when deepen steps never yield a merge base', async () => {
+    execFileMock.mockImplementation((
+      _file: string,
+      args: readonly string[],
+      _options: unknown,
+      callback: (error: Error | null, stdout: string, stderr: string) => void,
+    ) => {
+      if (args[0] === 'merge-base') {
+        const unshallowSeen = execFileMock.mock.calls.some((call) =>
+          (call[1] as string[]).includes('--unshallow'),
+        )
+
+        if (unshallowSeen) {
+          callback(null, 'unshallowmergebase\n', '')
+          return
+        }
+
+        callback(new Error('no merge base'), '', '')
+        return
+      }
+
+      callback(null, '', '')
+    })
+
+    const workspace = await manager.prepare({
+      accessToken: 'ghp_test',
+      baseRef: 'main',
+      cloneUrl: 'https://github.com/pink-tech/cortex.git',
+      headRef: 'feature',
+      signal: new AbortController().signal,
+    })
+
+    const gitArgs = execFileMock.mock.calls.map((call) => call[1] as string[])
+    expect(gitArgs).toEqual(expect.arrayContaining([['fetch', '--unshallow', 'origin']]))
+    expect(workspace.mergeBaseSha).toBe('unshallowmergebase')
 
     await manager.cleanup(workspace)
   })
@@ -165,4 +342,3 @@ describe('GitWorkspaceManager', () => {
     ).resolves.toBe(false)
   })
 })
-

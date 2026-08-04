@@ -29,6 +29,5 @@ export const ExecutionJobStatus = {
  * Union of string literals in {@link ExecutionJobStatus}.
  *
  * Prefer this over a bare `string` when reading or updating `ExecutionJob.status`.
- * Not the same as the legacy chat-pipeline Prisma `JobStatus` enum.
  */
 export type ExecutionJobStatus = (typeof ExecutionJobStatus)[keyof typeof ExecutionJobStatus]

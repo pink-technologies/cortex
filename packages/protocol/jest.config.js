@@ -18,6 +18,10 @@ module.exports = {
   collectCoverageFrom: [
     '<rootDir>/src/execution/agent/agent-execute-job-payload.ts',
     '<rootDir>/src/execution/agent/agent-execute-job-result.ts',
+    '<rootDir>/src/execution/jira/create-jira-triage-job-request.ts',
+    '<rootDir>/src/execution/jira/jira-triage-job-kind.ts',
+    '<rootDir>/src/execution/jira/jira-triage-job-payload.ts',
+    '<rootDir>/src/execution/jira/jira-triage-job-result.ts',
     '<rootDir>/src/execution/job/complete-execution-job-request.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',

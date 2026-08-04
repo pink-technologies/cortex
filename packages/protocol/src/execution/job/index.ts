@@ -13,7 +13,4 @@ export type { ExecutionJobStatus } from './execution-job-status'
 export { FailExecutionJobRequestSchema } from './fail-execution-job-request'
 export type { FailExecutionJobRequest } from './fail-execution-job-request'
 export { ExecutionJobResponseSchema } from './execution-job-response'
-export type {
-  ExecutionJobResponse,
-  ExecutionJobResult,
-} from './execution-job-response'
+export type { ExecutionJobResponse } from './execution-job-response'

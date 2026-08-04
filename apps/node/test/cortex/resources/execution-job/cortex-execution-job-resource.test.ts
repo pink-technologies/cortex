@@ -1,10 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type {
-  AgentExecuteJobResult,
-  CompleteExecutionJobRequest,
-  FailExecutionJobRequest,
+import {
+  type AgentExecuteJobResult,
+  type CompleteExecutionJobRequest,
+  type FailExecutionJobRequest,
 } from '@cortex/protocol'
 import type { NodeConfiguration } from '../../../../src/configuration/node-configuration'
 import { CortexClient, CortexExecutionJobResource } from '../../../../src/cortex'
@@ -172,10 +172,7 @@ describe('CortexExecutionJobResource.complete', () => {
   it('validates the completion request before sending it', async () => {
     const fetchMock = jest.spyOn(globalThis, 'fetch')
     const request = makeCompleteRequest({
-      result: {
-        ...agentResult,
-        iterationCount: 0,
-      },
+      claimToken: 'not-a-uuid',
     })
 
     await expect(resource().complete('job-1', request)).rejects.toMatchObject({

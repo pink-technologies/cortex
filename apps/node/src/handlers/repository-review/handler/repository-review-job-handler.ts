@@ -3,30 +3,34 @@
 
 import { Inject, Injectable } from '@nestjs/common'
 import { SkillRegistry, SkillSelector, type AgentDefinition } from '@cortex/agent-runtime'
-import {
-  RepositoryReviewJobKind,
-  RepositoryReviewJobPayloadSchema,
-  type RepositoryReviewJobResult,
-} from '@cortex/protocol'
 import type { ExecutionJobHandler, ExecutionJobHandlerContext } from '../../../execution/handler'
 import { AgentProcessResolver } from '../../../agent/agent-process-resolver'
 import { ConfigSourceControlConnectionStore } from '../../../connection'
 import { EXECUTION_ENGINE, type ExecutionEngine } from '../../../execution-engine'
 import { GitHubClient, GitHubIssueCommentResource, GitHubPullResource } from '@cortex/integrations/github'
 import { GitWorkspaceManager } from '../../../workspace'
+import { formatRepositoryReviewComment } from '../mapper/repository-review-comment-formatter'
+import { mapRepositoryReviewResult } from '../mapper/repository-review-result-mapper'
+import {
+  RepositoryReviewJobKind,
+  RepositoryReviewJobPayloadSchema,
+  type RepositoryReviewJobResult,
+} from '@cortex/protocol'
+
 import {
   buildRepositoryReviewUserContext,
   composeRepositoryReviewPrompt,
-  readAgentsMarkdown,
+  readRepositoryReviewGuidelinesPrompt,
+  RepositoryReviewDiffSkillId,
 } from '../composer/repository-review-prompt-composer'
-import { mapRepositoryReviewResult } from '../mapper/repository-review-result-mapper'
 
 /**
  * Executes claimed jobs with kind {@link RepositoryReviewJobKind}.
  *
  * Resolves the owning agent package, composes prompts from the agent system
- * prompt, selectively injected skills, optional workspace `AGENTS.md`, and run
- * context, then runs the injected {@link ExecutionEngine}.
+ * prompt, the required `code-review-diff` skill, optional additional skills,
+ * host-loaded repository guidelines, and run context, then runs the injected
+ * {@link ExecutionEngine}.
  */
 @Injectable()
 export class RepositoryReviewJobHandler implements ExecutionJobHandler<RepositoryReviewJobResult> {
@@ -54,6 +58,8 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
     private readonly workspaceManager: GitWorkspaceManager,
   ) {}
 
+  // MARK: - ExecutionJobHandler
+
   async process(payload: unknown, context: ExecutionJobHandlerContext): Promise<RepositoryReviewJobResult> {
     context.signal.throwIfAborted()
 
@@ -73,6 +79,7 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
 
     const workspace = await this.workspaceManager.prepare({
       accessToken: connection.token,
+      baseRef: jobPayload.change.baseRef,
       cloneUrl: jobPayload.repository.cloneUrl,
       headRef: jobPayload.change.headRef,
       signal: context.signal,
@@ -88,11 +95,12 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
           )
         : undefined
 
-      const agentsMarkdown = await readAgentsMarkdown(workspace.path)
+      const guidelinesPrompt = await readRepositoryReviewGuidelinesPrompt(workspace.path)
       const userContext = buildRepositoryReviewUserContext({
         baseRef: jobPayload.change.baseRef,
         headRef: jobPayload.change.headRef,
         instructions: jobPayload.instructions,
+        mergeBaseSha: workspace.mergeBaseSha,
         pullRequestBody: pullRequest?.body,
         pullRequestTitle: pullRequest?.title,
         reviewMode: jobPayload.reviewMode,
@@ -100,7 +108,7 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
       const skillPrompts = this.resolveSkillPrompts(agent, userContext)
 
       const prompt = composeRepositoryReviewPrompt({
-        agentsMarkdown,
+        guidelinesPrompt,
         skillPrompts,
         systemPrompt: agent.descriptor.systemPrompt,
         userContext,
@@ -113,14 +121,14 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
         signal: context.signal,
       })
 
-      const result = mapRepositoryReviewResult(engineResult.output, jobPayload.reviewMode)
+      const result = mapRepositoryReviewResult(engineResult.output)
 
       if (jobPayload.change.pullRequestNumber) {
         await comments.create(
           jobPayload.repository.owner,
           jobPayload.repository.name,
           jobPayload.change.pullRequestNumber,
-          this.formatReviewComment(result),
+          formatRepositoryReviewComment(result),
           context.signal,
         )
       }
@@ -133,40 +141,38 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
 
   // MARK: - Private methods
 
-  private formatReviewComment(result: RepositoryReviewJobResult): string {
-    const findings =
-      result.findings.length === 0
-        ? '_No findings._'
-        : result.findings
-            .map((finding) => {
-              const location = finding.path
-                ? ` (\`${finding.path}\`${finding.startLine ? `:${finding.startLine}` : ''})`
-                : ''
-
-              return `- **[${finding.severity}] ${finding.title}**${location}\n  ${finding.detail}`
-            })
-            .join('\n')
-
-    return [
-      `## Cortex repository review (${result.reviewMode})`,
-      '',
-      result.summary,
-      '',
-      '### Findings',
-      '',
-      findings,
-    ].join('\n')
-  }
-
   private resolveSkillPrompts(agent: AgentDefinition, context: string): readonly string[] {
-    if (!agent.safety.allowSkillUse) {
-      return []
+    const prompts: string[] = []
+    const injectedIds = new Set<string>()
+
+    try {
+      const required = this.skillRegistry.resolve(RepositoryReviewDiffSkillId)
+      prompts.push(required.prompt)
+      injectedIds.add(required.id)
+    } catch (error) {
+      throw new Error(
+        `repository.review requires the '${RepositoryReviewDiffSkillId}' skill to be registered.`,
+        { cause: error },
+      )
     }
 
-    const authorized = agent.descriptor.skills.map((skillId) => {
-      return this.skillRegistry.resolve(skillId)
-    })
+    if (!agent.safety.allowSkillUse) {
+      return prompts
+    }
 
-    return this.skillSelector.select({ context, skills: authorized }).map((skill) => skill.prompt)
+    const additionalAuthorized = agent.descriptor.skills
+      .filter((skillId) => skillId !== RepositoryReviewDiffSkillId)
+      .map((skillId) => this.skillRegistry.resolve(skillId))
+
+    for (const skill of this.skillSelector.select({ context, skills: additionalAuthorized })) {
+      if (injectedIds.has(skill.id)) {
+        continue
+      }
+
+      prompts.push(skill.prompt)
+      injectedIds.add(skill.id)
+    }
+
+    return prompts
   }
 }

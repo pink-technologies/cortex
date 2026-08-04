@@ -156,7 +156,19 @@ describe('WorkflowOrchestrator cancel', () => {
       executionJobService.complete(job.id, {
         claimToken: claim.claimToken,
         nodeId: claim.nodeId,
-        result: { classification: 'bug' },
+        result: {
+          classification: {
+            automationEligible: false,
+            class: 'bug',
+            confidence: 0.9,
+            rationale: 'Reported defect with clear reproduction steps.',
+          },
+          escalation: {
+            action: 'none',
+            reason: 'Run was cancelled before escalation.',
+          },
+          issueKey: 'JC-61',
+        },
       }),
     ).resolves.toBe(true)
 

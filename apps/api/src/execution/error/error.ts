@@ -204,6 +204,38 @@ export class ExecutionJobFailError extends ExecutionJobError {
 }
 
 /**
+ * Indicates that a reported execution-job result violates the contract schema
+ * registered for the job's kind.
+ *
+ * Raised before persistence when a Node completes a job with a result that
+ * does not satisfy the kind's published contract (for example
+ * `AgentExecuteJobResultSchema` for `agent.execute`). This is a protocol violation
+ * by the reporting worker, not an operational failure.
+ */
+export class ExecutionJobResultInvalidError extends ExecutionJobError {
+  // MARK: - Properties
+
+  /**
+   * Stable machine-readable identifier for invalid execution-job results.
+   */
+  readonly code = 'EXECUTION_JOB_RESULT_INVALID'
+
+  // MARK: - Constructor
+
+  /**
+   * Creates an invalid execution-job result error.
+   *
+   * @param message - Human-readable description of the contract violation.
+   * @param errorOptions - Optional diagnostic options containing the
+   *   originating validation failure in `cause`. These details are for
+   *   internal logging and must not be exposed directly in public responses.
+   */
+  constructor(message: string, errorOptions?: ErrorOptions) {
+    super(message, errorOptions)
+  }
+}
+
+/**
  * Indicates that an unexpected failure occurred while reading an execution job.
  *
  * This wraps operational failures thrown by the repository during lookup. A

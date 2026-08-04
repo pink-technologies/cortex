@@ -5,11 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { HttpStatus, ValidationPipe, type INestApplication } from '@nestjs/common'
 import { Test, type TestingModule } from '@nestjs/testing'
 import request from 'supertest'
-import {
-  NodeArchitecture,
-  NodeOperatingSystem,
-  RepositoryReviewJobKind,
-} from '@cortex/protocol'
+import { NodeArchitecture, NodeOperatingSystem, RepositoryReviewJobKind } from '@cortex/protocol'
 import { AppModule } from '../../../src/app.module'
 import { Database } from '../../../src/infraestructure/database'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
@@ -31,17 +27,35 @@ const reviewPayload = {
 }
 
 const reviewResult = {
+  appliedPolicies: [],
+  appliedSkills: ['code-review-diff'],
+  decision: 'comment' as const,
   findings: [
     {
-      detail: 'Prefer early return.',
-      path: 'src/main.ts',
-      severity: 'info' as const,
-      startLine: 3,
+      category: 'hardening' as const,
+      confidence: 'medium' as const,
+      disposition: 'follow_up' as const,
+      evidence: ['src/main.ts:3 nested conditionals'],
+      id: 'control-flow-1',
+      impact: 'Harder to maintain error paths.',
+      location: {
+        line: 3,
+        path: 'src/main.ts',
+      },
+      problem: 'Nested conditionals obscure the happy path.',
+      recommendation: 'Prefer early return.',
+      severity: 'low' as const,
       title: 'Simplify control flow',
+      verification: ['Unit test covering the early-return path.'],
     },
   ],
-  reviewMode: 'diff' as const,
+  limitations: [],
+  strengths: [],
   summary: 'One informational finding.',
+  validation: {
+    notPerformed: ['Build and tests were not executed.'],
+    performed: ['Inspected the merge-base change set.'],
+  },
 }
 
 function makeCompatibleNodeRegistration(installationId: string = randomUUID()) {

@@ -4,11 +4,7 @@
 import { randomUUID } from 'node:crypto'
 import { ConfigModule } from '@nestjs/config'
 import { Test, type TestingModule } from '@nestjs/testing'
-import {
-  AgentExecuteJobKind,
-  JiraTriageJobKind,
-  RepositoryReviewJobKind,
-} from '@cortex/protocol'
+import { AgentExecuteJobKind, JiraTriageJobKind, RepositoryReviewJobKind } from '@cortex/protocol'
 import { Database, DatabaseModule } from '../../src/infraestructure/database'
 import { ExecutionJobStatus } from '../../src/execution/datatypes/execution-job-status'
 import { ExecutionJobService } from '../../src/execution/execution-job.service'

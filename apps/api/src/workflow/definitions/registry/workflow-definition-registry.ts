@@ -4,10 +4,7 @@
 import { Injectable } from '@nestjs/common'
 import type { WorkflowDefinition } from '../models'
 import { validateWorkflowDefinition } from './validate-workflow-definition'
-import {
-  WorkflowDefinitionAlreadyRegisteredError,
-  WorkflowDefinitionNotFoundError,
-} from '../../error/error'
+import { WorkflowDefinitionAlreadyRegisteredError, WorkflowDefinitionNotFoundError } from '../../error/error'
 
 /**
  * In-memory catalog of {@link WorkflowDefinition} records.

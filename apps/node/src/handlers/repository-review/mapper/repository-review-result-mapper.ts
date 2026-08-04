@@ -4,20 +4,19 @@
 import {
   RepositoryReviewJobResultSchema,
   type RepositoryReviewJobResult,
-  type RepositoryReviewMode,
 } from '@cortex/protocol'
 
 /**
  * Extracts and validates a {@link RepositoryReviewJobResult} from engine output.
  *
- * Prefers a fenced ```json block when present; otherwise parses the entire
- * output as JSON.
+ * Accepts raw JSON or a fenced ```json block. Nested Markdown code fences inside
+ * JSON string values (common in architecture-depth finding details) must not
+ * truncate extraction — the payload is located with a string-aware object scan.
  *
  * @param output - Textual output from the execution engine.
- * @param reviewMode - Review mode to apply when the engine omits it.
  * @returns The validated review result.
  */
-export function mapRepositoryReviewResult(output: string, reviewMode: RepositoryReviewMode): RepositoryReviewJobResult {
+export function mapRepositoryReviewResult(output: string): RepositoryReviewJobResult {
   const jsonText = extractJson(output)
   let parsed: unknown
 
@@ -27,22 +26,104 @@ export function mapRepositoryReviewResult(output: string, reviewMode: Repository
     throw new Error('Review engine output was not valid JSON.', { cause: error })
   }
 
-  if (parsed && typeof parsed === 'object' && !('reviewMode' in parsed)) {
-    parsed = {
-      ...parsed,
-      reviewMode,
-    }
-  }
-
   return RepositoryReviewJobResultSchema.parse(parsed)
 }
 
+/**
+ * Returns the JSON object text from engine output.
+ *
+ * Prefer a top-level object scan over non-greedy fence matching so closing
+ * fences embedded in finding `detail` strings do not truncate the payload.
+ */
 function extractJson(output: string): string {
-  const fenced = output.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const trimmed = output.trim()
 
-  if (fenced?.[1]) {
-    return fenced[1].trim()
+  if (trimmed.length === 0) {
+    return trimmed
   }
 
-  return output.trim()
+  try {
+    JSON.parse(trimmed)
+    return trimmed
+  } catch {
+    // Continue with object extraction.
+  }
+
+  const objectText = extractBalancedJsonObject(trimmed)
+
+  if (objectText !== undefined) {
+    return objectText
+  }
+
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*)$/i)
+  const fencedBody = fenceMatch?.[1]?.trim()
+
+  if (fencedBody) {
+    const fencedObject = extractBalancedJsonObject(fencedBody)
+
+    if (fencedObject !== undefined) {
+      return fencedObject
+    }
+  }
+
+  return trimmed
+}
+
+/**
+ * Extracts the first top-level `{ ... }` object, respecting JSON string escapes.
+ *
+ * @returns The object slice, or `undefined` when braces are unbalanced / missing.
+ */
+function extractBalancedJsonObject(text: string): string | undefined {
+  const start = text.indexOf('{')
+
+  if (start < 0) {
+    return undefined
+  }
+
+  let depth = 0
+  let inString = false
+  let escaping = false
+
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index]
+
+    if (inString) {
+      if (escaping) {
+        escaping = false
+        continue
+      }
+
+      if (character === '\\') {
+        escaping = true
+        continue
+      }
+
+      if (character === '"') {
+        inString = false
+      }
+
+      continue
+    }
+
+    if (character === '"') {
+      inString = true
+      continue
+    }
+
+    if (character === '{') {
+      depth += 1
+      continue
+    }
+
+    if (character === '}') {
+      depth -= 1
+
+      if (depth === 0) {
+        return text.slice(start, index + 1)
+      }
+    }
+  }
+
+  return undefined
 }

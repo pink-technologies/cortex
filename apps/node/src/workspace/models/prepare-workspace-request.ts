@@ -11,6 +11,14 @@ export interface PrepareWorkspaceRequest {
   readonly accessToken: string
 
   /**
+   * Optional base revision used to resolve a merge base for diff-style reviews.
+   *
+   * When set, {@link GitWorkspaceManager.prepare} fetches this ref and deepens
+   * history until `git merge-base` succeeds (or history is exhausted).
+   */
+  readonly baseRef?: string
+
+  /**
    * Credential-free HTTPS clone URL.
    */
   readonly cloneUrl: string

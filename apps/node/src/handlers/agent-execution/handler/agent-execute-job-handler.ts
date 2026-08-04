@@ -8,7 +8,7 @@ import { type ExecutionJobHandler, type ExecutionJobHandlerContext } from '../..
 import {
   AgentExecuteJobKind,
   AgentExecuteJobPayloadSchema,
-  AgentExecuteJobResultSchema,  
+  AgentExecuteJobResultSchema,
   type AgentExecuteJobResult,
 } from '@cortex/protocol'
 

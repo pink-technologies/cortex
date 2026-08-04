@@ -22,7 +22,6 @@ export type {
   ExecutionJobEvent,
   ExecutionNode,
   ExecutionWorker,
-  JobStatus,
   Message,
   WorkflowRun,
   WorkflowStep,

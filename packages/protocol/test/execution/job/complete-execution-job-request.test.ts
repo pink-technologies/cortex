@@ -9,18 +9,13 @@ const baseRequest = {
 }
 
 describe('CompleteExecutionJobRequestSchema', () => {
-  it('accepts an agent execution result', () => {
+  it('accepts an opaque kind-specific result', () => {
     const request = CompleteExecutionJobRequestSchema.parse({
       ...baseRequest,
       result: {
         executionId: 'exec-1',
         iterationCount: 2,
         output: 'Done.',
-        usage: {
-          inputTokens: 10,
-          outputTokens: 4,
-          totalTokens: 14,
-        },
       },
     })
 
@@ -30,11 +25,6 @@ describe('CompleteExecutionJobRequestSchema', () => {
         executionId: 'exec-1',
         iterationCount: 2,
         output: 'Done.',
-        usage: {
-          inputTokens: 10,
-          outputTokens: 4,
-          totalTokens: 14,
-        },
       },
     })
   })
@@ -45,20 +35,11 @@ describe('CompleteExecutionJobRequestSchema', () => {
     expect(request).toEqual(baseRequest)
   })
 
-  it('rejects an invalid agent execution result', () => {
+  it('rejects a malformed claim token', () => {
     expect(() =>
       CompleteExecutionJobRequestSchema.parse({
         ...baseRequest,
-        result: {
-          executionId: 'exec-1',
-          iterationCount: 0,
-          output: 'Done.',
-          usage: {
-            inputTokens: 0,
-            outputTokens: 0,
-            totalTokens: 0,
-          },
-        },
+        claimToken: 'not-a-uuid',
       }),
     ).toThrow()
   })

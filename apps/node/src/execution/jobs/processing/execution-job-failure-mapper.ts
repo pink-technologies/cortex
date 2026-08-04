@@ -13,7 +13,7 @@ import type { ExecutionJobFailure } from '@cortex/protocol'
  * @returns A normalized execution-job failure.
  */
 export function mapExecutionJobFailure(error: unknown): ExecutionJobFailure {
-  if (error instanceof Error) {    
+  if (error instanceof Error) {
     return {
       code: resolveErrorCode(error),
       message: error.message || 'Execution job failed',
@@ -27,11 +27,28 @@ export function mapExecutionJobFailure(error: unknown): ExecutionJobFailure {
 }
 
 function resolveErrorCode(error: Error): string {
-  const candidate = Reflect.get(error, 'code')
+  for (const candidate of walkErrorChain(error)) {
+    const code = Reflect.get(candidate, 'code')
 
-  if (typeof candidate === 'string' && candidate.length > 0) {
-    return candidate
+    if (typeof code === 'string' && code.length > 0) {
+      return code
+    }
+
+    if (candidate.name === 'AbortError') {
+      return 'CANCELLED'
+    }
   }
 
   return error.name || 'EXECUTION_JOB_FAILED'
+}
+
+function* walkErrorChain(error: Error): Generator<Error> {
+  let current: unknown = error
+  const seen = new Set<Error>()
+
+  while (current instanceof Error && !seen.has(current)) {
+    seen.add(current)
+    yield current
+    current = current.cause
+  }
 }

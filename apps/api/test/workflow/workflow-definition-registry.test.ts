@@ -2,11 +2,7 @@
 // https://pink-tech.io/
 
 import { WorkflowStepKind } from '../../src/workflow/datatypes'
-import {
-  AgentExecuteJobKind,
-  JiraTriageJobKind,
-  RepositoryReviewJobKind,
-} from '@cortex/protocol'
+import { AgentExecuteJobKind, JiraTriageJobKind, RepositoryReviewJobKind } from '@cortex/protocol'
 
 import {
   agentExecuteFlow,

@@ -1,6 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { WorkflowStepKind } from '../../../datatypes'
+import type { WorkflowDefinition, WorkflowStepPayloadContext } from '../../models'
+import { IssueImplementFlowDefinitionKey } from '../../keys'
+import { IssueImplementFlowInputSchema } from './models'
 import {
   AgentExecuteJobKind,
   AgentExecuteJobPayloadSchema,
@@ -10,10 +14,6 @@ import {
   RepositoryReviewJobKind,
   RepositoryReviewJobPayloadSchema,
 } from '@cortex/protocol'
-import { WorkflowStepKind } from '../../../datatypes'
-import type { WorkflowDefinition, WorkflowStepPayloadContext } from '../../models'
-import { IssueImplementFlowDefinitionKey } from '../../keys'
-import { IssueImplementFlowInputSchema } from './models'
 
 /**
  * Builds the `jira.triage` payload for the `triage` step from the run input.
@@ -27,12 +27,12 @@ function buildTriagePayload(context: WorkflowStepPayloadContext): unknown {
   return JiraTriageJobPayloadSchema.parse({
     connectionId: input.jiraConnectionId,
     issueKey: input.issueKey,
+    repository: input.repository,
+    sourceControlConnectionId: input.sourceControlConnectionId,
     options: {
       attemptFix: false,
       dryRunTests: false,
-    },
-    repository: input.repository,
-    sourceControlConnectionId: input.sourceControlConnectionId,
+    }
   })
 }
 
@@ -57,7 +57,9 @@ function buildImplementPayload(context: WorkflowStepPayloadContext): unknown {
     lines.push('', `Reproduction: ${triage.repro.status} — ${triage.repro.summary}`)
 
     for (const suite of triage.repro.suites) {
-      lines.push(`- ${suite.suiteId}: \`${suite.command}\`${suite.exitCode === undefined ? '' : ` (exit ${suite.exitCode})`}`)
+      lines.push(
+        `- ${suite.suiteId}: \`${suite.command}\`${suite.exitCode === undefined ? '' : ` (exit ${suite.exitCode})`}`,
+      )
     }
   }
 

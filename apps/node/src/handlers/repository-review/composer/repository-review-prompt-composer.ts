@@ -1,14 +1,17 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { access, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import type { RepositoryReviewMode } from '@cortex/protocol'
+import {
+  formatRepositoryReviewGuidelines,
+  loadRepositoryReviewGuidelines,
+  type RepositoryReviewGuidelines,
+} from './repository-review-guideline-loader'
 
 /**
- * Relative paths checked for repository agent guidelines, in preference order.
+ * Skill always injected for `repository.review` runs.
  */
-const AGENTS_MARKDOWN_CANDIDATES = ['AGENTS.md', join('.cursor', 'AGENTS.md')] as const
+export const RepositoryReviewDiffSkillId = 'code-review-diff' as const
 
 /**
  * Builds the per-run user context for a repository review (refs, PR, instructions).
@@ -17,6 +20,7 @@ export function buildRepositoryReviewUserContext(input: {
   readonly baseRef?: string
   readonly headRef: string
   readonly instructions?: string
+  readonly mergeBaseSha?: string
   readonly pullRequestBody?: string
   readonly pullRequestTitle?: string
   readonly reviewMode: RepositoryReviewMode
@@ -29,6 +33,18 @@ export function buildRepositoryReviewUserContext(input: {
 
   if (input.baseRef) {
     lines.push(`Base revision: ${input.baseRef}.`)
+  }
+
+  if (input.mergeBaseSha) {
+    lines.push(`Merge base SHA: ${input.mergeBaseSha}.`)
+    lines.push(
+      'Authoritative change set: review `git diff --merge-base` / three-dot range ' +
+        `\`${input.mergeBaseSha}...HEAD\` (changes introduced by the head revision since it diverged from the base).`,
+    )
+  } else if (input.baseRef) {
+    lines.push(
+      'Merge base could not be resolved locally. Report that limitation and avoid claiming a complete PR-style change set was reviewed.',
+    )
   }
 
   if (input.pullRequestTitle) {
@@ -47,36 +63,27 @@ export function buildRepositoryReviewUserContext(input: {
 }
 
 /**
- * Reads optional repository `AGENTS.md` guidelines from a workspace root.
+ * Reads host-side repository guidelines for prompt injection.
+ *
+ * Loads root/nested `AGENTS*` files, `.cursor/rules`, and referenced guideline
+ * paths from a prepared workspace.
  *
  * @param workspacePath - Absolute path to the prepared repository workspace.
- * @returns File contents when present; otherwise `undefined`.
+ * @returns Formatted guidelines section, or `undefined` when none exist.
  */
-export async function readAgentsMarkdown(workspacePath: string): Promise<string | undefined> {
-  for (const relativePath of AGENTS_MARKDOWN_CANDIDATES) {
-    const absolutePath = join(workspacePath, relativePath)
-
-    try {
-      await access(absolutePath)
-      const contents = (await readFile(absolutePath, 'utf8')).trim()
-
-      if (contents.length > 0) {
-        return contents
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-
-  return undefined
+export async function readRepositoryReviewGuidelinesPrompt(
+  workspacePath: string,
+): Promise<string | undefined> {
+  const guidelines = await loadRepositoryReviewGuidelines(workspacePath)
+  return formatRepositoryReviewGuidelines(guidelines)
 }
 
 /**
- * Composes the full engine prompt from agent, skills, optional AGENTS.md, and
- * run context.
+ * Composes the full engine prompt from agent, skills, host-loaded guidelines,
+ * and run context.
  */
 export function composeRepositoryReviewPrompt(input: {
-  readonly agentsMarkdown?: string
+  readonly guidelinesPrompt?: string
   readonly skillPrompts?: readonly string[]
   readonly systemPrompt: string
   readonly userContext: string
@@ -91,11 +98,19 @@ export function composeRepositoryReviewPrompt(input: {
     }
   }
 
-  if (input.agentsMarkdown?.trim()) {
-    sections.push(`## Repository agent guidelines\n\n${input.agentsMarkdown.trim()}`)
+  const guidelines = input.guidelinesPrompt?.trim()
+
+  if (guidelines) {
+    if (guidelines.startsWith('## ')) {
+      sections.push(guidelines)
+    } else {
+      sections.push(`## Repository agent guidelines\n\n${guidelines}`)
+    }
   }
 
   sections.push(input.userContext.trim())
 
   return sections.join('\n\n')
 }
+
+export type { RepositoryReviewGuidelines }

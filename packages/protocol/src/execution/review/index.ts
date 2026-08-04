@@ -11,5 +11,25 @@ export type {
   RepositoryReviewJobPayload,
   RepositoryReviewMode,
 } from './repository-review-job-payload'
-export { RepositoryReviewJobResultSchema } from './repository-review-job-result'
-export type { RepositoryReviewJobResult } from './repository-review-job-result'
+export {
+  RepositoryReviewCategorySchema,
+  RepositoryReviewConfidenceSchema,
+  RepositoryReviewDecisionSchema,
+  RepositoryReviewDispositionSchema,
+  RepositoryReviewFindingLocationSchema,
+  RepositoryReviewFindingSchema,
+  RepositoryReviewJobResultSchema,
+  RepositoryReviewSeveritySchema,
+  RepositoryReviewValidationSchema,
+} from './repository-review-job-result'
+export type {
+  RepositoryReviewCategory,
+  RepositoryReviewConfidence,
+  RepositoryReviewDecision,
+  RepositoryReviewDisposition,
+  RepositoryReviewFinding,
+  RepositoryReviewFindingLocation,
+  RepositoryReviewJobResult,
+  RepositoryReviewSeverity,
+  RepositoryReviewValidation,
+} from './repository-review-job-result'

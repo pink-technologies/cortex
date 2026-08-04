@@ -11,7 +11,7 @@ import { GitHubIssueCommentResource, GitHubPullRequest, GitHubPullResource } fro
 import type { GitWorkspaceManager } from '../../../../src/workspace'
 import { ExecutionJobHandlerRegistry } from '../../../../src/execution/handler'
 import { ExecutionJobProcessor } from '../../../../src/execution/jobs/processing'
-import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -81,9 +81,11 @@ describe('RepositoryReviewJobHandler', () => {
     jest.restoreAllMocks()
   })
 
-  it('composes agent prompt, AGENTS.md, skills, then publishes', async () => {
+  it('composes agent prompt, guidelines, required diff skill, then publishes', async () => {
     const workspacePath = await mkdtemp(join(tmpdir(), 'cortex-review-handler-'))
     await writeFile(join(workspacePath, 'AGENTS.md'), 'Prefer early returns.\n', 'utf8')
+    await mkdir(join(workspacePath, '.cursor', 'rules'), { recursive: true })
+    await writeFile(join(workspacePath, '.cursor', 'rules', 'api.mdc'), 'Validate DTOs.\n', 'utf8')
 
     try {
       const connection = {
@@ -99,13 +101,13 @@ describe('RepositoryReviewJobHandler', () => {
           delegatesTo: [],
           name: 'Repository Reviewer',
           role: 'specialist',
-          skills: ['code-review-diff'],
+          skills: ['minimal-fix'],
           systemPrompt: 'You are the repository reviewer.',
         },
         safety: {
           allowCapabilityUse: true,
           allowDelegation: false,
-          allowSkillUse: true,
+          allowSkillUse: false,
           maxDelegationDepth: 0,
         },
       } as unknown as AgentDefinition
@@ -118,7 +120,7 @@ describe('RepositoryReviewJobHandler', () => {
         resolve: jest.fn().mockReturnValue(connection),
       }
 
-      const workspace = { path: workspacePath }
+      const workspace = { mergeBaseSha: 'abc123merge', path: workspacePath }
       const workspaceManager = {
         cleanup: jest.fn().mockResolvedValue(undefined),
         prepare: jest.fn().mockResolvedValue(workspace),
@@ -132,18 +134,40 @@ describe('RepositoryReviewJobHandler', () => {
       const executionEngine = {
         run: jest.fn().mockResolvedValue({
           output: JSON.stringify({
+            appliedPolicies: [],
+            appliedSkills: ['code-review-diff'],
+            decision: 'approve',
             findings: [],
-            reviewMode: 'diff',
+            limitations: [],
+            strengths: [],
             summary: 'Looks good.',
+            validation: {
+              notPerformed: ['Build and tests were not executed.'],
+              performed: ['Inspected the merge-base change set.'],
+            },
           }),
         }),
       }
 
       const skillRegistry = {
-        resolve: jest.fn().mockReturnValue({
-          description: 'Diff skill',
-          id: 'code-review-diff',
-          prompt: 'Focus on the change set.',
+        resolve: jest.fn((skillId: string) => {
+          if (skillId === 'code-review-diff') {
+            return {
+              description: 'Diff skill',
+              id: 'code-review-diff',
+              prompt: 'Focus on the change set.',
+            }
+          }
+
+          if (skillId === 'minimal-fix') {
+            return {
+              description: 'Minimal fix skill',
+              id: 'minimal-fix',
+              prompt: 'Keep the fix small.',
+            }
+          }
+
+          throw new Error(`unexpected skill ${skillId}`)
         }),
       }
 
@@ -159,6 +183,7 @@ describe('RepositoryReviewJobHandler', () => {
       const result = await handler.process(
         {
           change: {
+            baseRef: 'main',
             headRef: 'feature',
             pullRequestNumber: 12,
           },
@@ -177,17 +202,35 @@ describe('RepositoryReviewJobHandler', () => {
       )
 
       expect(result).toEqual({
+        appliedPolicies: [],
+        appliedSkills: ['code-review-diff'],
+        decision: 'approve',
         findings: [],
-        reviewMode: 'diff',
+        limitations: [],
+        strengths: [],
         summary: 'Looks good.',
+        validation: {
+          notPerformed: ['Build and tests were not executed.'],
+          performed: ['Inspected the merge-base change set.'],
+        },
       })
+      expect(workspaceManager.prepare).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseRef: 'main',
+          headRef: 'feature',
+        }),
+      )
 
       const prompt = executionEngine.run.mock.calls[0][0].prompt as string
       expect(prompt).toContain('You are the repository reviewer.')
       expect(prompt).toContain('Repository agent guidelines')
       expect(prompt).toContain('Prefer early returns.')
+      expect(prompt).toContain('Cursor rules')
+      expect(prompt).toContain('Validate DTOs.')
       expect(prompt).toContain('Focus on the change set.')
       expect(prompt).toContain('Head revision: feature.')
+      expect(prompt).toContain('Merge base SHA: abc123merge.')
+      expect(skillRegistry.resolve).toHaveBeenCalledWith('code-review-diff')
       expect(executionEngine.run).toHaveBeenCalledWith(
         expect.objectContaining({
           agentId: 'coder',
@@ -202,3 +245,4 @@ describe('RepositoryReviewJobHandler', () => {
     }
   })
 })
+

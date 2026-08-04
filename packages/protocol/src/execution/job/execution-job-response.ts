@@ -2,33 +2,7 @@
 // https://pink-tech.io/
 
 import { z } from 'zod'
-import { AgentExecuteJobResultSchema } from '../agent/agent-execute-job-result'
-import { JiraTriageJobResultSchema } from '../jira/jira-triage-job-result'
-import { RepositoryReviewJobResultSchema } from '../review/repository-review-job-result'
 import { ExecutionJobFailureSchema } from './execution-job-failure'
-
-/**
- * Result persisted for a supported execution job when retrieving job status.
- *
- * Keep this union aligned with the completion-side result schema so get and
- * complete share one outcome shape on the wire. Supported members are
- * {@link AgentExecuteJobResultSchema} (`agent.execute`),
- * {@link RepositoryReviewJobResultSchema} (`repository.review`), and
- * {@link JiraTriageJobResultSchema} (`jira.triage`).
- */
-export const ExecutionJobResultSchema = z.union([
-  AgentExecuteJobResultSchema,
-  RepositoryReviewJobResultSchema,
-  JiraTriageJobResultSchema,
-])
-
-/**
- * Validated completion/read result for a result-producing execution job.
- *
- * Derived from {@link ExecutionJobResultSchema} so get and complete share one
- * outcome shape on the wire.
- */
-export type ExecutionJobResult = z.infer<typeof ExecutionJobResultSchema>
 
 /**
  * Validates the response body returned when retrieving an execution job.
@@ -49,8 +23,8 @@ export type ExecutionJobResult = z.infer<typeof ExecutionJobResultSchema>
  *   `null` otherwise
  * - `failedAt` — ISO-8601 timestamp when the job entered a terminal failure
  *   state; `null` otherwise
- * - `result` — persisted handler outcome when present; `null` until a
- *   result-producing job completes successfully
+ * - `result` — opaque, kind-specific handler outcome when present; `null`
+ *   until a result-producing job completes successfully
  * - `failure` — sanitized failure payload when present; `null` until the job
  *   fails
  * - `runId` — owning workflow-run identifier; `null` for standalone jobs
@@ -97,13 +71,15 @@ export const ExecutionJobResponseSchema = z
     kind: z.string().min(1),
 
     /**
-     * Persisted handler outcome, when one exists.
+     * Opaque, kind-specific handler outcome, when one exists.
      *
      * `null` for jobs that have not completed with a result, or for kinds that
-     * do not produce a protocol outcome. When set, must satisfy
-     * {@link ExecutionJobResultSchema}.
+     * do not produce a protocol outcome. The shared protocol does not
+     * interpret this value; consumers validate it against the contract schema
+     * published for the job's `kind` (for example the agent-execute result
+     * schema for `agent.execute`).
      */
-    result: ExecutionJobResultSchema.nullable(),
+    result: z.unknown().nullable(),
 
     /**
      * Identifier of the workflow run that owns this job as one of its steps.

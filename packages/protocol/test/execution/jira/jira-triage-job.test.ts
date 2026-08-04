@@ -5,8 +5,8 @@ import {
   CreateJiraTriageJobRequestSchema,
   JiraTriageJobKind,
   JiraTriageJobPayloadSchema,
-} from '../../../src'
-import { JiraTriageJobResultSchema } from '../../../src/execution/jira/jira-triage-job-result'
+  JiraTriageJobResultSchema,
+} from '../../../src/execution/jira'
 
 describe('jira.triage protocol', () => {
   it('exposes a stable job kind', () => {
@@ -26,6 +26,30 @@ describe('jira.triage protocol', () => {
       attemptFix: true,
       dryRunTests: false,
     })
+  })
+
+  it('accepts an assignee filter naming an account id', () => {
+    const payload = JiraTriageJobPayloadSchema.parse({
+      assigneeFilter: {
+        accountId: 'acc-1',
+      },
+      connectionId: 'jira-main',
+      issueKey: 'JC-123',
+    })
+
+    expect(payload.assigneeFilter).toEqual({
+      accountId: 'acc-1',
+    })
+  })
+
+  it('rejects an assignee filter without account id or email', () => {
+    expect(() =>
+      JiraTriageJobPayloadSchema.parse({
+        assigneeFilter: {},
+        connectionId: 'jira-main',
+        issueKey: 'JC-123',
+      }),
+    ).toThrow()
   })
 
   it('rejects payloads with unknown properties', () => {

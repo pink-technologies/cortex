@@ -8,6 +8,7 @@ import type { DatabaseTransaction } from '@/infraestructure/database'
 import { EXECUTION_JOB_REPOSITORY, type ExecutionJobRepository } from './execution-job-repository'
 import { ExecutionJob } from './models/execution-job'
 import { CreateExecutionJobParameters } from './parameters/create-execution-job-parameters'
+import { validateExecutionJobResult } from './contracts/execution-job-result-contracts'
 import { WorkflowOrchestrator } from '../workflow/orchestrator'
 import {
   ExecutionJobCancelError,
@@ -76,6 +77,9 @@ export class ExecutionJobService {
   /**
    * Marks a running execution job as completed.
    *
+   * When the request carries a result, it is first validated against the
+   * contract schema registered for the job's kind; the protocol treats results
+   * as opaque, so this boundary is where kind-specific validation happens.
    * Delegates the guarded `RUNNING` → `COMPLETED` transition to the repository.
    * A `false` result indicates that the job does not exist or is no longer in
    * the required running state. On success, advances the owning workflow when
@@ -84,11 +88,25 @@ export class ExecutionJobService {
    * @param id - Stable identifier of the execution job to complete.
    * @param parameters - Completion request including claim proof and optional result.
    * @returns `true` when the transition succeeds; otherwise `false`.
+   * @throws {ExecutionJobResultInvalidError} When the reported result violates
+   *   the contract schema registered for the job's kind.
    * @throws {ExecutionJobCompleteError} When the persistence operation fails.
    */
   async complete(id: string, parameters: CompleteExecutionJobRequest): Promise<boolean> {
+    let request = parameters
+
+    if (parameters.result !== undefined) {
+      const executionJob = await this.findById(id)
+
+      if (!executionJob) {
+        return false
+      }
+
+      request = { ...parameters, result: validateExecutionJobResult(executionJob.kind, parameters.result) }
+    }
+
     try {
-      const completed = await this.executionJobRepository.complete(id, parameters)
+      const completed = await this.executionJobRepository.complete(id, request)
 
       if (completed) {
         await this.workflowOrchestrator?.onJobCompleted(id)
@@ -176,10 +194,7 @@ export class ExecutionJobService {
    * @param options - Optional transaction client.
    * @throws ExecutionJobCancelError When the persistence operation fails.
    */
-  async requestCancellationForRun(
-    runId: string,
-    options?: { transaction?: DatabaseTransaction },
-  ): Promise<void> {
+  async requestCancellationForRun(runId: string, options?: { transaction?: DatabaseTransaction }): Promise<void> {
     try {
       await this.executionJobRepository.requestCancellationForRun(runId, options)
     } catch (error) {
