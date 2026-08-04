@@ -12,7 +12,7 @@ import { z } from 'zod'
  *
  * Field semantics:
  * - `claimToken` — UUID issued at claim time; required to authorize completion
- * - `nodeId` — identifier of the Node that holds the claim
+ * - `nodeId` — UUID of the Node that holds the claim
  * - `result` — optional, opaque handler outcome; omit for kinds with no
  *   protocol outcome (for example `"system.test"`). The shared protocol does
  *   not interpret this value; the API validates it against the contract schema
@@ -29,9 +29,9 @@ export const CompleteExecutionJobRequestSchema = z
     claimToken: z.uuid(),
 
     /**
-     * Identifier of the Node that claimed the job.
+     * UUID of the Node that claimed the job.
      */
-    nodeId: z.string().min(1),
+    nodeId: z.uuid(),
 
     /**
      * Opaque outcome of a result-producing job, when applicable.

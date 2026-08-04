@@ -6,7 +6,6 @@ import { SkillRegistry, SkillSelector, type AgentDefinition } from '@cortex/agen
 import {
   JiraTriageJobKind,
   JiraTriageJobPayloadSchema,
-  type JiraTriageEscalation,
   type JiraTriageFix,
   type JiraTriageJobResult,
   type JiraTriageRepro,
@@ -23,12 +22,10 @@ import { EXECUTION_ENGINE, type ExecutionEngine } from '../../../execution-engin
 import { GitHubClient, GitHubPullResource } from '@cortex/integrations/github'
 import { JiraClient, JiraCommentResource, JiraIssueResource, type JiraIssue } from '@cortex/integrations/jira'
 import { GitWorkspaceManager } from '../../../workspace'
-import { extractJsonObject, mapJiraTriageClassification } from '../mapper/jira-triage-classification-mapper'
-import {
-  buildJiraClassifyUserContext,
-  buildJiraFixPrompt,
-  composeJiraClassifyPrompt,
-} from '../composer/jira-triage-prompt-composer'
+import { JiraTriageClassifier } from '../classifier/jira-triage-classifier'
+import { extractJsonObject } from '../mapper/jira-triage-classification-mapper'
+import { buildJiraFixPrompt } from '../composer/jira-triage-prompt-composer'
+import { JiraTriageEscalator } from '../escalator/jira-triage-escalator'
 import type { ResolvedJiraRepository } from '../models'
 import { resolveJiraRepository } from '../resolver/jira-repo-resolver'
 import { TestRunner } from '../runner/test-runner'
@@ -38,6 +35,10 @@ import { TestRunner } from '../runner/test-runner'
  *
  * Flow: read issue → classify → gate assignee → resolve repo → run/dry-run
  * tests → optional coder fix + draft PR → escalate in Jira when needed.
+ *
+ * Classification and escalation are owned by {@link JiraTriageClassifier} and
+ * {@link JiraTriageEscalator}. When `options.classifyOnly` is true, the handler
+ * stops after classify/escalate without clone or repro.
  */
 @Injectable()
 export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobResult> {
@@ -50,9 +51,11 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
   /**
    * Creates a `jira.triage` job handler.
    *
-   * @param agentProcessResolver - Resolves the QA/coder agents for triage steps.
+   * @param agentProcessResolver - Resolves the coder agent for fix attempts.
+   * @param classifier - Runs the QA classify step.
    * @param configuration - Node configuration for triage runtime gates.
-   * @param executionEngine - Engine used for classify and fix agent runs.
+   * @param escalator - Posts Jira escalation comments and reassignments.
+   * @param executionEngine - Engine used for fix agent runs.
    * @param jiraConnectionStore - Store resolving Jira connection credentials.
    * @param skillRegistry - Registry of skills available for selective injection.
    * @param sourceControlConnectionStore - Store resolving source-control credentials.
@@ -61,8 +64,10 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
    */
   constructor(
     private readonly agentProcessResolver: AgentProcessResolver,
+    private readonly classifier: JiraTriageClassifier,
     @Inject(NODE_CONFIGURATION)
     private readonly configuration: NodeConfiguration,
+    private readonly escalator: JiraTriageEscalator,
     @Inject(EXECUTION_ENGINE)
     private readonly executionEngine: ExecutionEngine,
     private readonly jiraConnectionStore: ConfigJiraConnectionStore,
@@ -82,27 +87,11 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
     const jiraIssues = new JiraIssueResource(jiraClient)
     const issue = await jiraIssues.get(jobPayload.issueKey, context.signal)
 
-    const qaAgent = this.agentProcessResolver.resolveAgent(JiraTriageJobKind)
-    const classifyUserContext = buildJiraClassifyUserContext(issue)
-    const skillPrompts = this.resolveSkillPrompts(qaAgent, classifyUserContext)
-    const classifyPrompt = composeJiraClassifyPrompt({
-      skillPrompts,
-      systemPrompt: qaAgent.descriptor.systemPrompt,
-      userContext: classifyUserContext,
-    })
-
-    const classifyOutput = await this.executionEngine.run({
-      agentId: qaAgent.id,
-      cwd: process.cwd(),
-      prompt: classifyPrompt,
-      signal: context.signal,
-    })
-
-    const classification = mapJiraTriageClassification(classifyOutput.output)
+    const classification = await this.classifier.classify(issue, context.signal)
 
     if (!this.passesAssigneeGate(issue, jobPayload.assigneeFilter)) {
-      const escalation = await this.escalate({
-        comment: this.formatEscalationComment({
+      const escalation = await this.escalator.escalate({
+        comment: this.escalator.formatComment({
           classification,
           issueKey: issue.key,
           reason: 'Issue is not assigned to the configured automation user.',
@@ -124,8 +113,8 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
     }
 
     if (!classification.automationEligible || classification.class !== 'bug') {
-      const escalation = await this.escalate({
-        comment: this.formatEscalationComment({
+      const escalation = await this.escalator.escalate({
+        comment: this.escalator.formatComment({
           classification,
           issueKey: issue.key,
           reason: 'Ticket is not an automation-eligible bug.',
@@ -146,6 +135,17 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
       }
     }
 
+    if (jobPayload.options.classifyOnly) {
+      return {
+        classification,
+        escalation: {
+          action: 'none',
+          reason: 'classifyOnly: stopped before repository resolution and reproduction.',
+        },
+        issueKey: issue.key,
+      }
+    }
+
     const resolution = resolveJiraRepository({
       customFieldId: this.configuration.jiraRepoCustomFieldId,
       issue,
@@ -159,8 +159,8 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
           ? 'No GitHub repository mapping for this ticket.'
           : `Ambiguous GitHub repositories: ${resolution.repositories.join(', ')}`
 
-      const escalation = await this.escalate({
-        comment: this.formatEscalationComment({
+      const escalation = await this.escalator.escalate({
+        comment: this.escalator.formatComment({
           classification,
           issueKey: issue.key,
           reason,
@@ -194,8 +194,8 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
 
     if (Object.keys(suites).length === 0) {
       const reason = 'Repository mapping has no allowlisted unit/UI test commands.'
-      const escalation = await this.escalate({
-        comment: this.formatEscalationComment({
+      const escalation = await this.escalator.escalate({
+        comment: this.escalator.formatComment({
           classification,
           issueKey: issue.key,
           reason,
@@ -224,7 +224,7 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
 
     if (jobPayload.options.dryRunTests) {
       const dryRunSuites = this.testRunner.dryRun(suites)
-      const comment = this.formatEscalationComment({
+      const comment = this.escalator.formatComment({
         classification,
         issueKey: issue.key,
         reason: `Dry-run: would execute ${dryRunSuites.map((suite) => suite.command).join(' | ')}`,
@@ -322,8 +322,8 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
           : 'Bug reproduced; autofix disabled.'
         : 'Could not reproduce the reported bug with mapped tests.'
 
-      const escalation = await this.escalate({
-        comment: this.formatEscalationComment({
+      const escalation = await this.escalator.escalate({
+        comment: this.escalator.formatComment({
           classification,
           fix,
           issueKey: issue.key,
@@ -499,74 +499,6 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
     return this.configuration.jiraProjectRepos.find(
       (entry) => entry.projectKey.toUpperCase() === projectKey.toUpperCase(),
     )?.escalateAccountId
-  }
-
-  private async escalate(input: {
-    readonly comment: string
-    readonly comments: JiraCommentResource
-    readonly escalateAccountId: string | undefined
-    readonly issueKey: string
-    readonly issues: JiraIssueResource
-    readonly reason: string
-    readonly reassign: boolean
-    readonly signal: AbortSignal
-  }): Promise<JiraTriageEscalation> {
-    await input.comments.create(input.issueKey, input.comment, input.signal)
-
-    if (input.reassign && input.escalateAccountId) {
-      await input.issues.assign(input.issueKey, input.escalateAccountId, input.signal)
-
-      return {
-        action: 'reassign',
-        assigneeAccountId: input.escalateAccountId,
-        reason: input.reason,
-      }
-    }
-
-    return {
-      action: 'comment',
-      reason: input.reason,
-    }
-  }
-
-  private formatEscalationComment(input: {
-    readonly classification: JiraTriageJobResult['classification']
-    readonly fix?: JiraTriageFix
-    readonly issueKey: string
-    readonly reason: string
-    readonly repository?: ResolvedJiraRepository
-    readonly repro?: JiraTriageRepro
-  }): string {
-    const lines = [
-      `Cortex QA triage for \`${input.issueKey}\``,
-      '',
-      `- Classification: ${input.classification.class} (confidence ${input.classification.confidence})`,
-      `- Automation eligible: ${input.classification.automationEligible}`,
-      `- Rationale: ${input.classification.rationale}`,
-      `- Outcome: ${input.reason}`,
-    ]
-
-    if (input.repository) {
-      lines.push(`- Repository: ${input.repository.owner}/${input.repository.name} (${input.repository.source})`)
-    }
-
-    if (input.repro) {
-      lines.push(`- Repro: ${input.repro.status} — ${input.repro.summary}`)
-      for (const suite of input.repro.suites) {
-        lines.push(
-          `  - ${suite.suiteId}: \`${suite.command}\`${suite.exitCode === undefined ? '' : ` (exit ${suite.exitCode})`}`,
-        )
-      }
-    }
-
-    if (input.fix) {
-      lines.push(`- Fix attempted: ${input.fix.attempted}, succeeded: ${input.fix.succeeded}`)
-      if (input.fix.pullRequestUrl) {
-        lines.push(`- Draft PR: ${input.fix.pullRequestUrl}`)
-      }
-    }
-
-    return lines.join('\n')
   }
 
   private toResultRepository(repository: ResolvedJiraRepository): NonNullable<JiraTriageJobResult['repository']> {

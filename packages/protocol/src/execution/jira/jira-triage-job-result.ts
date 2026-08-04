@@ -6,19 +6,12 @@ import { z } from 'zod'
 /**
  * Ticket classification classes produced by the QA agent.
  */
-export const JiraTriageClassificationClassSchema = z.enum([
-  'bug',
-  'chore',
-  'question',
-  'out_of_scope',
-])
+export const JiraTriageClassificationClassSchema = z.enum(['bug', 'chore', 'question', 'out_of_scope'])
 
 /**
  * Validated classification class exchanged through the shared protocol.
  */
-export type JiraTriageClassificationClass = z.infer<
-  typeof JiraTriageClassificationClassSchema
->
+export type JiraTriageClassificationClass = z.infer<typeof JiraTriageClassificationClassSchema>
 
 /**
  * Validates the structured classification outcome for a Jira issue.
@@ -208,9 +201,7 @@ export const JiraTriageResolvedRepositorySchema = z
 /**
  * Validated resolved repository exchanged through the shared protocol.
  */
-export type JiraTriageResolvedRepository = z.infer<
-  typeof JiraTriageResolvedRepositorySchema
->
+export type JiraTriageResolvedRepository = z.infer<typeof JiraTriageResolvedRepositorySchema>
 
 /**
  * Validates the handler result for a completed `jira.triage` job.

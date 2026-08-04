@@ -18,7 +18,7 @@ import { ExecutionJobFailureSchema } from './execution-job-failure'
  * - `claimToken` — UUID issued at claim time; required to authorize failure
  * - `failure` — required sanitized failure; must satisfy
  *   {@link ExecutionJobFailureSchema} (stable `code` plus safe `message`)
- * - `nodeId` — identifier of the Node that holds the claim
+ * - `nodeId` — UUID of the Node that holds the claim
  */
 export const FailExecutionJobRequestSchema = z
   .object({
@@ -38,9 +38,9 @@ export const FailExecutionJobRequestSchema = z
     failure: ExecutionJobFailureSchema,
 
     /**
-     * Identifier of the Node that claimed the job.
+     * UUID of the Node that claimed the job.
      */
-    nodeId: z.string().min(1),
+    nodeId: z.uuid(),
   })
   .strict()
 

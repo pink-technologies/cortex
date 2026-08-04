@@ -24,6 +24,7 @@ describe('mapJiraWebhookToTriageEnqueue', () => {
         issueKey: 'JC-42',
         options: {
           attemptFix: true,
+          classifyOnly: false,
           dryRunTests: false,
         },
       },

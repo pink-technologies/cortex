@@ -57,7 +57,7 @@ describe('ExecutionJobController jira triages', () => {
       payload: {
         connectionId: 'jira-main',
         issueKey: 'JC-1',
-        options: { attemptFix: true, dryRunTests: false },
+        options: { attemptFix: true, classifyOnly: false, dryRunTests: false },
       },
       payloadVersion: 1,
       policy: {},
@@ -77,7 +77,7 @@ describe('ExecutionJobController jira triages', () => {
       payload: {
         connectionId: 'jira-main',
         issueKey: 'JC-1',
-        options: { attemptFix: true, dryRunTests: false },
+        options: { attemptFix: true, classifyOnly: false, dryRunTests: false },
       },
       priority: 0,
     })

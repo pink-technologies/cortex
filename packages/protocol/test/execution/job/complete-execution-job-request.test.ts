@@ -5,7 +5,7 @@ import { CompleteExecutionJobRequestSchema } from '../../../src/execution/job/co
 
 const baseRequest = {
   claimToken: '11111111-1111-4111-8111-111111111111',
-  nodeId: 'node-1',
+  nodeId: '22222222-2222-4222-8222-222222222222',
 }
 
 describe('CompleteExecutionJobRequestSchema', () => {
@@ -40,6 +40,15 @@ describe('CompleteExecutionJobRequestSchema', () => {
       CompleteExecutionJobRequestSchema.parse({
         ...baseRequest,
         claimToken: 'not-a-uuid',
+      }),
+    ).toThrow()
+  })
+
+  it('rejects a malformed node id', () => {
+    expect(() =>
+      CompleteExecutionJobRequestSchema.parse({
+        ...baseRequest,
+        nodeId: 'node-1',
       }),
     ).toThrow()
   })

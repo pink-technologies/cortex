@@ -1,7 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+export * from './classifier/jira-triage-classifier'
 export * from './composer/jira-triage-prompt-composer'
+export * from './error/error'
+export * from './escalator/jira-triage-escalator'
 export * from './handler/jira-triage-job-handler'
 export * from './mapper/jira-triage-classification-mapper'
 export * from './models'

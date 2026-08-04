@@ -31,8 +31,9 @@ function buildTriagePayload(context: WorkflowStepPayloadContext): unknown {
     sourceControlConnectionId: input.sourceControlConnectionId,
     options: {
       attemptFix: false,
+      classifyOnly: false,
       dryRunTests: false,
-    }
+    },
   })
 }
 

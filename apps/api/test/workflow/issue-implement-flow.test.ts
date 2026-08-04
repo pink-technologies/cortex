@@ -32,6 +32,7 @@ describe('issueImplementFlow payload builders', () => {
         issueKey: input.issueKey,
         options: {
           attemptFix: false,
+          classifyOnly: false,
           dryRunTests: false,
         },
         repository: input.repository,

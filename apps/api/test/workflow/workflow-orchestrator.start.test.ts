@@ -140,6 +140,7 @@ describe('WorkflowOrchestrator.start', () => {
       issueKey: input.issueKey,
       options: {
         attemptFix: false,
+        classifyOnly: false,
         dryRunTests: false,
       },
       repository: input.repository,

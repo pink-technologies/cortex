@@ -7,7 +7,14 @@ import { NodeConfigurationModule } from '../configuration/node-configuration.mod
 import { ConfigJiraConnectionStore, ConfigSourceControlConnectionStore } from '../connection'
 import { CortexModule } from '../cortex'
 import { AgentRuntimeExecutionEngine, CursorExecutionEngine, EXECUTION_ENGINE } from '../execution-engine'
-import { AgentExecuteJobHandler, JiraTriageJobHandler, RepositoryReviewJobHandler, TestRunner } from '../handlers'
+import {
+  AgentExecuteJobHandler,
+  JiraTriageClassifier,
+  JiraTriageEscalator,
+  JiraTriageJobHandler,
+  RepositoryReviewJobHandler,
+  TestRunner,
+} from '../handlers'
 import { GitWorkspaceManager } from '../workspace'
 import { EXECUTION_JOB_HANDLERS, ExecutionJobHandler, ExecutionJobHandlerRegistry } from './handler'
 import { ExecutionJobPoller } from './jobs/polling'
@@ -26,6 +33,8 @@ import { ExecutionJobProcessingResult, ExecutionJobProcessor } from './jobs/proc
     ExecutionJobPoller,
     ExecutionJobProcessor,
     GitWorkspaceManager,
+    JiraTriageClassifier,
+    JiraTriageEscalator,
     JiraTriageJobHandler,
     RepositoryReviewJobHandler,
     TestRunner,

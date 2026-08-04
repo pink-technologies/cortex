@@ -14,7 +14,7 @@ import { ExecutionJobFailureSchema } from './execution-job-failure'
  * surface protocol drift between API and clients.
  *
  * Field semantics:
- * - `id` — stable job identifier assigned at enqueue time
+ * - `id` — stable job UUID assigned at enqueue time
  * - `kind` — handler discriminator (for example `"agent.execute"`)
  * - `status` — current lifecycle state (for example `QUEUED`, `RUNNING`,
  *   `COMPLETED`, `FAILED`)
@@ -27,14 +27,14 @@ import { ExecutionJobFailureSchema } from './execution-job-failure'
  *   until a result-producing job completes successfully
  * - `failure` — sanitized failure payload when present; `null` until the job
  *   fails
- * - `runId` — owning workflow-run identifier; `null` for standalone jobs
+ * - `runId` — owning workflow-run UUID; `null` for standalone jobs
  */
 export const ExecutionJobResponseSchema = z
   .object({
     /**
-     * Stable identifier of the execution job.
+     * Stable UUID of the execution job.
      */
-    id: z.string().min(1),
+    id: z.uuid(),
 
     /**
      * ISO-8601 timestamp when the job completed successfully.
@@ -82,12 +82,12 @@ export const ExecutionJobResponseSchema = z
     result: z.unknown().nullable(),
 
     /**
-     * Identifier of the workflow run that owns this job as one of its steps.
+     * UUID of the workflow run that owns this job as one of its steps.
      *
      * Follow it to `GET /workflow-runs/:id` to observe overall run progress.
      * `null` for jobs that do not belong to a workflow run.
      */
-    runId: z.string().min(1).nullable(),
+    runId: z.uuid().nullable(),
 
     /**
      * Current lifecycle status of the job.

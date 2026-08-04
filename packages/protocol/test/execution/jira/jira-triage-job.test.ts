@@ -24,8 +24,24 @@ describe('jira.triage protocol', () => {
     expect(parsed.priority).toBe(0)
     expect(parsed.payload.options).toEqual({
       attemptFix: true,
+      classifyOnly: false,
       dryRunTests: false,
     })
+  })
+
+  it('accepts classifyOnly options for classify/escalate smoke tests', () => {
+    const payload = JiraTriageJobPayloadSchema.parse({
+      connectionId: 'jira-main',
+      issueKey: 'JC-123',
+      options: {
+        attemptFix: false,
+        classifyOnly: true,
+        dryRunTests: false,
+      },
+    })
+
+    expect(payload.options.classifyOnly).toBe(true)
+    expect(payload.options.attemptFix).toBe(false)
   })
 
   it('accepts an assignee filter naming an account id', () => {

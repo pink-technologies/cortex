@@ -14,8 +14,8 @@ import { ExecutionJobStatusSchema } from './execution-job-status'
  * drift immediately.
  */
 export const ExecutionJobSchema = z.object({
-  /** Stable, non-empty identifier of the execution job. */
-  id: z.string().min(1),
+  /** Stable UUID of the execution job. */
+  id: z.uuid(),
 
   /** ISO-8601 timestamp at which the job was persisted. */
   createdAt: z.iso.datetime(),
@@ -48,12 +48,12 @@ export const ExecutionJobSchema = z.object({
   claimToken: z.uuid().nullable(),
 
   /**
-   * Identifier of the workflow run that owns this job as one of its steps.
+   * UUID of the workflow run that owns this job as one of its steps.
    *
    * Follow it to `GET /workflow-runs/:id` to observe overall run progress.
    * `null` for jobs that do not belong to a workflow run.
    */
-  runId: z.string().min(1).nullable(),
+  runId: z.uuid().nullable(),
 
   /** Current lifecycle state of the execution job. */
   status: ExecutionJobStatusSchema,

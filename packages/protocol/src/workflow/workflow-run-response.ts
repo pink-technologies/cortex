@@ -15,9 +15,9 @@ import { WorkflowStepStatusSchema } from './workflow-step-status'
 export const WorkflowRunStepSchema = z
   .object({
     /**
-     * Stable identifier of the workflow step.
+     * Stable UUID of the workflow step.
      */
-    id: z.string().min(1),
+    id: z.uuid(),
 
     /**
      * ISO-8601 timestamp when the step completed successfully.
@@ -87,9 +87,9 @@ export type WorkflowRunStep = z.infer<typeof WorkflowRunStepSchema>
 export const WorkflowRunResponseSchema = z
   .object({
     /**
-     * Stable identifier of the workflow run.
+     * Stable UUID of the workflow run.
      */
-    id: z.string().min(1),
+    id: z.uuid(),
 
     /**
      * ISO-8601 timestamp when the run completed successfully.

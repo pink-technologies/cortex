@@ -79,6 +79,14 @@ export const JiraTriageJobOptionsSchema = z
     attemptFix: z.boolean().default(true),
 
     /**
+     * When true, stop after classify (and any escalate for ineligible tickets)
+     * without resolving a repository, cloning, or running tests.
+     *
+     * Defaults to `false`. Useful for API↔Node classify/escalate smoke tests.
+     */
+    classifyOnly: z.boolean().default(false),
+
+    /**
      * When true, report which test commands would run without executing them.
      *
      * Defaults to `false`.
@@ -125,6 +133,7 @@ export const JiraTriageJobPayloadSchema = z
      */
     options: JiraTriageJobOptionsSchema.default({
       attemptFix: true,
+      classifyOnly: false,
       dryRunTests: false,
     }),
 

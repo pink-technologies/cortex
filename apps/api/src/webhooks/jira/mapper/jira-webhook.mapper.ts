@@ -55,6 +55,7 @@ export function mapJiraWebhookToTriageEnqueue(
     issueKey,
     options: {
       attemptFix: true,
+      classifyOnly: false,
       dryRunTests: false,
     },
     ...(automationAssigneeAccountId
