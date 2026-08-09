@@ -20,7 +20,7 @@ describe('CortexClient', () => {
     expect(client.request('/internal/nodes/register')).toBeInstanceOf(CortexRequest)
   })
 
-  it('resolves relative paths against the configured API URL', async () => {
+  it('resolves relative paths under the Nest /api prefix', async () => {
     const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ job: null }), {
         status: 200,
@@ -37,7 +37,7 @@ describe('CortexClient', () => {
 
     expect(payload).toEqual({ job: null })
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      'https://api.cortex.example/internal/execution-jobs/claim',
+      'https://api.cortex.example/api/internal/execution-jobs/claim',
     )
   })
 
@@ -52,7 +52,9 @@ describe('CortexClient', () => {
     const client = new CortexClient(configuration)
     await client.request('internal/nodes/register').responseJson()
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.cortex.example/internal/nodes/register')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.cortex.example/api/internal/nodes/register',
+    )
   })
 
   it('applies Accept and forwards method and signal', async () => {
@@ -73,7 +75,7 @@ describe('CortexClient', () => {
       .responseJson()
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.cortex.example/internal/nodes/register',
+      'https://api.cortex.example/api/internal/nodes/register',
       expect.objectContaining({
         method: HTTPMethod.POST,
         signal,
@@ -98,10 +100,10 @@ describe('CortexClient', () => {
     ).resolves.toBeUndefined()
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      'https://api.cortex.example/internal/nodes/node-1/heartbeat',
+      'https://api.cortex.example/api/internal/nodes/node-1/heartbeat',
     )
     expect(fetchMock.mock.calls[1]?.[0]).toBe(
-      'https://api.cortex.example/internal/nodes/node-1/heartbeat',
+      'https://api.cortex.example/api/internal/nodes/node-1/heartbeat',
     )
   })
 

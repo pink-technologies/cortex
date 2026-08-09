@@ -86,7 +86,7 @@ describe('CortexExecutionJobResource.claimNextAvailable', () => {
 
     expect(response).toEqual({ job: null })
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.cortex.example/internal/execution-jobs/claim',
+      'https://api.cortex.example/api/internal/execution-jobs/claim',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ nodeId }),
@@ -144,7 +144,7 @@ describe('CortexExecutionJobResource.complete', () => {
     await resource().complete('job-1', request)
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.cortex.example/internal/execution-jobs/job-1/complete',
+      'https://api.cortex.example/api/internal/execution-jobs/job-1/complete',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(request),
@@ -161,7 +161,7 @@ describe('CortexExecutionJobResource.complete', () => {
     await resource().complete('job-1', request)
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.cortex.example/internal/execution-jobs/job-1/complete',
+      'https://api.cortex.example/api/internal/execution-jobs/job-1/complete',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ claimToken, nodeId }),
@@ -243,7 +243,7 @@ describe('CortexExecutionJobResource.fail', () => {
     await resource().fail('job-1', request)
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.cortex.example/internal/execution-jobs/job-1/fail',
+      'https://api.cortex.example/api/internal/execution-jobs/job-1/fail',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(request),

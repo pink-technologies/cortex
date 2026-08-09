@@ -17,9 +17,10 @@ export type CortexRequestOptions = Omit<RequestBuilderOptions, 'headers'>
 /**
  * HTTP client for the Cortex control-plane API.
  *
- * Owns the API base URL and shared {@link Session}. Resources such as
- * {@link CortexExecutionJobResource} and {@link CortexNodeResource} call
- * {@link request} with relative paths, then {@link CortexRequest.response} or
+ * Owns the API base URL (configured origin + Nest’s global `/api` prefix) and
+ * shared {@link Session}. Resources such as {@link CortexExecutionJobResource}
+ * and {@link CortexNodeResource} call {@link request} with relative
+ * `/internal/...` paths, then {@link CortexRequest.response} or
  * {@link CortexRequest.responseJson}.
  */
 @Injectable()
@@ -32,15 +33,16 @@ export class CortexClient {
   // MARK: - Constructor
 
   /**
-   * Creates a client bound to the Node’s configured Cortex API URL.
+   * Creates a client bound to the Node’s configured Cortex API origin.
    *
-   * @param configuration - Host configuration providing the API base URL.
+   * @param configuration - Host configuration providing the API origin URL
+   *   (without `/api`).
    */
   constructor(
     @Inject(NODE_CONFIGURATION)
     configuration: NodeConfiguration,
   ) {
-    this.baseUrl = configuration.apiURL.replace(/\/+$/, '')
+    this.baseUrl = `${configuration.apiURL.replace(/\/+$/, '')}/api`
   }
 
   // MARK: - Instance methods
@@ -48,11 +50,11 @@ export class CortexClient {
   /**
    * Starts a relative Cortex API request.
    *
-   * Applies the configured base URL, `Accept` header, and response validation.
-   * Chain {@link CortexRequest.response} or {@link CortexRequest.responseJson}
-   * to execute.
+   * Applies the configured base URL (with `/api`), `Accept` header, and
+   * response validation. Chain {@link CortexRequest.response} or
+   * {@link CortexRequest.responseJson} to execute.
    *
-   * @param path - Relative Cortex API path (for example `/internal/nodes/…/heartbeat`).
+   * @param path - Relative path under `/api` (for example `/internal/nodes/…/heartbeat`).
    * @param options - Method, parameters, encoder, body, and abort signal.
    * @returns A {@link CortexRequest} ready to decode the response.
    */

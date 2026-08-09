@@ -13,7 +13,9 @@ import {
 } from '@cortex/protocol'
 
 /**
- * Cortex API resource for `/internal/nodes` paths.
+ * Cortex API resource for node registration and heartbeat.
+ *
+ * Paths are `/internal/nodes/...` relative to the client’s `/api` base URL.
  *
  * Registers the Node and sends heartbeats. Transport is provided by the
  * injected {@link CortexClient}.

@@ -53,7 +53,7 @@ describe('CortexNodeResource.register', () => {
       nodeId: '22222222-2222-4222-8222-222222222222',
     })
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.cortex.example/internal/nodes/register',
+      'https://api.cortex.example/api/internal/nodes/register',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(registerRequest),
@@ -109,7 +109,7 @@ describe('CortexNodeResource.heartbeat', () => {
     await resource().heartbeat('node-1')
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.cortex.example/internal/nodes/node-1/heartbeat',
+      'https://api.cortex.example/api/internal/nodes/node-1/heartbeat',
       expect.objectContaining({
         method: 'POST',
       }),

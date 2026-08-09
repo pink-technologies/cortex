@@ -124,9 +124,12 @@ const NodeEnvironmentSchema = z.object({
  * {@link createNodeConfiguration} are frozen to prevent runtime mutation.
  */
 export interface NodeConfiguration {
-  // MARK: - Properties
-
-  /** Base URL of the Cortex API used for node requests. */
+  /**
+   * Origin URL of the Cortex API process (for example `http://localhost:3000`).
+   *
+   * Must not include Nest’s global `/api` prefix; the Node HTTP client appends
+   * it so requests land on `/api/internal/...`.
+   */
   readonly apiURL: string
 
   /**
