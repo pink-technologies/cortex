@@ -9,6 +9,13 @@ import { EXECUTION_JOB_REPOSITORY, ExecutionJobRepositoryImpl } from './executio
 import { ExecutionJobService } from './execution-job.service'
 import { InternalExecutionJobController } from './controller/internal-execution-job.controller'
 
+/**
+ * Execution-job HTTP surface, persistence, and claim/complete/fail coordination.
+ *
+ * Imports {@link WorkflowModule} only to receive {@link WORKFLOW_JOB_LIFECYCLE}.
+ * Job callbacks go through that port rather than depending on
+ * {@link WorkflowOrchestrator} directly.
+ */
 @Module({
   controllers: [ExecutionJobController, InternalExecutionJobController],
   exports: [ExecutionJobService, EXECUTION_JOB_REPOSITORY],

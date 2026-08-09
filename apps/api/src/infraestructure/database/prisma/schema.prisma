@@ -212,6 +212,8 @@ model ExecutionJob {
   @@map("execution_job")
 }
 
+/// Reserved for future attempt-scoped execution history. Not written by the
+/// current claim/complete path (jobs transition directly on `ExecutionJob`).
 model ExecutionJobAttempt {
   id String @id @default(uuid())
 

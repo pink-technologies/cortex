@@ -38,6 +38,10 @@ describe('validateExecutionJobResult', () => {
     }
   })
 
+  it('throws when a contract-bearing kind completes without a result', () => {
+    expect(() => validateExecutionJobResult(AgentExecuteJobKind, undefined)).toThrow(ExecutionJobResultInvalidError)
+  })
+
   it('passes results through unchanged for kinds without a registered contract', () => {
     const opaque = { anything: true }
 

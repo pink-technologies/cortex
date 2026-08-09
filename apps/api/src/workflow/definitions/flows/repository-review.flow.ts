@@ -11,7 +11,8 @@ import type { WorkflowDefinition } from '../models'
  * Registered as `repository.review.flow`. Start input is forwarded as the
  * child job payload (no `buildPayload`); callers must supply a value that
  * satisfies {@link RepositoryReviewJobPayloadSchema}. The run becomes
- * `RUNNING` when the job is queued and completes or fails with that job.
+ * `RUNNING` and the step `QUEUED` when the job is enqueued; the step moves to
+ * `RUNNING` when a node claims the job, then completes or fails with that job.
  *
  * Prefer embedding `repository.review` inside a multi-step definition (for
  * example {@link issueImplementFlow}) when the review should target a change

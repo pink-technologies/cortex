@@ -2,8 +2,14 @@
 // https://pink-tech.io/
 
 import { ExecutionJobStatus } from '../datatypes/execution-job-status'
-import { ExecutionJobPolicy } from './execution-job-policy'
-import { ExecutionJobRequirements } from './execution-job-requirements'
+import {
+  ExecutionJobPolicySchema,
+  type ExecutionJobPolicy,
+} from './execution-job-policy'
+import {
+  ExecutionJobRequirementsSchema,
+  type ExecutionJobRequirements,
+} from './execution-job-requirements'
 import {
   type ExecutionJobSource,
   type ExecutionJobSourceType,
@@ -13,9 +19,9 @@ import type { ExecutionJob as ExecutionJobPersistence } from '@/infraestructure/
 /**
  * Domain model for a persisted execution job.
  *
- * Decouples repository/API consumers from Prisma’s JSON column types by casting
- * `payload`, `policy`, `requirements`, `result`, and `failure` into their
- * application shapes, and by reconstituting {@link ExecutionJobSource} from
+ * Decouples repository/API consumers from Prisma’s JSON column types by
+ * schema-validating `policy` and `requirements`, mapping opaque `payload` /
+ * `result` / `failure`, and reconstituting {@link ExecutionJobSource} from
  * `sourceType` / `sourceIdentifier`.
  */
 export class ExecutionJob {
@@ -26,14 +32,17 @@ export class ExecutionJob {
    *
    * @param record - Persisted job row.
    * @returns Domain job ready for execution consumers.
+   * @throws {ZodError} When persisted `policy` or `requirements` violate their
+   *   schemas.
    */
-  static from(record: ExecutionJobPersistence): ExecutionJob {    
-    const source = record.sourceType == null || record.sourceIdentifier == null
-      ? undefined
-      : {
-          identifier: record.sourceIdentifier,
-          type: record.sourceType as ExecutionJobSourceType,
-        }
+  static from(record: ExecutionJobPersistence): ExecutionJob {
+    const source =
+      record.sourceType == null || record.sourceIdentifier == null
+        ? undefined
+        : {
+            identifier: record.sourceIdentifier,
+            type: record.sourceType as ExecutionJobSourceType,
+          }
 
     return new ExecutionJob(
       record.id,
@@ -44,8 +53,8 @@ export class ExecutionJob {
       record.priority,
       record.payload,
       record.payloadVersion,
-      record.policy as unknown as ExecutionJobPolicy,
-      record.requirements as unknown as ExecutionJobRequirements,
+      ExecutionJobPolicySchema.parse(record.policy),
+      ExecutionJobRequirementsSchema.parse(record.requirements),
       record.status as ExecutionJobStatus,
       record.updatedAt,
       source,

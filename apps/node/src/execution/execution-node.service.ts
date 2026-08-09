@@ -75,7 +75,17 @@ export class ExecutionNodeService implements OnApplicationBootstrap, OnApplicati
       return
     }
 
-    this.executionTask = this.run(this.abortController.signal)
+    this.executionTask = this.run(this.abortController.signal).catch((error) => {
+      if (this.abortController.signal.aborted) {
+        return
+      }
+
+      this.logger.error(
+        'Cortex Node failed during startup or execution loop',
+        error instanceof Error ? error.stack : undefined,
+      )
+      process.exit(1)
+    })
   }
 
   // MARK: - OnApplicationShutdown

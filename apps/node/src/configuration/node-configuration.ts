@@ -106,7 +106,6 @@ const NodeEnvironmentSchema = z.object({
   CORTEX_API_URL: z.string().trim().pipe(z.url()),
   CORTEX_JIRA_CONNECTIONS: OptionalEnvStringSchema,
   CORTEX_JIRA_PROJECT_REPOS: OptionalEnvStringSchema,
-  CORTEX_NODE_ID: z.string().trim().min(1),
   CORTEX_NODE_NAME: z.string().trim().min(1),
   CORTEX_NODE_VERSION: z.string().trim().min(1),
   CORTEX_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(2_000),
@@ -162,9 +161,6 @@ export interface NodeConfiguration {
    * agent definitions, prompts, tool inputs, or execution results.
    */
   readonly llm: NodeLLMConfiguration
-
-  /** Stable identifier used to register and identify this node. */
-  readonly nodeId: string
 
   /** Name of the Cortex Node. */
   readonly nodeName: string
@@ -314,7 +310,6 @@ export function createNodeConfiguration(environment: NodeJS.ProcessEnv = process
     jiraProjectRepos: parseJiraProjectRepos(result.data.CORTEX_JIRA_PROJECT_REPOS),
     jiraRepoCustomFieldId: result.data.JIRA_REPO_CUSTOM_FIELD_ID,
     llm,
-    nodeId: result.data.CORTEX_NODE_ID,
     nodeName: result.data.CORTEX_NODE_NAME,
     pollingIntervalMilliseconds: result.data.CORTEX_POLL_INTERVAL_MS,
     sourceControlConnections: parseSourceControlConnections(result.data.CORTEX_SC_CONNECTIONS),

@@ -27,6 +27,16 @@ const EXECUTION_JOB_RESULT_SCHEMAS: ReadonlyMap<string, ZodType> = new Map<strin
 ])
 
 /**
+ * Returns whether `kind` has a registered result contract that must be present
+ * on successful completion.
+ *
+ * @param kind - Discriminator of the execution job.
+ */
+export function hasExecutionJobResultContract(kind: string): boolean {
+  return EXECUTION_JOB_RESULT_SCHEMAS.has(kind)
+}
+
+/**
  * Validates a reported execution-job result against its kind's contract.
  *
  * Looks up the contract schema registered for `kind` and parses `result`
@@ -37,13 +47,20 @@ const EXECUTION_JOB_RESULT_SCHEMAS: ReadonlyMap<string, ZodType> = new Map<strin
  * @param result - Opaque result reported by the completing Node.
  * @returns The parsed result for contract-bearing kinds; otherwise `result`.
  * @throws {ExecutionJobResultInvalidError} When the result violates the
- *   contract schema registered for the kind.
+ *   contract schema registered for the kind, or when a contract-bearing kind
+ *   completes without a result.
  */
 export function validateExecutionJobResult(kind: string, result: unknown): unknown {
   const schema = EXECUTION_JOB_RESULT_SCHEMAS.get(kind)
 
   if (!schema) {
     return result
+  }
+
+  if (result === undefined) {
+    throw new ExecutionJobResultInvalidError(
+      `Execution job kind "${kind}" requires a result on successful completion`,
+    )
   }
 
   const parsed = schema.safeParse(result)

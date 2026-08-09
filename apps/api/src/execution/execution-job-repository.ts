@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import type { CompleteExecutionJobRequest, FailExecutionJobRequest } from '@cortex/protocol'
 import { Database, ExecutionJobStatus, Prisma, type DatabaseTransaction } from '@/infraestructure/database'
 import type { ClaimExecutionJobParameters, CreateExecutionJobParameters } from './parameters'
-import { ExecutionJob, ExecutionJobRequirements } from './models'
+import { ExecutionJob, ExecutionJobPolicySchema, ExecutionJobRequirements, ExecutionJobRequirementsSchema } from './models'
 
 /**
  * Injection token for the {@link ExecutionJobRepository} implementation.
@@ -215,7 +215,7 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
     })
 
     for (const candidate of candidates) {
-      const requirements = candidate.requirements as unknown as ExecutionJobRequirements
+      const requirements = ExecutionJobRequirementsSchema.parse(candidate.requirements)
 
       if (!this.executionJobMatchesRequirements(requirements, parameters)) {
         continue
@@ -317,6 +317,8 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
     parameters: CreateExecutionJobParameters,
     options?: { transaction?: DatabaseTransaction },
   ): Promise<ExecutionJob> {
+    const policy = ExecutionJobPolicySchema.parse(parameters.policy)
+    const requirements = ExecutionJobRequirementsSchema.parse(parameters.requirements)
     const client = options?.transaction ?? this.database
     const executionJob = await client.executionJob.create({
       data: {
@@ -325,27 +327,27 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
         maximumAttempts: parameters.maximumAttempts ?? 1,
         payload: parameters.payload as Prisma.InputJsonValue,
         payloadVersion: parameters.payloadVersion ?? 1,
-        policy: parameters.policy as Prisma.InputJsonValue,
+        policy,
         priority: parameters.priority ?? 0,
         runId: parameters.runId,
         sourceIdentifier: parameters.source?.identifier,
         sourceType: parameters.source?.type,
         stepId: parameters.stepId,
         requirements: {
-          allOf: parameters.requirements.allOf,
-          ...(parameters.requirements.anyOf
+          allOf: requirements.allOf,
+          ...(requirements.anyOf
             ? {
-                anyOf: parameters.requirements.anyOf,
+                anyOf: requirements.anyOf,
               }
             : {}),
-          ...(parameters.requirements.labels
+          ...(requirements.labels
             ? {
-                labels: parameters.requirements.labels,
+                labels: requirements.labels,
               }
             : {}),
-          ...(parameters.requirements.noneOf
+          ...(requirements.noneOf
             ? {
-                noneOf: parameters.requirements.noneOf,
+                noneOf: requirements.noneOf,
               }
             : {}),
         },

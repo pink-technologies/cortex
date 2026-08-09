@@ -16,6 +16,7 @@ import {
   WorkflowStepStatus,
   jiraTriageFlow,
 } from '../../src/workflow'
+import { jiraTriageJobResult } from './issue-implement-fixtures'
 describe('WorkflowOrchestrator cancel', () => {
   let database: Database
   let executionJobService: ExecutionJobService
@@ -196,6 +197,7 @@ describe('WorkflowOrchestrator cancel', () => {
     await executionJobService.complete(job.id, {
       claimToken: claim.claimToken,
       nodeId: claim.nodeId,
+      result: jiraTriageJobResult('JC-62'),
     })
 
     await expect(orchestrator.cancel(run.id)).rejects.toThrow(WorkflowCancelError)

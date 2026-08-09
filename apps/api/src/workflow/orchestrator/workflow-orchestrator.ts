@@ -19,10 +19,15 @@ import type { DecideWorkflowRunApprovalParameters, StartWorkflowRunParameters } 
  *   `AWAITING_APPROVAL`.
  * - {@link WorkflowCanceller} cancels in-flight runs on operator request.
  *
+ * Job claim/complete/fail callbacks from execution use {@link WorkflowAdvancer}
+ * via {@link WORKFLOW_JOB_LIFECYCLE}, avoiding a Nest provider cycle through
+ * enqueue paths that depend on {@link ExecutionJobService}.
+ *
  * Every flow applies its mutations inside a single database transaction so
- * run/step status and child job enqueue commit atomically. On job terminal,
- * complete/fail is persisted first by `ExecutionJobService`; the advance/fail
- * transaction covers the workflow half only.
+ * run/step status and child job enqueue commit atomically. On job claim or
+ * terminal, the job transition is persisted first by `ExecutionJobService`;
+ * the workflow half (`QUEUED` → `RUNNING` on claim, advance/fail on terminal)
+ * follows through the lifecycle port.
  */
 @Injectable()
 export class WorkflowOrchestrator {
@@ -77,6 +82,19 @@ export class WorkflowOrchestrator {
    */
   async cancel(runId: string): Promise<WorkflowRun | null> {
     return this.canceller.cancel(runId)
+  }
+
+  /**
+   * Marks the linked workflow step `RUNNING` after its child job is claimed.
+   *
+   * No-ops when the job is not linked to a run/step, or when the step has
+   * already left `QUEUED`. Complements job claim (`QUEUED` → `RUNNING`) so
+   * the owning step mirrors the in-flight attempt.
+   *
+   * @param jobId - Primary key of the claimed execution job.
+   */
+  async onJobClaimed(jobId: string): Promise<void> {
+    return this.advancer.onJobClaimed(jobId)
   }
 
   /**

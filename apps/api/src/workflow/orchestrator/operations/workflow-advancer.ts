@@ -8,21 +8,28 @@ import {
   type ExecutionJobRepository,
 } from '@/execution/execution-job-repository'
 import { ExecutionJobStatus } from '@/execution/datatypes/execution-job-status'
+import type { WorkflowJobLifecycle } from '@/execution/ports'
 import { WorkflowStepStatus } from '../../datatypes'
 import { sanitizeWorkflowRunFailure } from '../../sanitize'
 import { WorkflowTransitioner } from '../transitions'
 import { WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../../repository'
 
 /**
- * Advances or fails workflow runs after a child execution job terminates.
+ * Advances or fails workflow runs after a child execution job terminates, and
+ * mirrors claim onto the linked step.
  *
- * Owns the job-driven flow only: loading the terminal job, locking its run,
- * revalidating the job status and linked step under that lock, then delegating
- * to {@link WorkflowTransitioner}. Approval decisions live in their own
- * collaborator behind {@link WorkflowOrchestrator}.
+ * Implements {@link WorkflowJobLifecycle} so execution can notify claim /
+ * complete / fail through an explicit port without depending on
+ * {@link WorkflowOrchestrator}.
+ *
+ * Owns the job-driven flow: loading the job, locking its run when advancing or
+ * failing, revalidating status under that lock, then delegating to
+ * {@link WorkflowTransitioner}. Claim only promotes the linked step
+ * `QUEUED` → `RUNNING`. Approval decisions live in their own collaborator
+ * behind {@link WorkflowOrchestrator}.
  */
 @Injectable()
-export class WorkflowAdvancer {
+export class WorkflowAdvancer implements WorkflowJobLifecycle {
   // MARK: - Properties
 
   private readonly logger = new Logger(WorkflowAdvancer.name)
@@ -47,6 +54,44 @@ export class WorkflowAdvancer {
   ) {}
 
   // MARK: - Instance methods
+
+  /**
+   * Marks the linked workflow step `RUNNING` after its child job is claimed.
+   *
+   * No-ops when the job is not linked to a run/step, when the reloaded job is
+   * not `RUNNING`, or when the step has already left `QUEUED` (including an
+   * idempotent second claim notification). Uses an optimistic status guard so
+   * concurrent cancel/complete/fail transitions win without overwrite.
+   *
+   * @param jobId - Primary key of the claimed execution job.
+   */
+  async onJobClaimed(jobId: string): Promise<void> {
+    const job = await this.executionJobRepository.findById(jobId)
+
+    if (job?.runId == null || job.stepId == null) {
+      return
+    }
+
+    if (job.status !== ExecutionJobStatus.RUNNING) {
+      this.logger.error('onJobClaimed received a job that is not RUNNING', {
+        jobId,
+        runId: job.runId,
+        status: job.status,
+        stepId: job.stepId,
+      })
+      return
+    }
+
+    await this.workflowRunRepository.updateStepStatus(
+      job.stepId,
+      {
+        status: WorkflowStepStatus.RUNNING,
+      },
+      {
+        onlyIfStatusIn: [WorkflowStepStatus.QUEUED],
+      },
+    )
+  }
 
   /**
    * Advances the workflow after a child execution job completes successfully.

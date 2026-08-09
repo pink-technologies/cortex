@@ -11,7 +11,6 @@ function configuration(partial: Partial<NodeConfiguration> = {}): NodeConfigurat
     jiraConnections: [],
     jiraProjectRepos: [],
     llm: {},
-    nodeId: 'n1',
     nodeName: 'n',
     pollingIntervalMilliseconds: 2000,
     sourceControlConnections: [],

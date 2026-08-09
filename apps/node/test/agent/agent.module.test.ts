@@ -38,7 +38,6 @@ class AgentModuleConsumerModule {}
 describe('AgentModule', () => {
   const configuration: NodeConfiguration = createNodeConfiguration({
     CORTEX_API_URL: 'https://api.cortex.example',
-    CORTEX_NODE_ID: 'node-1',
     CORTEX_NODE_NAME: 'worker',
     CORTEX_NODE_VERSION: '1.0.0',
     OPENAI_API_KEY: 'openai-key',

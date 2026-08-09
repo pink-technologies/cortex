@@ -5,7 +5,6 @@ import { createNodeConfiguration } from '../../src/configuration/node-configurat
 
 const validEnvironment = {
   CORTEX_API_URL: 'https://api.cortex.example',
-  CORTEX_NODE_ID: 'node-1',
   CORTEX_NODE_NAME: 'worker',
   CORTEX_NODE_VERSION: '1.0.0',
 } satisfies NodeJS.ProcessEnv
@@ -16,7 +15,6 @@ describe('createNodeConfiguration', () => {
       const configuration = createNodeConfiguration(validEnvironment)
 
       expect(configuration.apiURL).toBe('https://api.cortex.example')
-      expect(configuration.nodeId).toBe('node-1')
       expect(configuration.nodeName).toBe('worker')
       expect(configuration.version).toBe('1.0.0')
     })
@@ -26,7 +24,6 @@ describe('createNodeConfiguration', () => {
         CORTEX_API_URL: process.env.CORTEX_API_URL,
         CORTEX_JIRA_CONNECTIONS: process.env.CORTEX_JIRA_CONNECTIONS,
         CORTEX_JIRA_PROJECT_REPOS: process.env.CORTEX_JIRA_PROJECT_REPOS,
-        CORTEX_NODE_ID: process.env.CORTEX_NODE_ID,
         CORTEX_NODE_NAME: process.env.CORTEX_NODE_NAME,
         CORTEX_NODE_VERSION: process.env.CORTEX_NODE_VERSION,
         CORTEX_SC_CONNECTIONS: process.env.CORTEX_SC_CONNECTIONS,
@@ -36,14 +33,13 @@ describe('createNodeConfiguration', () => {
       delete process.env.CORTEX_JIRA_CONNECTIONS
       delete process.env.CORTEX_JIRA_PROJECT_REPOS
       delete process.env.CORTEX_SC_CONNECTIONS
-      process.env.CORTEX_NODE_ID = 'node-1'
       process.env.CORTEX_NODE_NAME = 'worker'
       process.env.CORTEX_NODE_VERSION = '1.0.0'
 
       try {
         const configuration = createNodeConfiguration()
 
-        expect(configuration.nodeId).toBe('node-1')
+        expect(configuration.nodeName).toBe('worker')
       } finally {
         for (const [key, value] of Object.entries(previous)) {
           if (value === undefined) {
@@ -64,7 +60,6 @@ describe('createNodeConfiguration', () => {
       expect(configuration).toEqual(
         expect.objectContaining({
           apiURL: 'https://api.cortex.example',
-          nodeId: 'node-1',
           nodeName: 'worker',
           pollingIntervalMilliseconds: 3500,
           version: '1.0.0',
@@ -75,13 +70,11 @@ describe('createNodeConfiguration', () => {
     it('trims string environment values', () => {
       const configuration = createNodeConfiguration({
         CORTEX_API_URL: '  https://api.cortex.example  ',
-        CORTEX_NODE_ID: '  node-1  ',
         CORTEX_NODE_NAME: '  worker  ',
         CORTEX_NODE_VERSION: '  1.0.0  ',
       })
 
       expect(configuration.apiURL).toBe('https://api.cortex.example')
-      expect(configuration.nodeId).toBe('node-1')
       expect(configuration.nodeName).toBe('worker')
       expect(configuration.version).toBe('1.0.0')
     })
@@ -152,21 +145,6 @@ describe('createNodeConfiguration', () => {
         createNodeConfiguration({
           ...validEnvironment,
           CORTEX_API_URL: 'not-a-url',
-        }),
-      ).toThrow(/Invalid Cortex Node configuration/)
-    })
-
-    it('rejects a missing node identifier', () => {
-      const { CORTEX_NODE_ID: _, ...environment } = validEnvironment
-
-      expect(() => createNodeConfiguration(environment)).toThrow(/Invalid Cortex Node configuration/)
-    })
-
-    it('rejects a blank node identifier', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_NODE_ID: '   ',
         }),
       ).toThrow(/Invalid Cortex Node configuration/)
     })
