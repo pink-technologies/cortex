@@ -392,6 +392,78 @@ describe('WorkflowOrchestrator advance', () => {
     expect(updated?.steps[0]?.status).toBe(WorkflowStepStatus.QUEUED)
   })
 
+  it('does not fail the run when onJobFailed receives a non-failed job', async () => {
+    const { job, run } = await orchestrator.start({
+      definitionKey: jiraTriageFlow.key,
+      input: { issueKey: 'JC-17' },
+      triggerIdentifier: `workflow-advance-premature-fail:${randomUUID()}`,
+    })
+    createdRunIds.push(run.id)
+
+    await markRunning(job.id)
+    await orchestrator.onJobFailed(job.id)
+
+    const updated = await database.workflowRun.findUnique({
+      where: {
+        id: run.id,
+      },
+      include: {
+        steps: true,
+      },
+    })
+
+    expect(updated?.status).toBe(WorkflowRunStatus.RUNNING)
+    expect(updated?.failedAt).toBeNull()
+    expect(updated?.steps[0]?.status).toBe(WorkflowStepStatus.QUEUED)
+  })
+
+  it('sanitizes job failure before persisting the run failure', async () => {
+    const { job, run } = await orchestrator.start({
+      definitionKey: jiraTriageFlow.key,
+      input: { issueKey: 'JC-18' },
+      triggerIdentifier: `workflow-advance-sanitize:${randomUUID()}`,
+    })
+    createdRunIds.push(run.id)
+
+    await markRunning(job.id)
+    await database.executionJob.update({
+      where: {
+        id: job.id,
+      },
+      data: {
+        failedAt: new Date(),
+        failure: {
+          code: 'PROVIDER_ERROR',
+          message: 'upstream failed',
+          stack: 'Error: secret\n    at handler',
+          token: 'super-secret',
+          details: {
+            password: 'hunter2',
+            reason: 'timeout',
+          },
+        },
+        status: ExecutionJobStatus.FAILED,
+      },
+    })
+
+    await orchestrator.onJobFailed(job.id)
+
+    const updated = await database.workflowRun.findUnique({
+      where: {
+        id: run.id,
+      },
+    })
+
+    expect(updated?.status).toBe(WorkflowRunStatus.FAILED)
+    expect(updated?.failure).toEqual({
+      code: 'PROVIDER_ERROR',
+      message: 'upstream failed',
+      details: {
+        reason: 'timeout',
+      },
+    })
+  })
+
   it('advances with the pinned definition version after a newer revision is registered', async () => {
     const definitionKey = `${PinFlowDefinitionKeyPrefix}:${randomUUID()}`
     const registry = moduleRef.get(WorkflowDefinitionRegistry)
