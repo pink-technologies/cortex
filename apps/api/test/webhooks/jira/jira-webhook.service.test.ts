@@ -2,8 +2,8 @@
 // https://pink-tech.io/
 
 import { UnauthorizedException } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
+import { API_CONFIGURATION } from '@/configuration'
 import { jiraTriageFlow } from '@/workflow/definitions'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { JiraWebhookService, signJiraWebhookPayload } from '../../../src/webhooks/jira'
@@ -34,14 +34,14 @@ describe('JiraWebhookService', () => {
       providers: [
         JiraWebhookService,
         {
-          provide: ConfigService,
+          provide: API_CONFIGURATION,
           useValue: {
-            get: (key: string) => {
-              if (key === 'JIRA_WEBHOOK_SECRET') return secret
-              if (key === 'JIRA_DEFAULT_CONNECTION_ID') return 'jira-main'
-              if (key === 'JIRA_AUTOMATION_ASSIGNEE_ACCOUNT_ID') return 'automation'
-              return undefined
-            },
+            databaseURL: 'postgresql://postgres:postgres@localhost:5432/cortex',
+            jiraAutomationAssigneeAccountId: 'automation',
+            jiraDefaultConnectionId: 'jira-main',
+            jiraWebhookSecret: secret,
+            port: 3000,
+            redisURL: 'redis://localhost:6379',
           },
         },
         {

@@ -1,10 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { ConfigService } from '@nestjs/config';
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { Inject, Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
+import { Prisma, PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { API_CONFIGURATION, type ApiConfiguration } from '@/configuration'
 
 /**
  * Transaction type exposed by the database layer.
@@ -15,7 +15,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
  *
  * Import from `@integrations/database`; do not use Prisma types directly.
  */
-export type DatabaseTransaction = Prisma.TransactionClient;
+export type DatabaseTransaction = Prisma.TransactionClient
 
 /**
  * NestJS wrapper around {@link PrismaClient} responsible for managing
@@ -32,47 +32,39 @@ export type DatabaseTransaction = Prisma.TransactionClient;
  * - provide {@link withTransaction} for atomic multi-step operations.
  */
 @Injectable()
-export class Database
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class Database extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   // MARK: - Constructor
 
   /**
-   * Creates a Database instance using the connection string from ConfigService.
+   * Creates a Database instance using the validated API configuration.
    *
-   * Uses the Prisma PostgreSQL adapter to connect to the database. The connection
-   * is established in {@link onModuleInit} and closed in {@link onModuleDestroy}.
+   * Uses the Prisma PostgreSQL adapter to connect to the database. The
+   * connection is established in {@link onModuleInit} and closed in
+   * {@link onModuleDestroy}.
    *
-   * @param configService - NestJS ConfigService for reading DATABASE_URL.
-   * @throws {Error} If DATABASE_URL is not set in the environment.
+   * @param configuration - Validated API configuration providing `databaseURL`.
    */
-  constructor(readonly configService: ConfigService) {
-    const connectionString = configService.get('DATABASE_URL');
-
-    if (!connectionString) {
-      throw new Error(
-        'DATABASE_URL is missing. Check env/.env.<NODE_ENV> and ConfigModule.forRoot envFilePath.',
-      );
-    }
-
+  constructor(
+    @Inject(API_CONFIGURATION)
+    readonly configuration: ApiConfiguration,
+  ) {
     super({
       adapter: new PrismaPg({
-        connectionString,
+        connectionString: configuration.databaseURL,
       }),
-    });
+    })
   }
 
   // MARK: - OnModuleDestroy
 
   async onModuleDestroy() {
-    await this.$disconnect();
+    await this.$disconnect()
   }
 
   // MARK: - OnModuleInit
 
   async onModuleInit() {
-    await this.$connect();
+    await this.$connect()
   }
 
   // MARK: - Instance methods
@@ -104,9 +96,7 @@ export class Database
    * });
    * ```
    */
-  async withTransaction<T>(
-    fn: (transaction: DatabaseTransaction) => Promise<T>,
-  ): Promise<T> {
-    return this.$transaction(fn);
+  async withTransaction<T>(fn: (transaction: DatabaseTransaction) => Promise<T>): Promise<T> {
+    return this.$transaction(fn)
   }
 }

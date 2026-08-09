@@ -1,23 +1,20 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Global, Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { RedisStorageService } from './redis/redis-storage.service';
-import { STORAGE } from './storage';
+import { Global, Module } from '@nestjs/common'
+import { RedisStorageService } from './redis/redis-storage.service'
+import { STORAGE } from './storage'
+import { API_CONFIGURATION, type ApiConfiguration } from '@/configuration'
 
 @Global()
 @Module({
-  imports: [ConfigModule],
   exports: [STORAGE],
   providers: [
     {
       provide: STORAGE,
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService) => {
-        return await RedisStorageService.make(
-          config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
-        );
+      inject: [API_CONFIGURATION],
+      useFactory: async (configuration: ApiConfiguration) => {
+        return await RedisStorageService.make(configuration.redisURL)
       },
     },
   ],
