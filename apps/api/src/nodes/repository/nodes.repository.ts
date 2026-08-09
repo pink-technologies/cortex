@@ -60,7 +60,7 @@ export interface NodesRepository {
  * Prisma-backed implementation of {@link NodesRepository}.
  *
  * Persistence records are converted to domain objects through
- * {@link ExecutionNodeMapper}. Database failures are wrapped in node-module
+ * {@link ExecutionNode.from}. Database failures are wrapped in node-module
  * errors so callers do not depend on Prisma-specific exceptions.
  */
 @Injectable()
