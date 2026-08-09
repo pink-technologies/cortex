@@ -7,7 +7,7 @@ import type { NodeConfiguration } from '../../src/configuration'
 
 function configuration(partial: Partial<NodeConfiguration> = {}): NodeConfiguration {
   return {
-    apiURL: 'https://api.example',
+    apiURL: 'https://api.example/api',
     jiraConnections: [],
     jiraProjectRepos: [],
     llm: {},

@@ -7,7 +7,7 @@ import { CortexClient, CortexRequest } from '../../src/cortex'
 
 describe('CortexClient', () => {
   const configuration = {
-    apiURL: 'https://api.cortex.example/',
+    apiURL: 'https://api.cortex.example/api',
   } as NodeConfiguration
 
   afterEach(() => {
@@ -20,7 +20,7 @@ describe('CortexClient', () => {
     expect(client.request('/internal/nodes/register')).toBeInstanceOf(CortexRequest)
   })
 
-  it('resolves relative paths under the Nest /api prefix', async () => {
+  it('resolves relative paths against the configured API URL', async () => {
     const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ job: null }), {
         status: 200,

@@ -9,7 +9,7 @@ import {
 } from '../../src/configuration/node-configuration'
 
 const baseEnvironment = {
-  CORTEX_API_URL: 'https://api.cortex.example',
+  CORTEX_API_URL: 'https://api.cortex.example/api',
   CORTEX_NODE_NAME: 'worker',
   CORTEX_NODE_VERSION: '1.0.0',
 } satisfies NodeJS.ProcessEnv

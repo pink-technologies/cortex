@@ -13,7 +13,7 @@ const claimToken = '22222222-2222-4222-8222-222222222222'
 const nodeId = '11111111-1111-4111-8111-111111111111'
 
 const configuration = {
-  apiURL: 'https://api.cortex.example',
+  apiURL: 'https://api.cortex.example/api',
   nodeId: 'node-1',
   nodeName: 'worker',
   pollingIntervalMilliseconds: 2_000,

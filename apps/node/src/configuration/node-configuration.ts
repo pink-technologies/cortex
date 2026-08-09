@@ -125,10 +125,10 @@ const NodeEnvironmentSchema = z.object({
  */
 export interface NodeConfiguration {
   /**
-   * Origin URL of the Cortex API process (for example `http://localhost:3000`).
+   * Complete base URL of the Cortex API.
    *
-   * Must not include Nest’s global `/api` prefix; the Node HTTP client appends
-   * it so requests land on `/api/internal/...`.
+   * Includes any deployment path or API prefix, such as
+   * `http://localhost:3000/api`.
    */
   readonly apiURL: string
 
@@ -306,7 +306,7 @@ export function createNodeConfiguration(environment: NodeJS.ProcessEnv = process
   })
 
   return Object.freeze({
-    apiURL: result.data.CORTEX_API_URL,
+    apiURL: result.data.CORTEX_API_URL.replace(/\/+$/, ''),
     cursorApiKey: result.data.CURSOR_API_KEY,
     jiraAutomationAssigneeAccountId: result.data.JIRA_AUTOMATION_ASSIGNEE_ACCOUNT_ID,
     jiraConnections: parseJiraConnections(result.data.CORTEX_JIRA_CONNECTIONS),

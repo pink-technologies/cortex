@@ -6,7 +6,7 @@ import type { NodeConfiguration } from '../../../../src/configuration/node-confi
 import { CortexClient, CortexNodeResource } from '../../../../src/cortex'
 
 const configuration = {
-  apiURL: 'https://api.cortex.example',
+  apiURL: 'https://api.cortex.example/api',
 } as NodeConfiguration
 
 const registerRequest: RegisterNodeRequest = {

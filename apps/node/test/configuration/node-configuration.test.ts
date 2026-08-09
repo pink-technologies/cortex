@@ -4,7 +4,7 @@
 import { createNodeConfiguration } from '../../src/configuration/node-configuration'
 
 const validEnvironment = {
-  CORTEX_API_URL: 'https://api.cortex.example',
+  CORTEX_API_URL: 'https://api.cortex.example/api',
   CORTEX_NODE_NAME: 'worker',
   CORTEX_NODE_VERSION: '1.0.0',
 } satisfies NodeJS.ProcessEnv
@@ -14,7 +14,7 @@ describe('createNodeConfiguration', () => {
     it('creates a configuration from valid environment variables', () => {
       const configuration = createNodeConfiguration(validEnvironment)
 
-      expect(configuration.apiURL).toBe('https://api.cortex.example')
+      expect(configuration.apiURL).toBe('https://api.cortex.example/api')
       expect(configuration.nodeName).toBe('worker')
       expect(configuration.version).toBe('1.0.0')
     })
@@ -29,7 +29,7 @@ describe('createNodeConfiguration', () => {
         CORTEX_SC_CONNECTIONS: process.env.CORTEX_SC_CONNECTIONS,
       }
 
-      process.env.CORTEX_API_URL = 'https://api.cortex.example'
+      process.env.CORTEX_API_URL = 'https://api.cortex.example/api'
       delete process.env.CORTEX_JIRA_CONNECTIONS
       delete process.env.CORTEX_JIRA_PROJECT_REPOS
       delete process.env.CORTEX_SC_CONNECTIONS
@@ -59,7 +59,7 @@ describe('createNodeConfiguration', () => {
 
       expect(configuration).toEqual(
         expect.objectContaining({
-          apiURL: 'https://api.cortex.example',
+          apiURL: 'https://api.cortex.example/api',
           nodeName: 'worker',
           pollingIntervalMilliseconds: 3500,
           version: '1.0.0',
@@ -69,14 +69,23 @@ describe('createNodeConfiguration', () => {
 
     it('trims string environment values', () => {
       const configuration = createNodeConfiguration({
-        CORTEX_API_URL: '  https://api.cortex.example  ',
+        CORTEX_API_URL: '  https://api.cortex.example/api  ',
         CORTEX_NODE_NAME: '  worker  ',
         CORTEX_NODE_VERSION: '  1.0.0  ',
       })
 
-      expect(configuration.apiURL).toBe('https://api.cortex.example')
+      expect(configuration.apiURL).toBe('https://api.cortex.example/api')
       expect(configuration.nodeName).toBe('worker')
       expect(configuration.version).toBe('1.0.0')
+    })
+
+    it('strips trailing slashes from CORTEX_API_URL', () => {
+      const configuration = createNodeConfiguration({
+        ...validEnvironment,
+        CORTEX_API_URL: 'https://api.cortex.example/api/',
+      })
+
+      expect(configuration.apiURL).toBe('https://api.cortex.example/api')
     })
   })
 

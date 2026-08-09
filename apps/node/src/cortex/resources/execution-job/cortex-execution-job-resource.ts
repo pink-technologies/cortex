@@ -23,7 +23,7 @@ import {
 /**
  * Cortex API resource for execution-job claim and completion.
  *
- * Paths are `/internal/execution-jobs/...` relative to the client’s `/api` base URL.
+ * Paths are `/internal/execution-jobs/...` relative to the configured API base URL.
  *
  * Claims work and reports terminal job outcomes. Transport is provided by the
  * injected {@link CortexClient}. Request/response bodies are validated with
