@@ -1,0 +1,30 @@
+export { Database, type DatabaseTransaction } from './database'
+export { DatabaseEntityNotFoundError } from './error/error'
+export { DatabaseExceptionFilter } from './filter/database-exception.filter'
+export { DatabaseModule } from './database.module'
+export {
+  Prisma,
+  ExecutionJobStatus,
+  NodeOperatingSystem,
+  NodeState,
+  WorkflowApprovalDecisionOutcome,
+  WorkflowRunStatus,
+  WorkflowStepKind,
+  WorkflowStepStatus,
+} from '@prisma/client'
+
+export type {
+  Agent,
+  AgentSkill,
+  AgentStatus,
+  Chat,
+  ExecutionJob,
+  ExecutionJobAttempt,
+  ExecutionJobEvent,
+  ExecutionNode,
+  ExecutionWorker,
+  Message,
+  WorkflowApprovalDecision,
+  WorkflowRun,
+  WorkflowStep,
+} from '@prisma/client'

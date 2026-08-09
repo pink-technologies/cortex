@@ -1,0 +1,75 @@
+// Copyright (c) 2026, PinkTech
+// https://pink-tech.io/
+
+import { Prisma } from '@prisma/client';
+import { I18nService } from '@/i18n';
+import {
+  BadRequestException,
+  ArgumentsHost,
+  Catch,
+  ConflictException,
+  ExceptionFilter,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+
+/**
+ * Global exception filter that maps Prisma errors to HTTP exceptions.
+ *
+ * Throws HttpException subclasses so NestJS returns correct status codes.
+ * Re-throwing domain errors would bypass controller filters and result in 500.
+ */
+@Catch(Prisma.PrismaClientKnownRequestError, Prisma.PrismaClientValidationError)
+export class DatabaseExceptionFilter implements ExceptionFilter {
+  // MARK: - Constructor
+
+  /**
+   * Creates a Prisma-to-HTTP exception filter.
+   *
+   * @param i18n - Localization service for client-facing error messages.
+   */
+  constructor(private readonly i18n: I18nService) {}
+
+  catch(exception: unknown, host: ArgumentsHost): void {
+    if (exception instanceof Prisma.PrismaClientValidationError) {
+      throw new BadRequestException(
+        this.i18n.common.requestCouldNotBeProcessed(),
+        { cause: exception },
+      );
+    }
+
+    if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      if ((exception as Prisma.PrismaClientKnownRequestError).code === 'P2002') {
+        throw new ConflictException(this.i18n.common.recordAlreadyExists(), {
+          cause: exception,
+        });
+      }
+
+      if ((exception as Prisma.PrismaClientKnownRequestError).code === 'P2009') {
+        throw new BadRequestException(
+          this.i18n.common.requestCouldNotBeProcessed(),
+          { cause: exception },
+        );
+      }
+
+      if ((exception as Prisma.PrismaClientKnownRequestError).code === 'P2011' ||
+         (exception as Prisma.PrismaClientKnownRequestError).code === 'P2012') {
+        throw new BadRequestException(
+          this.i18n.common.requestCouldNotBeProcessed(),
+          { cause: exception },
+        );
+      }
+
+      if ((exception as Prisma.PrismaClientKnownRequestError).code === 'P2025') {
+        throw new NotFoundException(this.i18n.common.recordNotFound(), {
+          cause: exception,
+        });
+      }
+    }
+
+    throw new InternalServerErrorException(
+      this.i18n.common.serviceUnavailable(),
+      { cause: exception },
+    );
+  }
+}

@@ -1,0 +1,29 @@
+# Copyright (c) 2026, PinkTech
+# https://pink-tech.io/
+
+id = "qa"
+name = "QA"
+description = "Quality-assurance role agent for Cortex jira.triage and related test capabilities."
+
+role = "specialist"
+prompt_file = "prompt.md"
+
+skills = ["ticket-classify", "repro-from-ticket", "minimal-fix"]
+capabilities = ["jira.triage"]
+delegates_to = []
+
+[safety]
+allow_skill_use = true
+allow_capability_use = true
+allow_delegation = false
+max_delegation_depth = 0
+
+[execution]
+timeout_ms = 600000
+max_iterations = 32
+
+[llm]
+provider = "openai"
+model = "gpt-4o-mini"
+maximum_output_tokens = 4096
+temperature = 0

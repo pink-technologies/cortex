@@ -219,7 +219,7 @@ const agent = client.agent({
   system_prompt: 'You are a helpful assistant.',
   tools: [calculator, imageGen],
   temperature: 0.7,
-  max_tokens: 4096
+  maximum_output_tokens: 4096
 });
 
 const response = await agent.sendMessage('What is 25 * 4?');

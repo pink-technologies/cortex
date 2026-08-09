@@ -1,0 +1,6 @@
+# Copyright (c) 2026, PinkTech
+# https://pink-tech.io/
+
+id = "minimal-fix"
+description = "Apply the smallest correct code change for a reproduced defect."
+prompt_file = "prompt.md"

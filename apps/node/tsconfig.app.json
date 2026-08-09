@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "declaration": false,
+    "outDir": "../../dist/apps/node",
+    "rootDir": "./src",
+    "typeRoots": ["./node_modules/@types", "../../node_modules/@types"],
+    "types": ["node"],
+    "tsBuildInfoFile": "../../dist/apps/node/tsconfig.app.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*spec.ts"
+  ]
+}

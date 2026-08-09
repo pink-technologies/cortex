@@ -15,11 +15,26 @@ lerna-debug.log*
 
 # dotenv environment variable files
 .env
-.env.development
-.env.test
-.env.production
+.env.*
+!.env.example
+apps/*/.env
+apps/*/.env.local
+apps/*/.env.*
+!apps/*/.env.example
 
 # temp directory
 .temp
 .tmp
+
+# Build / test outputs
+**/dist
+**/coverage
+
+# OS / editor noise
 .DS_Store
+**/.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

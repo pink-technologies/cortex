@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "exclude": [
+    "dist",
+    "node_modules",
+    "test",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/delegation/**",
+    "src/execution/agent-execution-request.ts",
+    "src/execution/agent-execution-result.ts"
+  ]
+}
