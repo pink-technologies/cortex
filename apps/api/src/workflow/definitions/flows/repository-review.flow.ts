@@ -29,4 +29,4 @@ export const repositoryReviewFlow = {
       position: 0,
     },
   ],
-} satisfies WorkflowDefinition
+} as const satisfies WorkflowDefinition

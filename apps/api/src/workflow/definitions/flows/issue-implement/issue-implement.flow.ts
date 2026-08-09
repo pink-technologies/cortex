@@ -168,4 +168,4 @@ export const issueImplementFlow = {
       position: 3,
     },
   ],
-} satisfies WorkflowDefinition
+} as const satisfies WorkflowDefinition
