@@ -21,20 +21,6 @@ enum ExecutionJobStatus {
   INTERRUPTED
 }
 
-enum ExecutionJobAttemptStatus {
-  RUNNING
-  COMPLETED
-  FAILED
-  CANCELLED
-  INTERRUPTED
-}
-
-enum ExecutionWorkerStatus {
-  ACTIVE
-  DRAINING
-  DISABLED
-}
-
 enum ExecutionJobEventSource {
   ORCHESTRATOR
   WORKER
@@ -201,8 +187,7 @@ model ExecutionJob {
   completedAt DateTime?
   failedAt    DateTime?
 
-  attempts ExecutionJobAttempt[]
-  events   ExecutionJobEvent[]
+  events ExecutionJobEvent[]
 
   @@index([status, priority, availableAt, createdAt])
   @@index([kind, status])
@@ -212,92 +197,19 @@ model ExecutionJob {
   @@map("execution_job")
 }
 
-/// Reserved for future attempt-scoped execution history. Not written by the
-/// current claim/complete path (jobs transition directly on `ExecutionJob`).
-model ExecutionJobAttempt {
-  id String @id @default(uuid())
-
-  jobId String
-  job   ExecutionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  number Int
-
-  status ExecutionJobAttemptStatus @default(RUNNING)
-
-  nodeId String
-  node   ExecutionWorker @relation(fields: [nodeId], references: [id], onDelete: Restrict)
-
-  leaseTokenHash     String   @unique
-  leaseExpiresAt     DateTime
-  lastLeaseRenewalAt DateTime
-
-  executionDeadlineAt DateTime?
-
-  stage String?
-
-  output  Json?
-  failure Json?
-
-  cancellationAcknowledgedAt DateTime?
-
-  startedAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  completedAt DateTime?
-
-  events ExecutionJobEvent[]
-
-  @@unique([jobId, number])
-  @@index([jobId, status])
-  @@index([nodeId, status])
-  @@index([status, leaseExpiresAt])
-  @@map("execution_job_attempt")
-}
-
-model ExecutionWorker {
-  id String @id @default(uuid())
-
-  name String @unique
-
-  status ExecutionWorkerStatus @default(ACTIVE)
-
-  platform     String
-  architecture String
-
-  capabilities Json
-  labels       Json
-  metadata     Json?
-
-  maximumConcurrency Int @default(1)
-
-  credentialHash String @unique
-
-  lastHeartbeatAt DateTime?
-  statusChangedAt DateTime  @default(now())
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  attempts ExecutionJobAttempt[]
-
-  @@index([status, lastHeartbeatAt])
-  @@map("execution_worker")
-}
-
+/// Reserved for future durable job lifecycle events. Not written by the
+/// current claim/complete path.
 model ExecutionJobEvent {
-  id String @id @default(uuid())
-  jobId String
-  job   ExecutionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  attemptId String?
-  attempt   ExecutionJobAttempt? @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  idempotencyKey String? @unique
-  source ExecutionJobEventSource
-  type  String  
-  payload Json?
-  createdAt DateTime @default(now())
+  id             String                 @id @default(uuid())
+  jobId          String
+  job            ExecutionJob           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  idempotencyKey String?                @unique
+  source         ExecutionJobEventSource
+  type           String
+  payload        Json?
+  createdAt      DateTime               @default(now())
 
   @@index([jobId, createdAt])
-  @@index([attemptId, createdAt])
   @@index([type, createdAt])
   @@map("execution_job_event")
 }
@@ -435,6 +347,10 @@ model AgentIntent {
   @@map("agent_intent")
 }
 
+/// Server-side registration for an execution Node.
+///
+/// This is the only Node persistence model in the API database. Agent-local
+/// installation identity (`NodeIdentityStore`) is separate and not stored here.
 model ExecutionNode {
   id String @id @default(uuid()) @db.Uuid
 
