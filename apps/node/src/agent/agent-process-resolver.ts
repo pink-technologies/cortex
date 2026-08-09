@@ -71,4 +71,17 @@ export class AgentProcessResolver {
   resolveAgent(kind: string): AgentDefinition {
     return this.agentDefinitionRegistry.resolve(this.resolveDefaultAgentId(kind))
   }
+
+  /**
+   * Resolves a registered agent by its package id.
+   *
+   * Use this when a workflow step needs a specific agent role (for example the
+   * `coder` agent for Jira autofix) rather than the default owner of a job kind.
+   *
+   * @param agentId - Stable agent package id.
+   * @returns Registered {@link AgentDefinition}.
+   */
+  resolveAgentById(agentId: string): AgentDefinition {
+    return this.agentDefinitionRegistry.resolve(agentId)
+  }
 }

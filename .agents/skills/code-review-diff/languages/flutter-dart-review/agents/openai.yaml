@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flutter/Dart Style Review"
+  short_description: "Strict Flutter/Dart architecture and PR review"
+  default_prompt: "Use $flutter-dart-style to review this Flutter/Dart change against our architecture, naming, organization, testing, and PR rules."

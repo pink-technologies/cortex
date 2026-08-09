@@ -4,6 +4,7 @@
 import {
   buildJiraClassifyUserContext,
   buildJiraFixPrompt,
+  buildJiraReproPrompt,
   composeJiraClassifyPrompt,
 } from '../../../../src/handlers/jira-triage/composer/jira-triage-prompt-composer'
 import { JiraIssue } from '@cortex/integrations/jira'
@@ -39,9 +40,13 @@ describe('jira triage prompt composer', () => {
         labels: ['crash'],
         summary: 'Crash',
       }),
+      ['App', 'Camera'],
     )
 
     expect(userContext).toContain('JC-1')
+    expect(userContext).toContain('do not guess whether suites can reproduce')
+    expect(userContext).toContain('Known areas for this project')
+    expect(userContext).toContain('App, Camera')
     expect(
       composeJiraClassifyPrompt({
         skillPrompts: ['Classify carefully.'],
@@ -60,6 +65,7 @@ describe('jira triage prompt composer', () => {
     )
     expect(emptyContext).toContain('(none)')
     expect(emptyContext).toContain('(empty)')
+    expect(emptyContext).toContain('no project area catalog')
   })
 
   it('builds a fix prompt for the coder agent', () => {
@@ -78,6 +84,28 @@ describe('jira triage prompt composer', () => {
     expect(prompt).toContain('Keep fixes small.')
   })
 
+  it('builds a repro-authoring prompt with allowlisted suite commands', () => {
+    const prompt = buildJiraReproPrompt({
+      issue: issue({
+        descriptionText: 'details',
+        key: 'JC-4',
+        summary: 'Bug',
+      }),
+      skillPrompts: ['Keep tests focused.'],
+      suiteCommands: [
+        { command: 'npm test', suiteId: 'unit' },
+        { command: 'npx playwright test', suiteId: 'ui' },
+      ],
+      systemPrompt: 'You are coder.',
+    })
+
+    expect(prompt).toContain('JC-4')
+    expect(prompt).toContain('npm test')
+    expect(prompt).toContain('npx playwright test')
+    expect(prompt).toContain('Keep tests focused.')
+    expect(prompt).toContain('do not invent other shell commands')
+  })
+
   it('omits skill sections when none are provided', () => {
     expect(
       composeJiraClassifyPrompt({
@@ -92,6 +120,15 @@ describe('jira triage prompt composer', () => {
         failingSummary: 'fail',
         issue: issue({ key: 'JC-3' }),
         skillPrompts: [],
+        systemPrompt: 'You are coder.',
+      }),
+    ).not.toContain('## Skills')
+
+    expect(
+      buildJiraReproPrompt({
+        issue: issue({ key: 'JC-5' }),
+        skillPrompts: [],
+        suiteCommands: [],
         systemPrompt: 'You are coder.',
       }),
     ).not.toContain('## Skills')

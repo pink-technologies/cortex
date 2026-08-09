@@ -3,13 +3,17 @@
 
 import { Inject, Injectable } from '@nestjs/common'
 import { Database } from '@/infraestructure/database'
+import {
+  EXECUTION_JOB_REPOSITORY,
+  type ExecutionJobRepository,
+} from '@/execution/execution-job-repository'
 import { WorkflowRunStatus, WorkflowStepKind } from '../../datatypes'
-import { resolveWorkflowStepPayload } from '../../definitions/payload'
+import { resolveWorkflowStepPayload, WorkflowStepPayloadContextBuilder } from '../../definitions/payload'
 import { WorkflowDefinitionRegistry } from '../../definitions/registry'
 import { WorkflowStartError } from '../../error/error'
 import { WorkflowTransitioner } from '../transitions'
 import type { StartWorkflowRunResult } from '../../models/start-workflow-run-result'
-import type { StartWorkflowRunParameters } from '../../parameters/start-workflow-run-parameters'
+import type { StartWorkflowRunParameters } from '../../parameters'
 import { WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../../repository'
 
 /**
@@ -19,6 +23,10 @@ import { WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../../repos
  * all steps `PENDING`, and activating the first `JOB` step in one
  * transaction. Advancing and approval decisions live in their own
  * collaborators behind {@link WorkflowOrchestrator}.
+ *
+ * When `triggerIdentifier` or `activeKey` already owns a run, start returns
+ * that run and its first-step job without activating again (`created: false`).
+ * Payload builders run only after a new run is confirmed created.
  */
 @Injectable()
 export class WorkflowStarter {
@@ -29,12 +37,15 @@ export class WorkflowStarter {
    *
    * @param database - Database client used for the start transaction.
    * @param definitionRegistry - Registry used to resolve definition keys.
+   * @param executionJobRepository - Persistence port used to load an existing first-step job.
    * @param transitioner - Transition writer used to activate the first step.
    * @param workflowRunRepository - Persistence port for runs and steps.
    */
   constructor(
     private readonly database: Database,
     private readonly definitionRegistry: WorkflowDefinitionRegistry,
+    @Inject(EXECUTION_JOB_REPOSITORY)
+    private readonly executionJobRepository: ExecutionJobRepository,
     private readonly transitioner: WorkflowTransitioner,
     @Inject(WORKFLOW_RUN_REPOSITORY)
     private readonly workflowRunRepository: WorkflowRunRepository,
@@ -51,15 +62,19 @@ export class WorkflowStarter {
    * when no builder is declared), marks the step `QUEUED`, and marks the run
    * `RUNNING`. Those writes run in a single transaction.
    *
-   * Idempotency keys (`triggerIdentifier`, `activeKey`) are stored on the run,
-   * which is the only place uniqueness is enforced; child jobs carry no keys.
+   * Idempotency keys (`triggerIdentifier`, `activeKey`) are owned by the run.
+   * Matching keys return the existing run and first-step job without a second
+   * activation and without invoking payload builders.
    *
    * @param parameters - Definition key, input, and optional run idempotency keys.
-   * @returns The activated run and the first-step child job.
+   * @returns The activated (or existing) run, first-step child job, and whether
+   *   a new run was created.
    * @throws {@link WorkflowDefinitionNotFoundError} When the definition key is unknown.
    * @throws {@link WorkflowStartError} When the first step is not an activatable
-   *   `JOB`, or its payload builder rejects the input.
-   * @throws {@link WorkflowRunCreateError} When run persistence fails (including unique collisions).
+   *   `JOB`, its payload builder rejects the input, or an existing run is
+   *   missing its first-step job.
+   * @throws {@link WorkflowRunCreateError} When run persistence fails for a
+   *   non-idempotent reason.
    */
   async start(parameters: StartWorkflowRunParameters): Promise<StartWorkflowRunResult> {
     const definition = this.definitionRegistry.resolve(parameters.definitionKey)
@@ -76,21 +91,6 @@ export class WorkflowStarter {
       )
     }
 
-    let firstStepPayload: unknown
-    try {
-      firstStepPayload = resolveWorkflowStepPayload(firstStepDefinition, {
-        input: parameters.input,
-        latestOutput: undefined,
-        outputs: {},
-      })
-    } catch (error) {
-      throw new WorkflowStartError(
-        definition.key,
-        `Workflow definition ${definition.key} could not build the payload for first step ${firstStepDefinition.key}`,
-        { cause: error },
-      )
-    }
-
     const steps = definition.steps.map((step) => ({
       jobKind: step.jobKind,
       key: step.key,
@@ -99,21 +99,56 @@ export class WorkflowStarter {
     }))
 
     return this.database.withTransaction(async (transaction) => {
-      const createWorkflowRunParameters = {
-        activeKey: parameters.activeKey,
-        definitionKey: definition.key,
-        input: parameters.input,
-        steps,
-        triggerIdentifier: parameters.triggerIdentifier,
-      }
+      const { created, run } = await this.workflowRunRepository.getOrCreate(
+        {
+          activeKey: parameters.activeKey,
+          definitionKey: definition.key,
+          definitionVersion: definition.version,
+          input: parameters.input,
+          steps,
+          triggerIdentifier: parameters.triggerIdentifier,
+        },
+        { transaction },
+      )
 
-      const run = await this.workflowRunRepository.create(createWorkflowRunParameters, { transaction })
       const firstStep = run.steps.find((step) => step.key === firstStepDefinition.key)
 
       if (!firstStep) {
         throw new WorkflowStartError(
           definition.key,
           `Workflow run ${run.id} is missing first step ${firstStepDefinition.key}`,
+        )
+      }
+
+      if (!created) {
+        const job = await this.executionJobRepository.findByStepId(firstStep.id, { transaction })
+
+        if (!job) {
+          throw new WorkflowStartError(
+            definition.key,
+            `Workflow run ${run.id} is missing the execution job for first step ${firstStepDefinition.key}`,
+          )
+        }
+
+        return {
+          created: false,
+          job,
+          run,
+        }
+      }
+
+      let firstStepPayload: unknown
+
+      try {
+        firstStepPayload = resolveWorkflowStepPayload(
+          firstStepDefinition,
+          new WorkflowStepPayloadContextBuilder().withInput(run.input).build(),
+        )
+      } catch (error) {
+        throw new WorkflowStartError(
+          definition.key,
+          `Workflow definition ${definition.key} could not build the payload for first step ${firstStepDefinition.key}`,
+          { cause: error },
         )
       }
 
@@ -141,6 +176,7 @@ export class WorkflowStarter {
       }
 
       return {
+        created: true,
         job,
         run: activatedRun,
       }

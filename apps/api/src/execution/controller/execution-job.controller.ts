@@ -3,6 +3,7 @@
 
 import { ZodValidationPipe } from '@/http/pipes/zod-validation.pipe'
 import { Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, UseFilters } from '@nestjs/common'
+import { agentExecuteFlow, jiraTriageFlow, repositoryReviewFlow } from '@/workflow/definitions'
 import { WorkflowExceptionFilter } from '@/workflow/filter/exception.filter'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobService } from '../execution-job.service'
@@ -18,12 +19,6 @@ import {
   type ExecutionJob,
   type ExecutionJobResponse,
 } from '@cortex/protocol'
-import {
-  AgentExecuteFlowDefinitionKey,
-  JiraTriageFlowDefinitionKey,
-  RepositoryReviewFlowDefinitionKey,
-} from '@/workflow/definitions/keys'
-
 /**
  * HTTP transport for public execution-job operations.
  *
@@ -88,7 +83,7 @@ export class ExecutionJobController {
     request: CreateAgentExecuteJobRequest,
   ): Promise<ExecutionJob> {
     const { job } = await this.orchestrator.start({
-      definitionKey: AgentExecuteFlowDefinitionKey,
+      definitionKey: agentExecuteFlow.key,
       input: request.payload,
       priority: request.priority,
     })
@@ -118,7 +113,7 @@ export class ExecutionJobController {
     request: CreateRepositoryReviewJobRequest,
   ): Promise<ExecutionJob> {
     const { job } = await this.orchestrator.start({
-      definitionKey: RepositoryReviewFlowDefinitionKey,
+      definitionKey: repositoryReviewFlow.key,
       input: request.payload,
       priority: request.priority,
     })
@@ -147,7 +142,7 @@ export class ExecutionJobController {
     request: CreateJiraTriageJobRequest,
   ): Promise<ExecutionJob> {
     const { job } = await this.orchestrator.start({
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: request.payload,
       priority: request.priority,
     })

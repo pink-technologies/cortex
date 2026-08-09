@@ -9,6 +9,7 @@ import {
 } from '@cortex/protocol'
 import type { JiraIssue } from '@cortex/integrations/jira'
 import { AgentProcessResolver } from '../../../agent/agent-process-resolver'
+import { NODE_CONFIGURATION, type NodeConfiguration } from '../../../configuration'
 import { EXECUTION_ENGINE, type ExecutionEngine } from '../../../execution-engine'
 import {
   buildJiraClassifyUserContext,
@@ -35,11 +36,14 @@ export class JiraTriageClassifier {
    * Creates a Jira triage classifier.
    *
    * @param agentProcessResolver - Resolves the QA agent for `jira.triage`.
+   * @param configuration - Node configuration with optional project area catalogs.
    * @param executionEngine - Engine used to run the classify prompt.
    * @param skillRegistry - Registry of skills available for selective injection.
    */
   constructor(
     private readonly agentProcessResolver: AgentProcessResolver,
+    @Inject(NODE_CONFIGURATION)
+    private readonly configuration: NodeConfiguration,
     @Inject(EXECUTION_ENGINE)
     private readonly executionEngine: ExecutionEngine,
     private readonly skillRegistry: SkillRegistry,
@@ -59,7 +63,8 @@ export class JiraTriageClassifier {
     signal.throwIfAborted()
 
     const qaAgent = this.agentProcessResolver.resolveAgent(JiraTriageJobKind)
-    const classifyUserContext = buildJiraClassifyUserContext(issue)
+    const areaCatalog = this.resolveAreaCatalog(issue.projectKey)
+    const classifyUserContext = buildJiraClassifyUserContext(issue, areaCatalog)
     const skillPrompts = this.resolveSkillPrompts(qaAgent, classifyUserContext)
     const classifyPrompt = composeJiraClassifyPrompt({
       skillPrompts,
@@ -88,6 +93,14 @@ export class JiraTriageClassifier {
   }
 
   // MARK: - Private methods
+
+  private resolveAreaCatalog(projectKey: string): readonly string[] {
+    const mapping = this.configuration.jiraProjectRepos.find(
+      (entry) => entry.projectKey.toUpperCase() === projectKey.toUpperCase(),
+    )
+
+    return Object.keys(mapping?.areas ?? {})
+  }
 
   private resolveSkillPrompts(agent: AgentDefinition, context: string): readonly string[] {
     if (!agent.safety.allowSkillUse) {

@@ -1,0 +1,80 @@
+---
+description: API feature-module layout — use apps/api/src/nodes as the template
+globs: apps/api/src/**/*
+alwaysApply: false
+---
+
+# API module organization
+
+Treat `apps/api/src/nodes` as the **canonical template** for new and refactored
+feature modules in the API app: structure, naming, layering, and readability.
+
+Also apply `.cursor/rules/code-organization.mdc` and Cortex style
+(`.cursor/skills/cortext-style/SKILL.md`).
+
+## Layout
+
+```text
+<feature>/
+  index.ts                 # Public barrel — module + services others may import
+  <feature>.module.ts
+  <feature>.controller.ts  # Or controller/ when multiple HTTP surfaces
+  <feature>.service.ts
+  repository/
+    <feature>.repository.ts   # Port (interface) + token + Impl in one file
+  models/                  # Domain models; JSDoc on every property
+  parameters/              # App-layer inputs (not protocol DTOs)
+    <operation>/
+      <operation>-parameters.ts
+  error/
+    error.ts               # Folder-scoped module errors only
+  filter/
+    exception.filter.ts    # Maps module errors → HTTP at the controller boundary
+  mapper/                  # Optional — protocol/DB ↔ domain
+```
+
+Omit folders the feature does not need. Prefer this shape over flat
+`*-repository.ts` next to the service when adding or reshaping modules.
+
+## Layering
+
+| Layer | Owns | Must not |
+|-------|------|----------|
+| Controller | HTTP, protocol Zod via `ZodValidationPipe`, `@UseFilters` | Business rules, Prisma |
+| Service | Lifecycle / domain rules; throws typed module errors | Leak DB / transport shapes |
+| Repository | Persistence port + Impl; returns domain models | HTTP concerns |
+| Filter | `ModuleError` → status + `{ statusCode, code, message }` | Catch unrelated errors |
+| Models / parameters | Domain + app inputs | Inline in service/controller |
+
+## Repository pattern (from nodes)
+
+- Export `SYMBOL` token, `interface` port, and `*RepositoryImpl`.
+- Wire in the module with `{ provide: TOKEN, useClass: Impl }`.
+- Inject the port with `@Inject(TOKEN)`, not the concrete class.
+- Map DB failures to module errors with `{ cause }`.
+
+## Errors and HTTP
+
+- Base `*ModuleError` with stable `code` in `error/error.ts`.
+- Service: domain/not-found style errors for callers.
+- Repository: operational `*FailedError` for persistence failures.
+- Controller-scoped filter `@Catch(ModuleError)`; do not leak Prisma details.
+
+## Naming: Request vs Parameters
+
+| Suffix | Meaning | Lives in |
+|--------|---------|----------|
+| `*Request` / `*Response` | Validated inbound/outbound HTTP or protocol DTOs (Zod schemas, `@cortex/protocol`) | protocol package or local schema next to the controller pipe |
+| `*Parameters` | App-layer operation args after the controller has extracted/assembled them (service / repository inputs) | `<feature>/parameters/` |
+| models | Domain entities, persisted shapes, mapping results | `<feature>/models/` |
+
+Do not use `*Input` for service-entry bags. Example: `GitHubWebhookHandleParameters`,
+not `GitHubWebhookHandleInput`. When the body itself needs schema validation,
+that validated type is a `*Request` (e.g. `RegisterNodeRequest`); the service may
+still take `*Parameters` if the app layer reshapes or enriches the request.
+
+## Readability
+
+- Thin controllers: validate → service → protocol response parse.
+- MARK sections, constructor JSDoc, public method contracts.
+- Feature `index.ts` exports only what other modules should import.

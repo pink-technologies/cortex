@@ -1,11 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Inject, Injectable } from "@nestjs/common"
-import { NODES_REPOSITORY, type NodesRepository } from "./nodes.repository"
-import { ExecutionNode, NodeState } from "./models/execution-node"
-import { RegisterNodeParameters } from "./parameters/register/register-node-parameters"
-import { NodeDisabledError, NodeNotFoundError, NodeRevokedError } from "./error/error"
+import { Inject, Injectable } from '@nestjs/common'
+import { NODES_REPOSITORY, type NodesRepository } from './repository/nodes.repository'
+import { ExecutionNode, NodeState } from './models/execution-node'
+import { RegisterNodeParameters } from './parameters/register/register-node-parameters'
+import { NodeDisabledError, NodeNotFoundError, NodeRevokedError } from './error/error'
 
 /**
  * Coordinates execution-node registration, lookup, heartbeat, and scheduling
@@ -26,9 +26,9 @@ export class NodesService {
    *   heartbeat updates.
    */
   constructor(
-    @Inject(NODES_REPOSITORY) 
-    private readonly nodesRepository: NodesRepository
-) {
+    @Inject(NODES_REPOSITORY)
+    private readonly nodesRepository: NodesRepository,
+  ) {
     this.nodesRepository = nodesRepository
   }
 
@@ -88,7 +88,7 @@ export class NodesService {
 
     if (!updated) {
       throw new NodeNotFoundError(id)
-    }    
+    }
   }
 
   /**
@@ -104,9 +104,7 @@ export class NodesService {
    *   revoked.
    */
   async register(parameters: RegisterNodeParameters): Promise<ExecutionNode> {
-    const existingNode = await this.nodesRepository.findByInstallationId(
-      parameters.installationId,
-    )
+    const existingNode = await this.nodesRepository.findByInstallationId(parameters.installationId)
 
     if (existingNode?.state === NodeState.REVOKED) {
       throw new NodeRevokedError(parameters.installationId)
@@ -120,7 +118,7 @@ export class NodesService {
 
     return executionNode
   }
-  
+
   /**
    * Resolves a node that is eligible to receive execution work.
    *

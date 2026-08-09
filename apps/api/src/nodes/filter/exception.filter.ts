@@ -2,19 +2,8 @@
 // https://pink-tech.io/
 
 import type { Response } from 'express'
-import { 
-  NodeDisabledError, 
-  NodeModuleError, 
-  NodeNotFoundError, 
-  NodeRevokedError 
-} from '../error/error'
-
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpStatus,
-} from '@nestjs/common'
+import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/common'
+import { NodeDisabledError, NodeModuleError, NodeNotFoundError, NodeRevokedError } from '../error/error'
 
 /**
  * Converts execution-node domain failures into HTTP responses.
@@ -58,7 +47,7 @@ export class NodeExceptionFilter implements ExceptionFilter {
    */
   catch(exception: NodeModuleError, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>()
-    
+
     if (exception instanceof NodeNotFoundError) {
       response.status(HttpStatus.NOT_FOUND).json({
         statusCode: HttpStatus.NOT_FOUND,

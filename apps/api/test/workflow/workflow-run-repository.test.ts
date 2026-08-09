@@ -12,11 +12,7 @@ import {
   type WorkflowRunRepository,
 } from '../../src/workflow/repository'
 
-import {
-  WorkflowRunCreateError,
-  WorkflowRunUpdateError,
-  WorkflowStepUpdateError,
-} from '../../src/workflow/error/error'
+import { WorkflowRunUpdateError, WorkflowStepUpdateError } from '../../src/workflow/error/error'
 
 describe('WorkflowRunRepository', () => {
   let database: Database
@@ -71,9 +67,10 @@ describe('WorkflowRunRepository', () => {
   it('creates a run with ordered steps and loads it by id', async () => {
     const triggerIdentifier = `workflow-test:${randomUUID()}`
 
-    const created = await repository.create({
+    const { created, run } = await repository.getOrCreate({
       activeKey: `workflow-test-active:${randomUUID()}`,
       definitionKey: 'jira.triage.flow',
+      definitionVersion: 1,
       input: { issueKey: 'JC-1' },
       triggerIdentifier,
       steps: [
@@ -91,24 +88,26 @@ describe('WorkflowRunRepository', () => {
         },
       ],
     })
-    createdRunIds.push(created.id)
+    createdRunIds.push(run.id)
 
-    expect(created.status).toBe(WorkflowRunStatus.PENDING)
-    expect(created.definitionKey).toBe('jira.triage.flow')
-    expect(created.input).toEqual({ issueKey: 'JC-1' })
-    expect(created.triggerIdentifier).toBe(triggerIdentifier)
-    expect(created.steps).toHaveLength(2)
-    expect(created.steps.map((step) => step.key)).toEqual(['triage', 'approval'])
-    expect(created.steps[0]?.kind).toBe(WorkflowStepKind.JOB)
-    expect(created.steps[0]?.jobKind).toBe('jira.triage')
-    expect(created.steps[0]?.status).toBe(WorkflowStepStatus.PENDING)
-    expect(created.steps[1]?.kind).toBe(WorkflowStepKind.APPROVAL)
-    expect(created.steps[1]?.jobKind).toBeNull()
+    expect(created).toBe(true)
+    expect(run.status).toBe(WorkflowRunStatus.PENDING)
+    expect(run.definitionKey).toBe('jira.triage.flow')
+    expect(run.definitionVersion).toBe(1)
+    expect(run.input).toEqual({ issueKey: 'JC-1' })
+    expect(run.triggerIdentifier).toBe(triggerIdentifier)
+    expect(run.steps).toHaveLength(2)
+    expect(run.steps.map((step) => step.key)).toEqual(['triage', 'approval'])
+    expect(run.steps[0]?.kind).toBe(WorkflowStepKind.JOB)
+    expect(run.steps[0]?.jobKind).toBe('jira.triage')
+    expect(run.steps[0]?.status).toBe(WorkflowStepStatus.PENDING)
+    expect(run.steps[1]?.kind).toBe(WorkflowStepKind.APPROVAL)
+    expect(run.steps[1]?.jobKind).toBeNull()
 
-    const loaded = await repository.findById(created.id)
+    const loaded = await repository.findById(run.id)
 
     expect(loaded).not.toBeNull()
-    expect(loaded?.id).toBe(created.id)
+    expect(loaded?.id).toBe(run.id)
     expect(loaded?.steps.map((step) => step.key)).toEqual(['triage', 'approval'])
   })
 
@@ -117,8 +116,9 @@ describe('WorkflowRunRepository', () => {
   })
 
   it('updates run and step statuses', async () => {
-    const created = await repository.create({
+    const { run } = await repository.getOrCreate({
       definitionKey: 'repository.review.flow',
+      definitionVersion: 1,
       input: { pullNumber: 12 },
       steps: [
         {
@@ -129,13 +129,13 @@ describe('WorkflowRunRepository', () => {
         },
       ],
     })
-    createdRunIds.push(created.id)
+    createdRunIds.push(run.id)
 
-    const stepId = created.steps[0]!.id
+    const stepId = run.steps[0]!.id
     const startedAt = new Date()
 
     await expect(
-      repository.updateRunStatus(created.id, {
+      repository.updateRunStatus(run.id, {
         startedAt,
         status: WorkflowRunStatus.RUNNING,
       }),
@@ -148,7 +148,7 @@ describe('WorkflowRunRepository', () => {
       }),
     ).resolves.toBe(true)
 
-    const afterActivate = await repository.findById(created.id)
+    const afterActivate = await repository.findById(run.id)
 
     expect(afterActivate?.status).toBe(WorkflowRunStatus.RUNNING)
     expect(afterActivate?.startedAt).toEqual(startedAt)
@@ -165,14 +165,14 @@ describe('WorkflowRunRepository', () => {
     ).resolves.toBe(true)
 
     await expect(
-      repository.updateRunStatus(created.id, {
+      repository.updateRunStatus(run.id, {
         completedAt,
         result: { ok: true },
         status: WorkflowRunStatus.COMPLETED,
       }),
     ).resolves.toBe(true)
 
-    const afterComplete = await repository.findById(created.id)
+    const afterComplete = await repository.findById(run.id)
 
     expect(afterComplete?.status).toBe(WorkflowRunStatus.COMPLETED)
     expect(afterComplete?.result).toEqual({ ok: true })
@@ -194,39 +194,38 @@ describe('WorkflowRunRepository', () => {
     ).resolves.toBe(false)
   })
 
-  it('rejects duplicate triggerIdentifier on create', async () => {
+  it('returns the existing run for a duplicate triggerIdentifier', async () => {
     const triggerIdentifier = `workflow-test-dup:${randomUUID()}`
+    const steps = [
+      {
+        key: 'main',
+        jobKind: 'agent.execute',
+        kind: WorkflowStepKind.JOB,
+        position: 0,
+      },
+    ]
 
-    const created = await repository.create({
+    const first = await repository.getOrCreate({
       definitionKey: 'agent.execute.flow',
+      definitionVersion: 1,
       input: {},
       triggerIdentifier,
-      steps: [
-        {
-          key: 'main',
-          jobKind: 'agent.execute',
-          kind: WorkflowStepKind.JOB,
-          position: 0,
-        },
-      ],
+      steps,
     })
-    createdRunIds.push(created.id)
+    createdRunIds.push(first.run.id)
 
-    await expect(
-      repository.create({
-        definitionKey: 'agent.execute.flow',
-        input: {},
-        triggerIdentifier,
-        steps: [
-          {
-            key: 'main',
-            jobKind: 'agent.execute',
-            kind: WorkflowStepKind.JOB,
-            position: 0,
-          },
-        ],
-      }),
-    ).rejects.toBeInstanceOf(WorkflowRunCreateError)
+    expect(first.created).toBe(true)
+
+    const reused = await repository.getOrCreate({
+      definitionKey: 'agent.execute.flow',
+      definitionVersion: 1,
+      input: { reused: true },
+      triggerIdentifier,
+      steps,
+    })
+
+    expect(reused.created).toBe(false)
+    expect(reused.run.id).toBe(first.run.id)
   })
 
   it('lists runs newest first with paging, filters, and totals', async () => {
@@ -240,23 +239,23 @@ describe('WorkflowRunRepository', () => {
       },
     ]
 
-    const first = await repository.create({ definitionKey, input: { order: 1 }, steps })
-    const second = await repository.create({ definitionKey, input: { order: 2 }, steps })
-    const third = await repository.create({ definitionKey, input: { order: 3 }, steps })
-    createdRunIds.push(first.id, second.id, third.id)
+    const first = await repository.getOrCreate({ definitionKey, definitionVersion: 1, input: { order: 1 }, steps })
+    const second = await repository.getOrCreate({ definitionKey, definitionVersion: 1, input: { order: 2 }, steps })
+    const third = await repository.getOrCreate({ definitionKey, definitionVersion: 1, input: { order: 3 }, steps })
+    createdRunIds.push(first.run.id, second.run.id, third.run.id)
 
-    await repository.updateRunStatus(second.id, { status: WorkflowRunStatus.RUNNING })
+    await repository.updateRunStatus(second.run.id, { status: WorkflowRunStatus.RUNNING })
 
     const firstPage = await repository.findMany({ definitionKey, limit: 2, page: 1 })
 
     expect(firstPage.total).toBe(3)
-    expect(firstPage.items.map((run) => run.id)).toEqual([third.id, second.id])
+    expect(firstPage.items.map((run) => run.id)).toEqual([third.run.id, second.run.id])
     expect(firstPage.items[0]?.steps.map((step) => step.key)).toEqual(['main'])
 
     const secondPage = await repository.findMany({ definitionKey, limit: 2, page: 2 })
 
     expect(secondPage.total).toBe(3)
-    expect(secondPage.items.map((run) => run.id)).toEqual([first.id])
+    expect(secondPage.items.map((run) => run.id)).toEqual([first.run.id])
 
     const runningOnly = await repository.findMany({
       definitionKey,
@@ -266,12 +265,13 @@ describe('WorkflowRunRepository', () => {
     })
 
     expect(runningOnly.total).toBe(1)
-    expect(runningOnly.items.map((run) => run.id)).toEqual([second.id])
+    expect(runningOnly.items.map((run) => run.id)).toEqual([second.run.id])
   })
 
   it('guards run status updates with onlyIfStatusIn', async () => {
-    const created = await repository.create({
+    const { run } = await repository.getOrCreate({
       definitionKey: 'agent.execute.flow',
+      definitionVersion: 1,
       input: {},
       steps: [
         {
@@ -282,34 +282,35 @@ describe('WorkflowRunRepository', () => {
         },
       ],
     })
-    createdRunIds.push(created.id)
+    createdRunIds.push(run.id)
 
     await expect(
       repository.updateRunStatus(
-        created.id,
+        run.id,
         { status: WorkflowRunStatus.CANCELLED },
         { onlyIfStatusIn: [WorkflowRunStatus.RUNNING] },
       ),
     ).resolves.toBe(false)
 
-    const untouched = await repository.findById(created.id)
+    const untouched = await repository.findById(run.id)
     expect(untouched?.status).toBe(WorkflowRunStatus.PENDING)
 
     await expect(
       repository.updateRunStatus(
-        created.id,
+        run.id,
         { status: WorkflowRunStatus.CANCELLED },
         { onlyIfStatusIn: [WorkflowRunStatus.PENDING] },
       ),
     ).resolves.toBe(true)
 
-    const cancelled = await repository.findById(created.id)
+    const cancelled = await repository.findById(run.id)
     expect(cancelled?.status).toBe(WorkflowRunStatus.CANCELLED)
   })
 
   it('wraps unexpected update failures', async () => {
-    const created = await repository.create({
+    const { run } = await repository.getOrCreate({
       definitionKey: 'agent.execute.flow',
+      definitionVersion: 1,
       input: {},
       steps: [
         {
@@ -320,17 +321,17 @@ describe('WorkflowRunRepository', () => {
         },
       ],
     })
-    createdRunIds.push(created.id)
+    createdRunIds.push(run.id)
 
     const runSpy = jest.spyOn(database.workflowRun, 'updateMany').mockRejectedValueOnce(new Error('db down'))
     await expect(
-      repository.updateRunStatus(created.id, { status: WorkflowRunStatus.FAILED }),
+      repository.updateRunStatus(run.id, { status: WorkflowRunStatus.FAILED }),
     ).rejects.toBeInstanceOf(WorkflowRunUpdateError)
     runSpy.mockRestore()
 
     const stepSpy = jest.spyOn(database.workflowStep, 'updateMany').mockRejectedValueOnce(new Error('db down'))
     await expect(
-      repository.updateStepStatus(created.steps[0]!.id, { status: WorkflowStepStatus.FAILED }),
+      repository.updateStepStatus(run.steps[0]!.id, { status: WorkflowStepStatus.FAILED }),
     ).rejects.toBeInstanceOf(WorkflowStepUpdateError)
     stepSpy.mockRestore()
   })

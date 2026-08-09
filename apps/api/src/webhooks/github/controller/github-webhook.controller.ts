@@ -1,6 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type { RawBodyRequest } from '@nestjs/common'
+import type { Request } from 'express'
+import { GitHubWebhookService } from '../github-webhook.service'
+import type { GitHubWebhookHandleResult } from '../models'
 import {
   BadRequestException,
   Controller,
@@ -10,16 +14,14 @@ import {
   Post,
   Req,
 } from '@nestjs/common'
-import type { RawBodyRequest } from '@nestjs/common'
-import type { Request } from 'express'
-import { GitHubWebhookService } from '../github-webhook.service'
-import type { GitHubWebhookHandleResult } from '../models'
 
 /**
  * Public HTTP transport for GitHub webhook deliveries.
  *
- * Exposes `POST /webhooks/github`. Requires Nest `rawBody: true` so the HMAC
- * signature can be verified against the exact bytes GitHub signed.
+ * Exposes `POST /webhooks/github` (global prefix `api`). Requires Nest
+ * `rawBody: true` so the HMAC signature can be verified against the exact
+ * bytes GitHub signed. Product handlers are selected by `X-GitHub-Event`, not
+ * by path.
  */
 @Controller('webhooks/github')
 export class GitHubWebhookController {
@@ -35,7 +37,7 @@ export class GitHubWebhookController {
   // MARK: - Instance methods
 
   /**
-   * Accepts a GitHub webhook delivery and optionally enqueues a review job.
+   * Accepts a GitHub webhook delivery and optionally enqueues work.
    *
    * @param request - Express request with {@link RawBodyRequest.rawBody}.
    * @param signatureHeader - `X-Hub-Signature-256` header value.

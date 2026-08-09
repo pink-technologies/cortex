@@ -3,20 +3,30 @@
 
 import { Inject, Injectable } from '@nestjs/common'
 import { Database } from '@/infraestructure/database'
-import { WorkflowStepStatus } from '../../datatypes'
 import { WorkflowApprovalError } from '../../error/error'
 import { WorkflowTransitioner } from '../transitions'
+import type { WorkflowApprovalDecision } from '../../models/workflow-approval-decision'
 import type { WorkflowRun } from '../../models/workflow-run'
 import type { WorkflowStep } from '../../models/workflow-step'
-import { WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../../repository'
+import { sanitizeWorkflowRunFailure } from '../../sanitize'
+import type { DecideWorkflowRunApprovalParameters } from '../../parameters'
+import { isUniqueConstraintViolation, WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../../repository'
+import {
+  WorkflowApprovalDecisionOutcome,
+  WorkflowRunFailureCode,
+  WorkflowStepKind,
+  WorkflowStepStatus,
+} from '../../datatypes'
 
 /**
  * Applies human approval decisions to parked workflow runs.
  *
- * Owns the approval flow only: locating the step awaiting approval and
- * delegating the resulting transition to {@link WorkflowTransitioner} inside
- * one transaction. Job-driven advancing lives in its own collaborator behind
- * {@link WorkflowOrchestrator}.
+ * Owns the approval command flow: locking the run, verifying the named step is
+ * the current approval gate, persisting a unique audit decision, then
+ * delegating the transition to {@link WorkflowTransitioner} inside one
+ * transaction. Repeated {@link DecideWorkflowRunApprovalParameters.decisionId}
+ * values are idempotent; decisions aimed at an obsolete step fail with
+ * {@link WorkflowApprovalError}.
  */
 @Injectable()
 export class WorkflowApprovalHandler {
@@ -27,7 +37,7 @@ export class WorkflowApprovalHandler {
    *
    * @param database - Database client used for decision transactions.
    * @param transitioner - Transition writer applying step and run updates.
-   * @param workflowRunRepository - Persistence port for runs and steps.
+   * @param workflowRunRepository - Persistence port for runs, steps, and decisions.
    */
   constructor(
     private readonly database: Database,
@@ -39,85 +49,137 @@ export class WorkflowApprovalHandler {
   // MARK: - Instance methods
 
   /**
-   * Applies a positive approval decision to a parked run.
+   * Applies a positive approval decision command.
    *
-   * Completes the step awaiting approval, then activates the next `JOB` step
-   * (returning the run to `RUNNING`) with a payload resolved from the run's
-   * definition, parks again when the next step is another `APPROVAL`, or
-   * completes the run when no steps remain. All writes commit in one
-   * transaction; concurrent decisions are resolved by an optimistic status
-   * guard so only one decision applies.
-   *
-   * @param runId - Primary key of the run awaiting approval.
+   * @param parameters - Approval decision command.
    * @returns The refreshed run after the decision; `null` when the run does not exist.
-   * @throws {@link WorkflowApprovalError} When no step is awaiting approval.
+   * @throws {@link WorkflowApprovalError} When the step is obsolete or the
+   *   decision id conflicts with a different command.
    */
-  async approve(runId: string): Promise<WorkflowRun | null> {
-    const run = await this.workflowRunRepository.findById(runId)
-
-    if (!run) {
-      return null
-    }
-
-    const approvalStep = this.resolveAwaitingApprovalStep(run)
-
-    await this.database.withTransaction(async (transaction) => {
-      await this.transitioner.completeStepAndAdvance({
-        guardStatuses: [WorkflowStepStatus.AWAITING_APPROVAL],
-        run,
-        step: approvalStep,
-        transaction,
-      })
-    })
-
-    return this.workflowRunRepository.findById(runId)
+  async approve(parameters: DecideWorkflowRunApprovalParameters): Promise<WorkflowRun | null> {
+    return this.decide(parameters, WorkflowApprovalDecisionOutcome.APPROVED)
   }
 
   /**
-   * Applies a negative approval decision to a parked run.
+   * Applies a negative approval decision command.
    *
-   * Fails the step awaiting approval and the run in one transaction. The run's
-   * failure payload records the rejected step. Concurrent decisions are
-   * resolved by an optimistic status guard so only one decision applies.
-   *
-   * @param runId - Primary key of the run awaiting approval.
+   * @param parameters - Approval decision command.
    * @returns The refreshed run after the decision; `null` when the run does not exist.
-   * @throws {@link WorkflowApprovalError} When no step is awaiting approval.
+   * @throws {@link WorkflowApprovalError} When the step is obsolete or the
+   *   decision id conflicts with a different command.
    */
-  async reject(runId: string): Promise<WorkflowRun | null> {
-    const run = await this.workflowRunRepository.findById(runId)
-
-    if (!run) {
-      return null
-    }
-
-    const approvalStep = this.resolveAwaitingApprovalStep(run)
-
-    await this.database.withTransaction(async (transaction) => {
-      await this.transitioner.failStepAndRun({
-        failure: {
-          code: 'WORKFLOW_APPROVAL_REJECTED',
-          message: `Approval step ${approvalStep.key} was rejected`,
-        },
-        guardStatuses: [WorkflowStepStatus.AWAITING_APPROVAL],
-        run,
-        step: approvalStep,
-        transaction,
-      })
-    })
-
-    return this.workflowRunRepository.findById(runId)
+  async reject(parameters: DecideWorkflowRunApprovalParameters): Promise<WorkflowRun | null> {
+    return this.decide(parameters, WorkflowApprovalDecisionOutcome.REJECTED)
   }
 
   // MARK: - Private methods
 
-  private resolveAwaitingApprovalStep(run: WorkflowRun): WorkflowStep {
-    const approvalStep = run.steps.find((candidate) => candidate.status === WorkflowStepStatus.AWAITING_APPROVAL)
+  private async decide(
+    parameters: DecideWorkflowRunApprovalParameters,
+    outcome: WorkflowApprovalDecisionOutcome,
+  ): Promise<WorkflowRun | null> {
+    return this.database.withTransaction(async (transaction) => {
+      const run = await this.workflowRunRepository.lockById(parameters.runId, { transaction })
 
-    if (!approvalStep) {
-      throw new WorkflowApprovalError(run.id, `Workflow run ${run.id} has no step awaiting approval`)
+      if (!run) {
+        return null
+      }
+
+      const existing = await this.workflowRunRepository.findApprovalDecisionByDecisionId(parameters.decisionId, {
+        transaction,
+      })
+
+      if (existing) {
+        this.assertIdempotentDecision(parameters, outcome, existing)
+        return this.workflowRunRepository.findById(parameters.runId, { transaction })
+      }
+
+      const approvalStep = this.resolveCurrentApprovalStep(run, parameters.stepId)
+
+      try {
+        await this.workflowRunRepository.createApprovalDecision(
+          {
+            actorId: parameters.actorId,
+            decisionId: parameters.decisionId,
+            outcome,
+            reason: parameters.reason,
+            runId: parameters.runId,
+            stepId: parameters.stepId,
+          },
+          { transaction },
+        )
+      } catch (error) {
+        if (!isUniqueConstraintViolation(error)) {
+          throw error
+        }
+
+        const raced = await this.workflowRunRepository.findApprovalDecisionByDecisionId(parameters.decisionId, {
+          transaction,
+        })
+
+        if (!raced) {
+          throw error
+        }
+
+        this.assertIdempotentDecision(parameters, outcome, raced)
+        return this.workflowRunRepository.findById(parameters.runId, { transaction })
+      }
+
+      if (outcome === WorkflowApprovalDecisionOutcome.APPROVED) {
+        await this.transitioner.completeStepAndAdvance({
+          guardStatuses: [WorkflowStepStatus.AWAITING_APPROVAL],
+          run,
+          step: approvalStep,
+          transaction,
+        })
+      } else {
+        await this.transitioner.failStepAndRun({
+          guardStatuses: [WorkflowStepStatus.AWAITING_APPROVAL],
+          run,
+          step: approvalStep,
+          transaction,
+          failure: sanitizeWorkflowRunFailure({
+            code: WorkflowRunFailureCode.APPROVAL_REJECTED,
+            message: parameters.reason ?? `Approval step ${approvalStep.key} was rejected`,
+          }),
+        })
+      }
+
+      return this.workflowRunRepository.findById(parameters.runId, { transaction })
+    })
+  }
+
+  private assertIdempotentDecision(
+    parameters: DecideWorkflowRunApprovalParameters,
+    outcome: WorkflowApprovalDecisionOutcome,
+    existing: WorkflowApprovalDecision,
+  ): void {
+    if (
+      existing.runId === parameters.runId &&
+      existing.stepId === parameters.stepId &&
+      existing.outcome === outcome &&
+      existing.actorId === parameters.actorId
+    ) {
+      return
     }
 
-    return approvalStep
+    throw new WorkflowApprovalError(
+      parameters.runId,
+      `Workflow approval decision ${parameters.decisionId} conflicts with an existing decision`,
+    )
+  }
+
+  private resolveCurrentApprovalStep(run: WorkflowRun, stepId: string): WorkflowStep {
+    const current = run.steps.find((candidate) => candidate.status === WorkflowStepStatus.AWAITING_APPROVAL)
+
+    if (!current || current.id !== stepId) {
+      throw new WorkflowApprovalError(run.id, `Workflow run ${run.id} step ${stepId} is not the current approval step`)
+    }
+
+    if (current.kind !== WorkflowStepKind.APPROVAL) {
+      throw new WorkflowApprovalError(run.id, `Workflow run ${run.id} step ${current.key} is not an APPROVAL step`)
+    }
+
+    return current
   }
 }

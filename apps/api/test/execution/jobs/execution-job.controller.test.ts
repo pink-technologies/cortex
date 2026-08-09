@@ -5,13 +5,12 @@ import { BadRequestException } from '@nestjs/common'
 import { Test, type TestingModule } from '@nestjs/testing'
 import { AgentExecuteJobKind, CreateAgentExecuteJobRequestSchema } from '@cortex/protocol'
 import { ZodValidationPipe } from '@/http/pipes/zod-validation.pipe'
-import { AgentExecuteFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { agentExecuteFlow } from '@/workflow/definitions'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
 import { ExecutionJobController } from '../../../src/execution/controller/execution-job.controller'
 import { ExecutionJobService } from '../../../src/execution/execution-job.service'
 import { ExecutionJob } from '../../../src/execution/models/execution-job'
-
 const agentExecutePayload = {
   agentId: 'assistant',
   input: 'Reply with hello.',
@@ -19,7 +18,7 @@ const agentExecutePayload = {
 }
 
 const expectedStartParameters = {
-  definitionKey: AgentExecuteFlowDefinitionKey,
+  definitionKey: agentExecuteFlow.key,
   input: {
     agentId: 'assistant',
     input: 'Reply with hello.',
@@ -139,10 +138,10 @@ describe('ExecutionJobController', () => {
 
       expect(start).toHaveBeenCalledWith(
         expect.objectContaining({
-          definitionKey: AgentExecuteFlowDefinitionKey,
+          definitionKey: agentExecuteFlow.key,
         }),
       )
-      expect(AgentExecuteFlowDefinitionKey).toBe('agent.execute.flow')
+      expect(agentExecuteFlow.key).toBe('agent.execute.flow')
     })
 
     it('forwards the payload and priority as run input', async () => {

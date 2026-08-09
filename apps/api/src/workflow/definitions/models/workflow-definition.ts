@@ -38,10 +38,12 @@ export interface WorkflowDefinitionStep {
   /**
    * Builds the child job payload when this `JOB` step is activated.
    *
-   * Receives the run input and prior step outputs; returns the payload the
-   * enqueued execution job carries. When omitted, the step receives the most
-   * recent step output, falling back to the run input. Only valid on `JOB`
-   * steps.
+   * Must be a pure, bounded, synchronous transformation of
+   * {@link WorkflowStepPayloadContext}: no I/O, no mutation of shared state,
+   * and no unbounded allocation. Receives the run input and prior step
+   * outputs; returns the payload the enqueued execution job carries. When
+   * omitted, the step receives the most recent step output, falling back to
+   * the run input. Only valid on `JOB` steps.
    *
    * Throwing (for example a failed schema parse) aborts the enclosing start
    * or advance transaction; the orchestrator surfaces it as a
@@ -75,9 +77,10 @@ export interface WorkflowDefinitionStep {
 /**
  * Code-defined workflow shape used to start runs.
  *
- * Resolved by {@link WorkflowDefinitionRegistry} via {@link key}.
- * {@link WorkflowOrchestrator.start} turns these steps into persisted
- * {@link WorkflowRun} / {@link WorkflowStep} rows.
+ * Resolved by {@link WorkflowDefinitionRegistry} via {@link key} and
+ * {@link version}. {@link WorkflowOrchestrator.start} pins
+ * {@link version} onto the persisted {@link WorkflowRun} so later
+ * registrations for the same key cannot change mid-flight payload builders.
  */
 export interface WorkflowDefinition {
   /**
@@ -94,4 +97,13 @@ export interface WorkflowDefinition {
    * `position` ascending.
    */
   readonly steps: readonly WorkflowDefinitionStep[]
+
+  /**
+   * Immutable revision of this definition under {@link key}.
+   *
+   * Positive integer. Runs persist the version they started with; advance
+   * resolves that exact revision. Register a new version instead of mutating
+   * an existing registration's builders or step shape.
+   */
+  readonly version: number
 }

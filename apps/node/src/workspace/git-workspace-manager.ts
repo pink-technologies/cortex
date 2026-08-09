@@ -46,30 +46,36 @@ export class GitWorkspaceManager implements WorkspaceManager {
   async prepare(request: PrepareWorkspaceRequest): Promise<PreparedWorkspace> {
     request.signal.throwIfAborted()
 
+    // Validate clone URL before allocating a temp directory.
+    const authenticatedCloneUrl = this.injectAccessToken(request.cloneUrl, request.accessToken)
     const root = await mkdtemp(join(tmpdir(), 'cortex-workspace-'))
     const repositoryPath = join(root, 'repo')
-    const authenticatedCloneUrl = this.injectAccessToken(request.cloneUrl, request.accessToken)
 
     try {
-      await this.runGit(
-        ['clone', '--depth', '1', '--branch', request.headRef, authenticatedCloneUrl, repositoryPath],
-        request.signal,
-      )
-    } catch {
-      // Fall back to a full clone + checkout when the ref is not a remote branch tip.
-      await this.runGit(['clone', authenticatedCloneUrl, repositoryPath], request.signal)
-      await this.runGit(['checkout', request.headRef], request.signal, repositoryPath)
-    }
+      try {
+        await this.runGit(
+          ['clone', '--depth', '1', '--branch', request.headRef, authenticatedCloneUrl, repositoryPath],
+          request.signal,
+        )
+      } catch {
+        // Fall back to a full clone + checkout when the ref is not a remote branch tip.
+        await this.runGit(['clone', authenticatedCloneUrl, repositoryPath], request.signal)
+        await this.runGit(['checkout', request.headRef], request.signal, repositoryPath)
+      }
 
-    request.signal.throwIfAborted()
+      request.signal.throwIfAborted()
 
-    const mergeBaseSha = request.baseRef
-      ? await this.resolveMergeBase(repositoryPath, request.baseRef, request.signal)
-      : undefined
+      const mergeBaseSha = request.baseRef
+        ? await this.resolveMergeBase(repositoryPath, request.baseRef, request.signal)
+        : undefined
 
-    return {
-      path: repositoryPath,
-      ...(mergeBaseSha ? { mergeBaseSha } : {}),
+      return {
+        path: repositoryPath,
+        ...(mergeBaseSha ? { mergeBaseSha } : {}),
+      }
+    } catch (error) {
+      await rm(root, { force: true, recursive: true })
+      throw error
     }
   }
 

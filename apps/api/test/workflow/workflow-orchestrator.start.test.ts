@@ -9,19 +9,20 @@ import { Database, DatabaseModule } from '../../src/infraestructure/database'
 import { ExecutionJobStatus } from '../../src/execution/datatypes/execution-job-status'
 import { ExecutionModule } from '../../src/execution/execution.module'
 import {
-  JiraTriageFlowDefinitionKey,
   WorkflowDefinitionNotFoundError,
+  WorkflowDefinitionRegistry,
   WorkflowModule,
   WorkflowOrchestrator,
   WorkflowRunStatus,
   WorkflowStartError,
   WorkflowStepKind,
   WorkflowStepStatus,
+  jiraTriageFlow,
 } from '../../src/workflow'
 import { issueImplementFlowInput } from './issue-implement-fixtures'
-
 describe('WorkflowOrchestrator.start', () => {
   let database: Database
+  let moduleRef: TestingModule
   let orchestrator: WorkflowOrchestrator
 
   const createdRunIds: string[] = []
@@ -29,7 +30,7 @@ describe('WorkflowOrchestrator.start', () => {
   beforeAll(async () => {
     process.env.NODE_ENV ??= 'development'
 
-    const module: TestingModule = await Test.createTestingModule({
+    moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
           envFilePath: `env/.env.${process.env.NODE_ENV ?? 'development'}`,
@@ -41,10 +42,10 @@ describe('WorkflowOrchestrator.start', () => {
       ],
     }).compile()
 
-    await module.init()
+    await moduleRef.init()
 
-    database = module.get(Database)
-    orchestrator = module.get(WorkflowOrchestrator)
+    database = moduleRef.get(Database)
+    orchestrator = moduleRef.get(WorkflowOrchestrator)
   })
 
   afterEach(async () => {
@@ -81,14 +82,15 @@ describe('WorkflowOrchestrator.start', () => {
 
     const { job, run } = await orchestrator.start({
       activeKey: `workflow-start-active:${randomUUID()}`,
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input,
       triggerIdentifier,
     })
     createdRunIds.push(run.id)
 
     expect(run.status).toBe(WorkflowRunStatus.RUNNING)
-    expect(run.definitionKey).toBe(JiraTriageFlowDefinitionKey)
+    expect(run.definitionKey).toBe(jiraTriageFlow.key)
+    expect(run.definitionVersion).toBe(1)
     expect(run.input).toEqual(input)
     expect(run.triggerIdentifier).toBe(triggerIdentifier)
     expect(run.startedAt).toBeInstanceOf(Date)
@@ -160,7 +162,7 @@ describe('WorkflowOrchestrator.start', () => {
 
   it('records the source on the first child job', async () => {
     const { job, run } = await orchestrator.start({
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-30' },
       source: {
         identifier: 'delivery-42',
@@ -189,22 +191,70 @@ describe('WorkflowOrchestrator.start', () => {
     ).rejects.toThrow(WorkflowDefinitionNotFoundError)
   })
 
-  it('rejects duplicate triggerIdentifier on the run', async () => {
+  it('returns the existing run for a duplicate triggerIdentifier', async () => {
     const triggerIdentifier = `workflow-start-dup:${randomUUID()}`
 
     const first = await orchestrator.start({
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-1' },
       triggerIdentifier,
     })
     createdRunIds.push(first.run.id)
 
-    await expect(
-      orchestrator.start({
-        definitionKey: JiraTriageFlowDefinitionKey,
-        input: { issueKey: 'JC-2' },
-        triggerIdentifier,
-      }),
-    ).rejects.toThrow()
+    const second = await orchestrator.start({
+      definitionKey: jiraTriageFlow.key,
+      input: { issueKey: 'JC-2' },
+      triggerIdentifier,
+    })
+
+    expect(second.created).toBe(false)
+    expect(second.run.id).toBe(first.run.id)
+    expect(second.job.id).toBe(first.job.id)
+  })
+
+  it('skips payload builders on idempotent start retries', async () => {
+    const definitionKey = `start-idempotent-builder.flow:${randomUUID()}`
+    let buildCount = 0
+    const registry = moduleRef.get(WorkflowDefinitionRegistry)
+
+    registry.register({
+      key: definitionKey,
+      version: 1,
+      steps: [
+        {
+          buildPayload: (context) => {
+            buildCount += 1
+            if ((context.input as { explode?: boolean }).explode) {
+              throw new Error('builder should not run on retry')
+            }
+            return context.input
+          },
+          key: 'main',
+          kind: WorkflowStepKind.JOB,
+          jobKind: JiraTriageJobKind,
+          position: 0,
+        },
+      ],
+    })
+
+    const triggerIdentifier = `workflow-start-builder-skip:${randomUUID()}`
+    const first = await orchestrator.start({
+      definitionKey,
+      input: { issueKey: 'JC-1' },
+      triggerIdentifier,
+    })
+    createdRunIds.push(first.run.id)
+    expect(buildCount).toBe(1)
+
+    buildCount = 0
+    const second = await orchestrator.start({
+      definitionKey,
+      input: { explode: true, issueKey: 'JC-2' },
+      triggerIdentifier,
+    })
+
+    expect(second.created).toBe(false)
+    expect(second.run.id).toBe(first.run.id)
+    expect(buildCount).toBe(0)
   })
 })

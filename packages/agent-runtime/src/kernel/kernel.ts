@@ -46,9 +46,6 @@ import {
 export class Kernel {
   // MARK: - Private Properties
 
-  /**
-   * Validates and executes tool requests produced by the agent.
-   */
   private readonly toolExecutor: AgentToolExecutor
 
   // MARK: - Constructor
@@ -63,7 +60,7 @@ export class Kernel {
     this.toolExecutor = toolExecutor
   }
 
-  // MARK: - Instance Methods
+  // MARK: - Instance methods
 
   /**
    * Executes an agent request until a final response is produced.
@@ -146,13 +143,13 @@ export class Kernel {
     }
   }
 
-  // MARK: - Private Methods
+  // MARK: - Private methods
 
   private async executeRequest(request: KernelRequest, context: AgentExecutionContext): Promise<KernelResult> {
     const conversation: LLMMessage[] = [...request.messages]
     const allowedToolNames = new Set(request.tools.map((tool) => tool.name))
     const maximumIterations = request.agent.definition.execution.maximumIterations
-
+    
     let usage: TokenUsage = {
       inputTokens: 0,
       outputTokens: 0,

@@ -20,6 +20,10 @@ import type { Agent, AgentTurn, AgentTurnRequest } from '@/agent/models'
  * definition and LLM by hand.
  */
 export class LlmAgent implements Agent {
+  // MARK: - Private Properties
+
+  private readonly llm: LLM
+
   // MARK: - Properties
 
   /**
@@ -27,10 +31,6 @@ export class LlmAgent implements Agent {
    * execution limits, and safety policy).
    */
   readonly definition: AgentDefinition
-
-  // MARK: - Private Properties
-
-  private readonly llm: LLM
 
   // MARK: - Computed Properties
 
@@ -74,10 +74,7 @@ export class LlmAgent implements Agent {
    * @returns The model completion for this turn.
    * @throws {LLMError} When the underlying {@link LLM.complete} call fails.
    */
-  async nextTurn(
-    request: AgentTurnRequest,
-    context: AgentExecutionContext,
-  ): Promise<AgentTurn> {
+  async nextTurn(request: AgentTurnRequest, context: AgentExecutionContext): Promise<AgentTurn> {
     return await this.llm.complete({
       maxOutputTokens: this.definition.llm.maximumOutputTokens,
       messages: request.messages,

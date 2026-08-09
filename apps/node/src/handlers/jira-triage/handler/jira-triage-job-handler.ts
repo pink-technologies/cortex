@@ -2,76 +2,84 @@
 // https://pink-tech.io/
 
 import { Inject, Injectable } from '@nestjs/common'
-import { SkillRegistry, SkillSelector, type AgentDefinition } from '@cortex/agent-runtime'
 import {
   JiraTriageJobKind,
   JiraTriageJobPayloadSchema,
+  type JiraTriageClassification,
+  type JiraTriageEscalation,
   type JiraTriageFix,
   type JiraTriageJobResult,
   type JiraTriageRepro,
+  type JiraTriageTestSuiteResult,
 } from '@cortex/protocol'
-import { AgentProcessResolver } from '../../../agent/agent-process-resolver'
 import {
   ConfigJiraConnectionStore,
   ConfigSourceControlConnectionStore,
+  type JiraProjectRepoLead,
   type SourceControlConnection,
 } from '../../../connection'
 import { NODE_CONFIGURATION, type NodeConfiguration } from '../../../configuration'
 import type { ExecutionJobHandler, ExecutionJobHandlerContext } from '../../../execution/handler'
-import { EXECUTION_ENGINE, type ExecutionEngine } from '../../../execution-engine'
-import { GitHubClient, GitHubPullResource } from '@cortex/integrations/github'
-import { JiraClient, JiraCommentResource, JiraIssueResource, type JiraIssue } from '@cortex/integrations/jira'
+import {
+  JiraClient,
+  JiraCommentResource,
+  JiraIssueResource,
+  JiraUserResource,
+  type JiraCommentMention,
+  type JiraIssue,
+} from '@cortex/integrations/jira'
 import { GitWorkspaceManager } from '../../../workspace'
 import { JiraTriageClassifier } from '../classifier/jira-triage-classifier'
-import { extractJsonObject } from '../mapper/jira-triage-classification-mapper'
-import { buildJiraFixPrompt } from '../composer/jira-triage-prompt-composer'
-import { JiraTriageEscalator } from '../escalator/jira-triage-escalator'
+import {
+  JiraTriageEscalator,
+  type JiraTriageFinishOutcome,
+} from '../escalator/jira-triage-escalator'
+import { JiraTriageReproductionError } from '../error/error'
+import { JiraTriageFixAttempter } from '../fix/jira-triage-fix-attempter'
 import type { ResolvedJiraRepository } from '../models'
+import { JiraTriageReproAttempter } from '../repro/jira-triage-repro-attempter'
 import { resolveJiraRepository } from '../resolver/jira-repo-resolver'
+import { resolveAllowlistedSuites } from '../resolver/resolve-allowlisted-suites'
+import {
+  hasUnrunnableSuiteFailure,
+  isUnrunnableSuiteFailure,
+} from '../runner/is-unrunnable-suite-failure'
 import { TestRunner } from '../runner/test-runner'
 
 /**
  * Executes claimed jobs with kind {@link JiraTriageJobKind}.
  *
- * Flow: read issue → classify → gate assignee → resolve repo → run/dry-run
- * tests → optional coder fix + draft PR → escalate in Jira when needed.
- *
- * Classification and escalation are owned by {@link JiraTriageClassifier} and
- * {@link JiraTriageEscalator}. When `options.classifyOnly` is true, the handler
- * stops after classify/escalate without clone or repro.
+ * Flow: start comment → classify → gate assignee → for bugs resolve repo →
+ * clone → run allowlisted suites → suite_broken / fill-tests / fix → finish
+ * comment (with project-lead @-mention when escalating).
  */
 @Injectable()
 export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobResult> {
   readonly kind = JiraTriageJobKind
-
-  private readonly skillSelector = new SkillSelector()
 
   // MARK: - Constructor
 
   /**
    * Creates a `jira.triage` job handler.
    *
-   * @param agentProcessResolver - Resolves the coder agent for fix attempts.
    * @param classifier - Runs the QA classify step.
    * @param configuration - Node configuration for triage runtime gates.
-   * @param escalator - Posts Jira escalation comments and reassignments.
-   * @param executionEngine - Engine used for fix agent runs.
+   * @param escalator - Posts Jira start/finish comments and reassignments.
+   * @param fixAttempter - Runs coder autofix after a successful repro.
    * @param jiraConnectionStore - Store resolving Jira connection credentials.
-   * @param skillRegistry - Registry of skills available for selective injection.
+   * @param reproAttempter - Authors regression tests when suites are initially green.
    * @param sourceControlConnectionStore - Store resolving source-control credentials.
    * @param testRunner - Runs or dry-runs reproduction tests in the workspace.
    * @param workspaceManager - Prepares git workspaces for triage runs.
    */
   constructor(
-    private readonly agentProcessResolver: AgentProcessResolver,
     private readonly classifier: JiraTriageClassifier,
     @Inject(NODE_CONFIGURATION)
     private readonly configuration: NodeConfiguration,
     private readonly escalator: JiraTriageEscalator,
-    @Inject(EXECUTION_ENGINE)
-    private readonly executionEngine: ExecutionEngine,
+    private readonly fixAttempter: JiraTriageFixAttempter,
     private readonly jiraConnectionStore: ConfigJiraConnectionStore,
-    private readonly skillRegistry: SkillRegistry,
+    private readonly reproAttempter: JiraTriageReproAttempter,
     private readonly sourceControlConnectionStore: ConfigSourceControlConnectionStore,
     private readonly testRunner: TestRunner,
     private readonly workspaceManager: GitWorkspaceManager,
@@ -85,24 +93,26 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
     const jiraClient = new JiraClient(jiraConnection)
     const jiraComments = new JiraCommentResource(jiraClient)
     const jiraIssues = new JiraIssueResource(jiraClient)
+    const jiraUsers = new JiraUserResource(jiraClient)
     const issue = await jiraIssues.get(jobPayload.issueKey, context.signal)
 
+    await jiraComments.create(issue.key, this.escalator.formatStartComment(), context.signal)
+
     const classification = await this.classifier.classify(issue, context.signal)
+    const projectLead = this.lookupProjectLead(issue.projectKey)
 
     if (!this.passesAssigneeGate(issue, jobPayload.assigneeFilter)) {
-      const escalation = await this.escalator.escalate({
-        comment: this.escalator.formatComment({
-          classification,
-          issueKey: issue.key,
-          reason: 'Issue is not assigned to the configured automation user.',
-        }),
+      const escalation = await this.finish({
         comments: jiraComments,
+        escalateAccountIdFallback: undefined,
         issues: jiraIssues,
-        escalateAccountId: undefined,
         issueKey: issue.key,
+        outcome: 'wrong_assignee',
+        projectLead: undefined,
         reason: 'Assignee gate failed.',
         reassign: false,
         signal: context.signal,
+        users: jiraUsers,
       })
 
       return {
@@ -112,38 +122,52 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
       }
     }
 
-    if (!classification.automationEligible || classification.class !== 'bug') {
-      const escalation = await this.escalator.escalate({
-        comment: this.escalator.formatComment({
-          classification,
-          issueKey: issue.key,
-          reason: 'Ticket is not an automation-eligible bug.',
-        }),
+    if (classification.class !== 'bug') {
+      const nonBugClassification: JiraTriageClassification = {
+        ...classification,
+        automationEligible: false,
+      }
+
+      const escalation = await this.finish({
         comments: jiraComments,
+        escalateAccountIdFallback: undefined,
         issues: jiraIssues,
-        escalateAccountId: this.lookupEscalateAccountId(issue.projectKey),
         issueKey: issue.key,
-        reason: 'Not automation-eligible.',
-        reassign: true,
+        outcome: 'not_bug',
+        projectLead: undefined,
+        reason: 'Not a bug.',
+        reassign: false,
         signal: context.signal,
+        users: jiraUsers,
       })
 
       return {
-        classification,
+        classification: nonBugClassification,
         escalation,
         issueKey: issue.key,
       }
     }
 
     if (jobPayload.options.classifyOnly) {
+      await jiraComments.create(
+        issue.key,
+        this.escalator.formatFinishComment({ outcome: 'classify_only' }),
+        context.signal,
+      )
+
       return {
         classification,
         escalation: {
-          action: 'none',
+          action: 'comment',
           reason: 'classifyOnly: stopped before repository resolution and reproduction.',
         },
         issueKey: issue.key,
       }
+    }
+
+    const bugClassification: JiraTriageClassification = {
+      ...classification,
+      automationEligible: true,
     }
 
     const resolution = resolveJiraRepository({
@@ -159,23 +183,21 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
           ? 'No GitHub repository mapping for this ticket.'
           : `Ambiguous GitHub repositories: ${resolution.repositories.join(', ')}`
 
-      const escalation = await this.escalator.escalate({
-        comment: this.escalator.formatComment({
-          classification,
-          issueKey: issue.key,
-          reason,
-        }),
+      const escalation = await this.finish({
         comments: jiraComments,
+        escalateAccountIdFallback: this.lookupEscalateAccountId(issue.projectKey),
         issues: jiraIssues,
-        escalateAccountId: this.lookupEscalateAccountId(issue.projectKey),
         issueKey: issue.key,
+        outcome: resolution.kind === 'missing' ? 'missing_repo' : 'ambiguous_repo',
+        projectLead,
         reason,
         reassign: true,
         signal: context.signal,
+        users: jiraUsers,
       })
 
       return {
-        classification,
+        classification: bugClassification,
         escalation,
         issueKey: issue.key,
         repro: {
@@ -187,30 +209,28 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
     }
 
     const repository = resolution.repository
-    const suites = {
-      ...(repository.unitTestCommand ? { unit: repository.unitTestCommand } : {}),
-      ...(repository.uiTestCommand ? { ui: repository.uiTestCommand } : {}),
-    }
+    const suites = resolveAllowlistedSuites(repository, {
+      issueText: [issue.summary, issue.descriptionText, ...issue.labels].join('\n'),
+      selectedAreas: bugClassification.areas,
+    })
 
     if (Object.keys(suites).length === 0) {
-      const reason = 'Repository mapping has no allowlisted unit/UI test commands.'
-      const escalation = await this.escalator.escalate({
-        comment: this.escalator.formatComment({
-          classification,
-          issueKey: issue.key,
-          reason,
-        }),
+      const reason = 'Repository mapping has no allowlisted test suites.'
+      const escalation = await this.finish({
         comments: jiraComments,
+        escalateAccountIdFallback: repository.escalateAccountId,
         issues: jiraIssues,
-        escalateAccountId: repository.escalateAccountId,
         issueKey: issue.key,
+        outcome: 'no_suites',
+        projectLead: repository.projectLead ?? projectLead,
         reason,
         reassign: true,
         signal: context.signal,
+        users: jiraUsers,
       })
 
       return {
-        classification,
+        classification: bugClassification,
         escalation,
         issueKey: issue.key,
         repository: this.toResultRepository(repository),
@@ -224,17 +244,14 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
 
     if (jobPayload.options.dryRunTests) {
       const dryRunSuites = this.testRunner.dryRun(suites)
-      const comment = this.escalator.formatComment({
-        classification,
-        issueKey: issue.key,
-        reason: `Dry-run: would execute ${dryRunSuites.map((suite) => suite.command).join(' | ')}`,
-        repository,
-      })
-
-      await jiraComments.create(issue.key, comment, context.signal)
+      await jiraComments.create(
+        issue.key,
+        this.escalator.formatFinishComment({ outcome: 'dry_run' }),
+        context.signal,
+      )
 
       return {
-        classification,
+        classification: bugClassification,
         escalation: {
           action: 'comment',
           reason: 'Dry-run completed; no escalation reassignment.',
@@ -251,64 +268,138 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
 
     const sourceControlConnection = this.resolveSourceControlConnection(
       jobPayload.sourceControlConnectionId ?? repository.sourceControlConnectionId,
+      issue.key,
     )
 
-    const workspace = await this.workspaceManager.prepare({
-      accessToken: sourceControlConnection.token,
-      cloneUrl: repository.cloneUrl,
-      headRef: repository.defaultBranch,
-      signal: context.signal,
-    })
+    let workspace
+    try {
+      workspace = await this.workspaceManager.prepare({
+        accessToken: sourceControlConnection.token,
+        cloneUrl: repository.cloneUrl,
+        headRef: repository.defaultBranch,
+        signal: context.signal,
+      })
+    } catch (error) {
+      if (context.signal.aborted) {
+        throw error
+      }
+
+      throw new JiraTriageReproductionError(
+        issue.key,
+        `Failed to prepare a workspace for Jira issue '${issue.key}'.`,
+        { cause: error },
+      )
+    }
 
     try {
-      const suiteResults = await this.testRunner.run({
-        signal: context.signal,
-        suites,
-        workingDirectory: workspace.path,
-      })
+      let suiteResults = await this.runSuites(issue.key, suites, workspace.path, context.signal)
+      let failing = this.failingSuites(suiteResults)
 
-      const failing = suiteResults.filter((suite) => (suite.exitCode ?? 0) !== 0)
-      const reproduced = failing.length > 0
+      if (hasUnrunnableSuiteFailure(failing)) {
+        return this.finishSuiteBroken({
+          classification: bugClassification,
+          comments: jiraComments,
+          issues: jiraIssues,
+          issueKey: issue.key,
+          projectLead: repository.projectLead ?? projectLead,
+          repository,
+          signal: context.signal,
+          suiteResults,
+          summaryPrefix: 'Suite(s) could not run (build or environment)',
+          users: jiraUsers,
+          reason:
+            'Allowlisted suite(s) failed before tests could run (build or environment). Autofix skipped.',
+        })
+      }
+
+      let reproduced = failing.length > 0
+      let testAuthoringSummary: string | undefined
+
+      if (!reproduced) {
+        const authoring = await this.reproAttempter.attempt({
+          issue,
+          signal: context.signal,
+          suites,
+          workspace,
+        })
+        testAuthoringSummary = authoring.committed
+          ? `Test authoring committed on ${authoring.branchName}: ${authoring.summary}`
+          : `Test authoring attempted on ${authoring.branchName}: ${authoring.summary}`
+
+        suiteResults = await this.runSuites(issue.key, suites, workspace.path, context.signal)
+        failing = this.failingSuites(suiteResults)
+        reproduced = failing.length > 0
+
+        if (hasUnrunnableSuiteFailure(failing)) {
+          return this.finishSuiteBroken({
+            classification: bugClassification,
+            comments: jiraComments,
+            issues: jiraIssues,
+            issueKey: issue.key,
+            projectLead: repository.projectLead ?? projectLead,
+            repository,
+            signal: context.signal,
+            suiteResults,
+            summaryDetail: testAuthoringSummary,
+            summaryPrefix:
+              'Suite(s) could not run after test authoring (build or environment)',
+            users: jiraUsers,
+            reason:
+              'Allowlisted suite(s) failed before tests could run after test authoring. Autofix skipped.',
+          })
+        }
+      }
 
       const repro: JiraTriageRepro = {
         status: reproduced ? 'reproduced' : 'not_reproduced',
         summary: reproduced
-          ? `Failing suites: ${failing.map((suite) => suite.suiteId).join(', ')}`
-          : 'Configured tests passed; issue not reproduced.',
+          ? [
+              `Failing suites: ${failing.map((suite) => suite.suiteId).join(', ')}`,
+              testAuthoringSummary,
+            ]
+              .filter((part): part is string => part !== undefined)
+              .join(' — ')
+          : [
+              'Configured tests passed; issue not reproduced.',
+              testAuthoringSummary,
+            ]
+              .filter((part): part is string => part !== undefined)
+              .join(' — '),
         suites: suiteResults,
       }
 
       let fix: JiraTriageFix | undefined
 
       if (reproduced && jobPayload.options.attemptFix) {
-        fix = await this.attemptFix({
+        fix = await this.fixAttempter.attempt({
           failingSummary: failing.map((suite) => suite.summary ?? suite.command).join('\n\n'),
           issue,
           repository,
           signal: context.signal,
           sourceControlConnection,
           suites,
-          workspacePath: workspace.path,
+          workspace,
         })
       }
 
       if (fix?.succeeded && fix.pullRequestUrl) {
-        const comment = [
-          `Cortex QA reproduced \`${issue.key}\` and opened a draft PR.`,
-          '',
-          `- Classification: ${classification.class} (${classification.confidence})`,
-          `- PR: ${fix.pullRequestUrl}`,
-          `- Fix: ${fix.summary ?? 'see PR'}`,
-        ].join('\n')
-
-        await jiraComments.create(issue.key, comment, context.signal)
+        const escalation = await this.finish({
+          comments: jiraComments,
+          escalateAccountIdFallback: undefined,
+          issues: jiraIssues,
+          issueKey: issue.key,
+          outcome: 'fix_succeeded',
+          projectLead: undefined,
+          pullRequestUrl: fix.pullRequestUrl,
+          reason: 'Fix succeeded; draft PR linked on the ticket.',
+          reassign: false,
+          signal: context.signal,
+          users: jiraUsers,
+        })
 
         return {
-          classification,
-          escalation: {
-            action: 'comment',
-            reason: 'Fix succeeded; draft PR linked on the ticket.',
-          },
+          classification: bugClassification,
+          escalation,
           fix,
           issueKey: issue.key,
           repository: this.toResultRepository(repository),
@@ -316,32 +407,33 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
         }
       }
 
+      const outcome: JiraTriageFinishOutcome = reproduced
+        ? fix?.attempted
+          ? 'reproduced_fix_failed'
+          : 'reproduced_no_fix'
+        : 'not_reproduced'
+
       const reason = reproduced
         ? fix?.attempted
           ? 'Bug reproduced but fix did not leave tests green.'
           : 'Bug reproduced; autofix disabled.'
-        : 'Could not reproduce the reported bug with mapped tests.'
+        : 'Could not reproduce the reported bug with mapped tests after test authoring.'
 
-      const escalation = await this.escalator.escalate({
-        comment: this.escalator.formatComment({
-          classification,
-          fix,
-          issueKey: issue.key,
-          reason,
-          repository,
-          repro,
-        }),
+      const escalation = await this.finish({
         comments: jiraComments,
+        escalateAccountIdFallback: repository.escalateAccountId,
         issues: jiraIssues,
-        escalateAccountId: repository.escalateAccountId,
         issueKey: issue.key,
+        outcome,
+        projectLead: repository.projectLead ?? projectLead,
         reason,
         reassign: true,
         signal: context.signal,
+        users: jiraUsers,
       })
 
       return {
-        classification,
+        classification: bugClassification,
         escalation,
         fix,
         issueKey: issue.key,
@@ -353,107 +445,161 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
     }
   }
 
-  private async attemptFix(input: {
-    readonly failingSummary: string
-    readonly issue: JiraIssue
+  private async runSuites(
+    issueKey: string,
+    suites: Readonly<Record<string, string>>,
+    workingDirectory: string,
+    signal: AbortSignal,
+  ): Promise<JiraTriageTestSuiteResult[]> {
+    try {
+      return await this.testRunner.run({
+        signal,
+        suites,
+        workingDirectory,
+      })
+    } catch (error) {
+      if (signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+        throw error
+      }
+
+      throw new JiraTriageReproductionError(
+        issueKey,
+        `Failed to run reproduction suites for Jira issue '${issueKey}'.`,
+        { cause: error },
+      )
+    }
+  }
+
+  private failingSuites(suiteResults: readonly JiraTriageTestSuiteResult[]): JiraTriageTestSuiteResult[] {
+    return suiteResults.filter((suite) => (suite.exitCode ?? 0) !== 0)
+  }
+
+  /**
+   * Posts a human finish comment and optional project-lead reassignment.
+   *
+   * @param input - Outcome, Jira clients, and optional lead config.
+   * @returns Escalation result for the job payload.
+   */
+  private async finish(input: {
+    readonly comments: JiraCommentResource
+    readonly escalateAccountIdFallback: string | undefined
+    readonly issues: JiraIssueResource
+    readonly issueKey: string
+    readonly outcome: JiraTriageFinishOutcome
+    readonly projectLead: JiraProjectRepoLead | undefined
+    readonly pullRequestUrl?: string
+    readonly reason: string
+    readonly reassign: boolean
+    readonly signal: AbortSignal
+    readonly users: JiraUserResource
+  }): Promise<JiraTriageEscalation> {
+    const resolved = await this.resolveProjectLead(input.projectLead, input.users, input.signal)
+    const mention: JiraCommentMention | undefined = resolved
+      ? {
+          accountId: resolved.accountId,
+          displayName: resolved.displayName,
+        }
+      : undefined
+
+    return this.escalator.escalate({
+      comment: this.escalator.formatFinishComment({
+        mentionDisplayName: mention?.displayName,
+        outcome: input.outcome,
+        pullRequestUrl: input.pullRequestUrl,
+      }),
+      comments: input.comments,
+      escalateAccountId: mention?.accountId ?? input.escalateAccountIdFallback,
+      issueKey: input.issueKey,
+      issues: input.issues,
+      mention,
+      reason: input.reason,
+      reassign: input.reassign,
+      signal: input.signal,
+    })
+  }
+
+  /**
+   * Escalates when allowlisted suites fail before tests can run.
+   *
+   * @param input - Classification, Jira clients, suite outcomes, and copy.
+   * @returns Triage result with {@link JiraTriageRepro.status} `suite_broken`.
+   */
+  private async finishSuiteBroken(input: {
+    readonly classification: JiraTriageClassification
+    readonly comments: JiraCommentResource
+    readonly issues: JiraIssueResource
+    readonly issueKey: string
+    readonly projectLead: JiraProjectRepoLead | undefined
+    readonly reason: string
     readonly repository: ResolvedJiraRepository
     readonly signal: AbortSignal
-    readonly sourceControlConnection: SourceControlConnection
-    readonly suites: Readonly<Partial<Record<'unit' | 'ui', string>>>
-    readonly workspacePath: string
-  }): Promise<JiraTriageFix> {
-    const coderAgent = this.agentProcessResolver.resolveAgent('repository.review')
-    const fixContext = [input.issue.key, input.issue.summary, input.failingSummary, 'fix', 'pull request'].join(' ')
-    const skillPrompts = this.resolveSkillPrompts(coderAgent, fixContext)
-    const branchName = `cortex/jira-${input.issue.key.toLowerCase()}-${Date.now()}`
-
-    const workspace = { path: input.workspacePath }
-    await this.workspaceManager.createBranch(workspace, branchName, input.signal)
-
-    const prompt = buildJiraFixPrompt({
-      failingSummary: input.failingSummary,
-      issue: input.issue,
-      skillPrompts,
-      systemPrompt: coderAgent.descriptor.systemPrompt,
-    })
-
-    const engineResult = await this.executionEngine.run({
-      agentId: coderAgent.id,
-      cwd: input.workspacePath,
-      prompt,
-      signal: input.signal,
-    })
-
-    let fixSummary = 'Agent fix attempt completed.'
-    try {
-      const parsed = extractJsonObject(engineResult.output) as {
-        summary?: string
-      }
-      if (typeof parsed.summary === 'string' && parsed.summary.trim()) {
-        fixSummary = parsed.summary.trim()
-      }
-    } catch {
-      // Keep default summary when the engine does not return JSON.
+    readonly suiteResults: readonly JiraTriageTestSuiteResult[]
+    readonly summaryDetail?: string
+    readonly summaryPrefix: string
+    readonly users: JiraUserResource
+  }): Promise<JiraTriageJobResult> {
+    const brokenIds = input.suiteResults
+      .filter((suite) => isUnrunnableSuiteFailure(suite))
+      .map((suite) => suite.suiteId)
+    const repro: JiraTriageRepro = {
+      status: 'suite_broken',
+      summary: [`${input.summaryPrefix}: ${brokenIds.join(', ')}`, input.summaryDetail]
+        .filter((part): part is string => part !== undefined)
+        .join(' — '),
+      suites: [...input.suiteResults],
     }
 
-    const committed = await this.workspaceManager.commitAll(
-      workspace,
-      `fix(${input.issue.key}): ${fixSummary}`,
-      input.signal,
-    )
-
-    if (!committed) {
-      return {
-        attempted: true,
-        branchName,
-        succeeded: false,
-        summary: 'Agent produced no commit.',
-      }
-    }
-
-    const retest = await this.testRunner.run({
+    const escalation = await this.finish({
+      comments: input.comments,
+      escalateAccountIdFallback: input.repository.escalateAccountId,
+      issues: input.issues,
+      issueKey: input.issueKey,
+      outcome: 'suite_broken',
+      projectLead: input.projectLead,
+      reason: input.reason,
+      reassign: true,
       signal: input.signal,
-      suites: input.suites,
-      workingDirectory: input.workspacePath,
+      users: input.users,
     })
-
-    const stillFailing = retest.some((suite) => (suite.exitCode ?? 0) !== 0)
-    if (stillFailing) {
-      return {
-        attempted: true,
-        branchName,
-        succeeded: false,
-        summary: fixSummary,
-      }
-    }
-
-    await this.workspaceManager.pushBranch({
-      accessToken: input.sourceControlConnection.token,
-      branchName,
-      cloneUrl: input.repository.cloneUrl,
-      signal: input.signal,
-      workspace,
-    })
-
-    const pulls = new GitHubPullResource(new GitHubClient(input.sourceControlConnection))
-    const pullRequestUrl = await pulls.createDraft(
-      input.repository.owner,
-      input.repository.name,
-      {
-        base: input.repository.defaultBranch,
-        body: [`Automated fix attempt for ${input.issue.key}.`, '', input.issue.summary, '', fixSummary].join('\n'),
-        head: branchName,
-        title: `fix(${input.issue.key}): ${input.issue.summary}`.slice(0, 120),
-      },
-      input.signal,
-    )
 
     return {
-      attempted: true,
-      branchName,
-      pullRequestUrl,
-      succeeded: true,
-      summary: fixSummary,
+      classification: input.classification,
+      escalation,
+      issueKey: input.issueKey,
+      repository: this.toResultRepository(input.repository),
+      repro,
+    }
+  }
+
+  /**
+   * Resolves a configured project lead email to a Jira user for mention/assign.
+   *
+   * Soft-fails to `undefined` when lookup throws so the finish comment still
+   * posts without a mention.
+   *
+   * @param projectLead - Optional lead from project mapping.
+   * @param users - Jira user resource.
+   * @param signal - Abort signal.
+   * @returns Resolved lead identity, or `undefined`.
+   */
+  private async resolveProjectLead(
+    projectLead: JiraProjectRepoLead | undefined,
+    users: JiraUserResource,
+    signal: AbortSignal,
+  ): Promise<{ accountId: string; displayName: string } | undefined> {
+    if (!projectLead?.email) {
+      return undefined
+    }
+
+    try {
+      const user = await users.findByEmail(projectLead.email, signal)
+
+      return {
+        accountId: user.accountId,
+        displayName: projectLead.displayName?.trim() || user.displayName,
+      }
+    } catch {
+      return undefined
     }
   }
 
@@ -482,17 +628,41 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
     return true
   }
 
-  private resolveSourceControlConnection(connectionId: string | undefined): SourceControlConnection {
-    if (connectionId) {
-      return this.sourceControlConnectionStore.resolve(connectionId)
-    }
+  private resolveSourceControlConnection(
+    connectionId: string | undefined,
+    issueKey: string,
+  ): SourceControlConnection {
+    try {
+      if (connectionId) {
+        return this.sourceControlConnectionStore.resolve(connectionId)
+      }
 
-    const first = this.configuration.sourceControlConnections[0]
-    if (!first) {
-      throw new Error('No GitHub source-control connection is configured for jira.triage clone/PR work.')
-    }
+      const first = this.configuration.sourceControlConnections[0]
+      if (!first) {
+        throw new JiraTriageReproductionError(
+          issueKey,
+          'No GitHub source-control connection is configured for jira.triage clone/PR work.',
+        )
+      }
 
-    return first
+      return first
+    } catch (error) {
+      if (error instanceof JiraTriageReproductionError) {
+        throw error
+      }
+
+      throw new JiraTriageReproductionError(
+        issueKey,
+        `Failed to resolve a GitHub source-control connection for Jira issue '${issueKey}'.`,
+        { cause: error },
+      )
+    }
+  }
+
+  private lookupProjectLead(projectKey: string): JiraProjectRepoLead | undefined {
+    return this.configuration.jiraProjectRepos.find(
+      (entry) => entry.projectKey.toUpperCase() === projectKey.toUpperCase(),
+    )?.projectLead
   }
 
   private lookupEscalateAccountId(projectKey: string): string | undefined {
@@ -509,17 +679,5 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
       owner: repository.owner,
       source: repository.source,
     }
-  }
-
-  private resolveSkillPrompts(agent: AgentDefinition, context: string): readonly string[] {
-    if (!agent.safety.allowSkillUse) {
-      return []
-    }
-
-    const authorized = agent.descriptor.skills.map((skillId) => {
-      return this.skillRegistry.resolve(skillId)
-    })
-
-    return this.skillSelector.select({ context, skills: authorized }).map((skill) => skill.prompt)
   }
 }

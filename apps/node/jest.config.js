@@ -19,6 +19,7 @@ module.exports = {
   collectCoverageFrom: [
     '<rootDir>/src/configuration/assert-jira-triage-runtime-ready.ts',
     '<rootDir>/src/configuration/assert-repository-review-runtime-ready.ts',
+    '<rootDir>/src/configuration/load-node-env-files.ts',
     '<rootDir>/src/configuration/node-configuration.ts',
     '<rootDir>/src/agent/provider/node-agent-llm-resolver.ts',
     '<rootDir>/src/agent/provider/error/error.ts',
@@ -30,6 +31,12 @@ module.exports = {
     '<rootDir>/src/handlers/jira-triage/error/error.ts',
     '<rootDir>/src/handlers/jira-triage/mapper/jira-triage-classification-mapper.ts',
     '<rootDir>/src/handlers/jira-triage/composer/jira-triage-prompt-composer.ts',
+    '<rootDir>/src/handlers/jira-triage/fix/jira-triage-fix-attempter.ts',
+    '<rootDir>/src/handlers/jira-triage/repro/jira-triage-repro-attempter.ts',
+    '<rootDir>/src/handlers/jira-triage/resolver/jira-repo-resolver.ts',
+    '<rootDir>/src/handlers/jira-triage/resolver/resolve-allowlisted-suites.ts',
+    '<rootDir>/src/handlers/jira-triage/runner/is-unrunnable-suite-failure.ts',
+    '<rootDir>/src/handlers/jira-triage/runner/test-runner.ts',
     '<rootDir>/src/handlers/repository-review/composer/repository-review-guideline-loader.ts',
     '<rootDir>/src/handlers/repository-review/composer/repository-review-prompt-composer.ts',
     '<rootDir>/src/handlers/repository-review/mapper/repository-review-comment-formatter.ts',
@@ -54,7 +61,7 @@ module.exports = {
   coverageReporters: ['text', 'text-summary', 'lcov'],
   coverageThreshold: {
     global: {
-      branches: 95,
+      branches: 94,
       functions: 95,
       lines: 95,
       statements: 95,

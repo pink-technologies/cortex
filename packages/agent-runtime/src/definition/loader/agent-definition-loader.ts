@@ -1,11 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import path from 'path';
+import path from 'path'
 import { readdir, readFile } from 'fs/promises'
 import { AgentDefinition } from '@/definition/models/agent-definition'
 import { agentSchema } from '@/definition/schema/agent-schema'
-import { DECODER, Decoder } from '@/manifest/decoder/decoder'
+import { Decoder } from '@/manifest/decoder/decoder'
 
 /**
  * Loads bundled agent definitions from the local file system.
@@ -41,9 +41,7 @@ export class AgentDefinitionLoader {
    *
    * @param decoder - The decoder used to parse and validate agent manifests.
    */
-  constructor(    
-    private readonly decoder: Decoder,
-  ) {}
+  constructor(private readonly decoder: Decoder) {}
 
   // MARK: - Instance methods
 
@@ -69,34 +67,34 @@ export class AgentDefinitionLoader {
    * or converted into an `Agent`.
    */
   async loadAgentsFromRootDirectory(rootDirectoryPath: string): Promise<AgentDefinition[]> {
-    const entries = await readdir(rootDirectoryPath, { withFileTypes: true });
-    const agents: AgentDefinition[] = [];
+    const entries = await readdir(rootDirectoryPath, { withFileTypes: true })
+    const agents: AgentDefinition[] = []
 
     for (const entry of entries) {
       if (!entry.isDirectory()) {
-        continue;
+        continue
       }
 
       try {
-        const agentsDirectoryPath = path.join(rootDirectoryPath, entry.name);
-        const manifestPath = path.join(agentsDirectoryPath, 'agent.toml');
+        const agentsDirectoryPath = path.join(rootDirectoryPath, entry.name)
+        const manifestPath = path.join(agentsDirectoryPath, 'agent.toml')
 
-        const raw = await readFile(manifestPath, 'utf8');
-        const schema = this.decoder.decode(raw, agentSchema.parse);
+        const raw = await readFile(manifestPath, 'utf8')
+        const schema = this.decoder.decode(raw, agentSchema.parse)
 
-        const promptPath = path.join(agentsDirectoryPath, schema.prompt_file);
-        const systemPrompt = await readFile(promptPath, 'utf8');
+        const promptPath = path.join(agentsDirectoryPath, schema.prompt_file)
+        const systemPrompt = await readFile(promptPath, 'utf8')
 
-        const agent = AgentDefinition.from(schema, systemPrompt);
+        const agent = AgentDefinition.from(schema, systemPrompt)
 
-        agents.push(agent);
+        agents.push(agent)
       } catch (error) {
         throw new Error(`Failed to load agent from directory: ${entry.name}`, {
           cause: error,
-        });
+        })
       }
     }
 
-    return agents;
+    return agents
   }
 }

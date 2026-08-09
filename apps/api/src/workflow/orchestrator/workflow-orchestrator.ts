@@ -5,7 +5,7 @@ import { Injectable } from '@nestjs/common'
 import { WorkflowAdvancer, WorkflowApprovalHandler, WorkflowCanceller, WorkflowStarter } from './operations'
 import type { StartWorkflowRunResult } from '../models/start-workflow-run-result'
 import type { WorkflowRun } from '../models/workflow-run'
-import type { StartWorkflowRunParameters } from '../parameters/start-workflow-run-parameters'
+import type { DecideWorkflowRunApprovalParameters, StartWorkflowRunParameters } from '../parameters'
 
 /**
  * Public entry point for starting and advancing workflow runs.
@@ -46,19 +46,21 @@ export class WorkflowOrchestrator {
   // MARK: - Instance methods
 
   /**
-   * Applies a positive approval decision to a parked run.
+   * Applies a positive approval decision command.
    *
-   * Completes the step awaiting approval, then activates the next `JOB` step
-   * (returning the run to `RUNNING`), parks again when the next step is
-   * another `APPROVAL`, or completes the run when no steps remain. Concurrent
-   * decisions are resolved by an optimistic status guard so only one applies.
+   * Locks the run, verifies {@link DecideWorkflowRunApprovalParameters.stepId}
+   * is the current approval gate, persists a unique audit decision for
+   * {@link DecideWorkflowRunApprovalParameters.decisionId}, then completes the
+   * step and advances. Repeated decision ids are idempotent; obsolete steps
+   * fail with {@link WorkflowApprovalError}.
    *
-   * @param runId - Primary key of the run awaiting approval.
+   * @param parameters - Approval decision command.
    * @returns The refreshed run after the decision; `null` when the run does not exist.
-   * @throws {@link WorkflowApprovalError} When no step is awaiting approval.
+   * @throws {@link WorkflowApprovalError} When the step is obsolete or the
+   *   decision id conflicts.
    */
-  async approve(runId: string): Promise<WorkflowRun | null> {
-    return this.approvalHandler.approve(runId)
+  async approve(parameters: DecideWorkflowRunApprovalParameters): Promise<WorkflowRun | null> {
+    return this.approvalHandler.approve(parameters)
   }
 
   /**
@@ -105,17 +107,20 @@ export class WorkflowOrchestrator {
   }
 
   /**
-   * Applies a negative approval decision to a parked run.
+   * Applies a negative approval decision command.
    *
-   * Fails the step awaiting approval and the run in one transaction. The
-   * run's failure payload records the rejected step.
+   * Locks the run, verifies the named step is the current approval gate,
+   * persists a unique audit decision, then fails the step and run. Repeated
+   * decision ids are idempotent; obsolete steps fail with
+   * {@link WorkflowApprovalError}.
    *
-   * @param runId - Primary key of the run awaiting approval.
+   * @param parameters - Approval decision command.
    * @returns The refreshed run after the decision; `null` when the run does not exist.
-   * @throws {@link WorkflowApprovalError} When no step is awaiting approval.
+   * @throws {@link WorkflowApprovalError} When the step is obsolete or the
+   *   decision id conflicts.
    */
-  async reject(runId: string): Promise<WorkflowRun | null> {
-    return this.approvalHandler.reject(runId)
+  async reject(parameters: DecideWorkflowRunApprovalParameters): Promise<WorkflowRun | null> {
+    return this.approvalHandler.reject(parameters)
   }
 
   /**
@@ -127,10 +132,11 @@ export class WorkflowOrchestrator {
    * `RUNNING`. Those writes run in a single transaction.
    *
    * @param parameters - Definition key, input, and optional run idempotency keys.
-   * @returns The activated run and the first-step child job.
+   * @returns The activated (or existing) run, first-step child job, and whether
+   *   a new run was created.
    * @throws {@link WorkflowDefinitionNotFoundError} When the definition key is unknown.
    * @throws {@link WorkflowStartError} When the first step is not an activatable `JOB`.
-   * @throws {@link WorkflowRunCreateError} When run persistence fails (including unique collisions).
+   * @throws {@link WorkflowRunCreateError} When run persistence fails for a non-idempotent reason.
    */
   async start(parameters: StartWorkflowRunParameters): Promise<StartWorkflowRunResult> {
     return this.starter.start(parameters)

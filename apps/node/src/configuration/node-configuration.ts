@@ -49,17 +49,46 @@ const JiraConnectionSchema = z
   .strict()
 
 /**
+ * Validates one named allowlisted suite entry.
+ */
+const JiraProjectRepoSuiteSchema = z
+  .object({
+    command: z.string().trim().min(1),
+  })
+  .strict()
+
+/**
+ * Validates one human-facing area → suite-keys mapping entry.
+ */
+const JiraProjectRepoAreaSchema = z
+  .object({
+    aliases: z.array(z.string().trim().min(1)).optional(),
+    suiteKeys: z.array(z.string().trim().min(1)).min(1),
+  })
+  .strict()
+
+/**
  * Validates one project→repo mapping entry from `CORTEX_JIRA_PROJECT_REPOS`.
  */
+const JiraProjectRepoLeadSchema = z
+  .object({
+    displayName: z.string().trim().min(1).optional(),
+    email: z.string().trim().pipe(z.email()),
+  })
+  .strict()
+
 const JiraProjectRepoSchema = z
   .object({
+    areas: z.record(z.string().trim().min(1), JiraProjectRepoAreaSchema).optional(),
     cloneUrl: z.string().trim().pipe(z.url()),
     defaultBranch: z.string().trim().min(1).default('main'),
     escalateAccountId: z.string().trim().min(1).optional(),
     name: z.string().trim().min(1),
     owner: z.string().trim().min(1),
     projectKey: z.string().trim().min(1),
+    projectLead: JiraProjectRepoLeadSchema.optional(),
     sourceControlConnectionId: z.string().trim().min(1).optional(),
+    suites: z.record(z.string().trim().min(1), JiraProjectRepoSuiteSchema).optional(),
     uiTestCommand: z.string().trim().min(1).optional(),
     unitTestCommand: z.string().trim().min(1).optional(),
   })
@@ -211,7 +240,38 @@ function parseJiraConnections(raw: string | undefined): readonly JiraConnection[
  */
 function parseJiraProjectRepos(raw: string | undefined): readonly JiraProjectRepoMapping[] {
   return parseJsonArray(raw, z.array(JiraProjectRepoSchema), 'CORTEX_JIRA_PROJECT_REPOS').map(
-    (mapping) => Object.freeze({ ...mapping }),
+    (mapping) => {
+      const suites = mapping.suites
+        ? Object.freeze(
+            Object.fromEntries(
+              Object.entries(mapping.suites).map(([suiteId, suite]) => [
+                suiteId,
+                Object.freeze({ ...suite }),
+              ]),
+            ),
+          )
+        : undefined
+
+      const areas = mapping.areas
+        ? Object.freeze(
+            Object.fromEntries(
+              Object.entries(mapping.areas).map(([areaId, area]) => [
+                areaId,
+                Object.freeze({
+                  aliases: area.aliases ? Object.freeze([...area.aliases]) : undefined,
+                  suiteKeys: Object.freeze([...area.suiteKeys]),
+                }),
+              ]),
+            ),
+          )
+        : undefined
+
+      return Object.freeze({
+        ...mapping,
+        areas,
+        suites,
+      })
+    },
   )
 }
 

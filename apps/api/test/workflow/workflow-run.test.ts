@@ -13,6 +13,7 @@ describe('WorkflowRun', () => {
       completedAt: null,
       createdAt: now,
       definitionKey: 'issue.implement.flow',
+      definitionVersion: 1,
       failedAt: null,
       failure: null,
       id: 'run-1',
@@ -59,6 +60,7 @@ describe('WorkflowRun', () => {
     })
 
     expect(run.id).toBe('run-1')
+    expect(run.definitionVersion).toBe(1)
     expect(run.status).toBe(WorkflowRunStatus.PENDING)
     expect(run.steps.map((step) => step.key)).toEqual(['triage', 'approval'])
     expect(run.steps[0]?.kind).toBe(WorkflowStepKind.JOB)
@@ -75,6 +77,7 @@ describe('WorkflowRun', () => {
       completedAt: now,
       createdAt: now,
       definitionKey: 'jira.triage.flow',
+      definitionVersion: 1,
       failedAt: null,
       failure: null,
       id: 'run-terminal',
@@ -115,6 +118,7 @@ describe('WorkflowRun', () => {
       completedAt: null,
       createdAt: now,
       definitionKey: 'agent.execute.flow',
+      definitionVersion: 1,
       failedAt: null,
       failure: null,
       id: 'run-2',

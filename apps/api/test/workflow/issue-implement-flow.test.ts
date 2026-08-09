@@ -2,7 +2,12 @@
 // https://pink-tech.io/
 
 import { ZodError } from 'zod'
-import { issueImplementFlow } from '../../src/workflow/definitions'
+import {
+  IssueImplementFlowStepKey,
+  buildIssueImplementationInstructions,
+  issueImplementFlow,
+  renderIssueImplementationInstructions,
+} from '../../src/workflow/definitions'
 import type { WorkflowStepPayloadContext } from '../../src/workflow/definitions'
 import { issueImplementFlowInput, jiraTriageJobResult } from './issue-implement-fixtures'
 
@@ -21,7 +26,7 @@ describe('issueImplementFlow payload builders', () => {
 
   describe('triage', () => {
     it('builds a jira.triage payload from the run input with autofix off', () => {
-      const payload = stepBuilder('triage')({
+      const payload = stepBuilder(IssueImplementFlowStepKey.TRIAGE)({
         input,
         latestOutput: undefined,
         outputs: {},
@@ -42,7 +47,7 @@ describe('issueImplementFlow payload builders', () => {
 
     it('rejects an input missing required fields', () => {
       expect(() =>
-        stepBuilder('triage')({
+        stepBuilder(IssueImplementFlowStepKey.TRIAGE)({
           input: { issueKey: 'JC-40' },
           latestOutput: undefined,
           outputs: {},
@@ -52,24 +57,23 @@ describe('issueImplementFlow payload builders', () => {
   })
 
   describe('implement', () => {
-    it('builds an agent.execute payload from the input and triage output', () => {
+    it('builds an agent.execute payload with rendered instructions and unchanged agentId', () => {
       const triage = jiraTriageJobResult(input.issueKey)
+      const expectedInput = renderIssueImplementationInstructions(buildIssueImplementationInstructions(input, triage))
 
-      const payload = stepBuilder('implement')({
+      const payload = stepBuilder(IssueImplementFlowStepKey.IMPLEMENT)({
         input,
         latestOutput: triage,
-        outputs: { triage },
+        outputs: { [IssueImplementFlowStepKey.TRIAGE]: triage },
       }) as { agentId: string; input: string }
 
       expect(payload.agentId).toBe(input.agentId)
-      expect(payload.input).toContain(input.issueKey)
-      expect(payload.input).toContain(triage.classification.rationale)
-      expect(payload.input).toContain(triage.repro?.summary)
+      expect(payload.input).toBe(expectedInput)
     })
 
     it('rejects a missing or malformed triage output', () => {
       expect(() =>
-        stepBuilder('implement')({
+        stepBuilder(IssueImplementFlowStepKey.IMPLEMENT)({
           input,
           latestOutput: undefined,
           outputs: {},
@@ -77,10 +81,10 @@ describe('issueImplementFlow payload builders', () => {
       ).toThrow(ZodError)
 
       expect(() =>
-        stepBuilder('implement')({
+        stepBuilder(IssueImplementFlowStepKey.IMPLEMENT)({
           input,
           latestOutput: { unexpected: true },
-          outputs: { triage: { unexpected: true } },
+          outputs: { [IssueImplementFlowStepKey.TRIAGE]: { unexpected: true } },
         }),
       ).toThrow(ZodError)
     })
@@ -88,7 +92,7 @@ describe('issueImplementFlow payload builders', () => {
 
   describe('review', () => {
     it('builds a full repository.review payload against the default branch', () => {
-      const payload = stepBuilder('review')({
+      const payload = stepBuilder(IssueImplementFlowStepKey.REVIEW)({
         input,
         latestOutput: undefined,
         outputs: {},

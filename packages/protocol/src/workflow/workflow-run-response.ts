@@ -109,6 +109,11 @@ export const WorkflowRunResponseSchema = z
     definitionKey: z.string().min(1),
 
     /**
+     * Immutable definition revision pinned when the run was created.
+     */
+    definitionVersion: z.number().int().min(1),
+
+    /**
      * ISO-8601 timestamp when the run entered a terminal failure state.
      *
      * `null` when the run has not failed.

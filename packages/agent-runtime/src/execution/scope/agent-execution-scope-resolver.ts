@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { AgentDefinition } from '@/definition'
-import type { AgentExecutionScope } from './agent-execution-scope'
+import type { AgentExecutionScope } from '../models'
 
 /**
  * Resolves the {@link AgentExecutionScope} authorized for one agent execution.

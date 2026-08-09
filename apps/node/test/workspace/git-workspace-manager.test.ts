@@ -13,6 +13,8 @@ jest.mock('node:child_process', () => ({
 }))
 
 import { execFile } from 'node:child_process'
+import { readdir } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { GitWorkspaceManager } from '../../src/workspace/git-workspace-manager'
 
 describe('GitWorkspaceManager', () => {
@@ -287,6 +289,35 @@ describe('GitWorkspaceManager', () => {
         signal: new AbortController().signal,
       }),
     ).rejects.toThrow(/Only HTTPS clone URLs/)
+  })
+
+  it('removes the temp workspace when clone ultimately fails', async () => {
+    const before = new Set(
+      (await readdir(tmpdir())).filter((name) => name.startsWith('cortex-workspace-')),
+    )
+
+    execFileMock.mockImplementation((
+      _file: string,
+      _args: readonly string[],
+      _options: unknown,
+      callback: (error: Error | null, stdout: string, stderr: string) => void,
+    ) => {
+      callback(new Error('clone failed'), '', '')
+    })
+
+    await expect(
+      manager.prepare({
+        accessToken: 'ghp_test',
+        cloneUrl: 'https://github.com/pink-tech/cortex.git',
+        headRef: 'main',
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow(/clone failed/)
+
+    const leftover = (await readdir(tmpdir())).filter(
+      (name) => name.startsWith('cortex-workspace-') && !before.has(name),
+    )
+    expect(leftover).toEqual([])
   })
 
   it('creates a branch, commits, and pushes', async () => {

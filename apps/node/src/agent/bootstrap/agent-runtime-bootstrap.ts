@@ -23,14 +23,16 @@ import {
  * ├── agents/
  * ├── capabilities/
  * │   └── <capability-id>/
- * │       ├── capability.toml
- * │       └── skills/          # optional capability-local skills
- * └── skills/                  # shared skills
+ * │       └── capability.toml
+ * └── skills/
+ *     └── <skill-id>/
+ *         ├── skill.toml
+ *         └── prompt.md
  * ```
  *
- * Skills are loaded from the shared skills root and from each capability
- * package skills subdirectory. Initialization is idempotent: concurrent
- * callers share a single in-flight promise.
+ * Skills are loaded only from the shared `.agents/skills` catalog.
+ * Initialization is idempotent: concurrent callers share a single in-flight
+ * promise.
  */
 export class AgentRuntimeBootstrap {
   // MARK: - Properties
@@ -109,9 +111,7 @@ export class AgentRuntimeBootstrap {
   }
 
   private async registerAgents(): Promise<void> {
-    const definitions = await this.agentDefinitionLoader.loadAgentsFromRootDirectory(
-      this.agentsDirectory,
-    )
+    const definitions = await this.agentDefinitionLoader.loadAgentsFromRootDirectory(this.agentsDirectory)
 
     if (definitions.length === 0) {
       throw new Error(`No agent definitions were found in '${this.agentsDirectory}'.`)
@@ -137,29 +137,21 @@ export class AgentRuntimeBootstrap {
   }
 
   private async registerCapabilities(): Promise<void> {
-    const definitions = await this.capabilityDefinitionLoader.loadFromRootDirectory(
-      this.capabilitiesDirectory,
-    )
+    const definitions = await this.capabilityDefinitionLoader.loadFromRootDirectory(this.capabilitiesDirectory)
 
     if (definitions.length === 0) {
-      throw new Error(
-        `No capability definitions were found in '${this.capabilitiesDirectory}'.`,
-      )
+      throw new Error(`No capability definitions were found in '${this.capabilitiesDirectory}'.`)
     }
 
     const identifiers = new Set<string>()
 
     for (const definition of definitions) {
       if (identifiers.has(definition.id)) {
-        throw new Error(
-          `The capability identifier '${definition.id}' is declared more than once.`,
-        )
+        throw new Error(`The capability identifier '${definition.id}' is declared more than once.`)
       }
 
       if (this.capabilityRegistry.has(definition.id)) {
-        throw new Error(
-          `The capability identifier '${definition.id}' is already registered.`,
-        )
+        throw new Error(`The capability identifier '${definition.id}' is already registered.`)
       }
 
       identifiers.add(definition.id)
@@ -171,14 +163,8 @@ export class AgentRuntimeBootstrap {
   }
 
   private async registerSkills(): Promise<void> {
-    const shared = await this.skillDefinitionLoader.loadFromRootDirectory(
-      this.skillsDirectory,
-    )
-    const capabilityLocal = await this.skillDefinitionLoader.loadFromDomainPackages(
-      this.capabilitiesDirectory,
-    )
-
-    this.registerSkillDefinitions([...shared, ...capabilityLocal])
+    const definitions = await this.skillDefinitionLoader.loadFromRootDirectory(this.skillsDirectory)
+    this.registerSkillDefinitions(definitions)
   }
 
   private registerSkillDefinitions(definitions: readonly SkillDefinition[]): void {
@@ -207,6 +193,11 @@ export class AgentRuntimeBootstrap {
 
   private assertJiraTriageAgentPresent(): void {
     this.assertCapabilityAgentPresent(JiraTriageJobKind, 'qa')
+
+    // Autofix defaults on for jira.triage and always uses the coder agent.
+    if (this.capabilityRegistry.has(JiraTriageJobKind) && !this.agentDefinitionRegistry.has('coder')) {
+      throw new Error("Agent 'coder' is required because capability 'jira.triage' is registered (autofix).")
+    }
   }
 
   private assertCapabilityAgentPresent(kind: string, fallbackAgentId: string): void {
@@ -218,9 +209,7 @@ export class AgentRuntimeBootstrap {
     const agentId = capability.defaultAgentId ?? fallbackAgentId
 
     if (!this.agentDefinitionRegistry.has(agentId)) {
-      throw new Error(
-        `Agent '${agentId}' is required because capability '${kind}' is registered.`,
-      )
+      throw new Error(`Agent '${agentId}' is required because capability '${kind}' is registered.`)
     }
   }
 }

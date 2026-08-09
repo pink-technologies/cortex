@@ -5,28 +5,7 @@ import { HTTPMethod } from '@cortex/networking'
 import type { TrelloClient } from '../../trello-client'
 import { TrelloCardCreationError } from './error/error'
 import { TrelloCard, type TrelloCardResponse } from './models'
-
-/**
- * Inputs for {@link TrelloCardResource.create}.
- */
-export interface TrelloCreateCardRequest {
-  /**
-   * Body text for the new card.
-   *
-   * When omitted, the card is created with an empty description.
-   */
-  readonly description?: string
-
-  /**
-   * Trello list id that receives the new card.
-   */
-  readonly listId: string
-
-  /**
-   * Title shown on the new card.
-   */
-  readonly name: string
-}
+import { TrelloCreateCardParameters } from './parameters'
 
 /**
  * Trello REST resource for the `/cards` path.
@@ -61,21 +40,21 @@ export class TrelloCardResource {
    * abort error is rethrown; other failures become
    * {@link TrelloCardCreationError}.
    *
-   * @param input - List id, title, and optional description.
+   * @param parameters - List id, title, and optional description.
    * @param signal - Optional signal that aborts the in-flight request.
    * @returns Domain {@link TrelloCard} for the created card.
    * @throws {@link TrelloCardCreationError} when the create request fails.
    */
-  async create(input: TrelloCreateCardRequest, signal?: AbortSignal): Promise<TrelloCard> {
+  async create(parameters: TrelloCreateCardParameters, signal?: AbortSignal): Promise<TrelloCard> {
     signal?.throwIfAborted()
 
     try {
       const payload = await this.client.request<TrelloCardResponse>('/cards', {
         method: HTTPMethod.POST,
         parameters: {
-          desc: input.description ?? '',
-          idList: input.listId,
-          name: input.name,
+          desc: parameters.description ?? '',
+          idList: parameters.listId,
+          name: parameters.name,
         },
         signal,
       })

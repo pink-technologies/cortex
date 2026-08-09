@@ -11,7 +11,7 @@ import { InternalExecutionJobController } from './controller/internal-execution-
 
 @Module({
   controllers: [ExecutionJobController, InternalExecutionJobController],
-  exports: [ExecutionJobService],
+  exports: [ExecutionJobService, EXECUTION_JOB_REPOSITORY],
   imports: [NodesModule, forwardRef(() => WorkflowModule)],
   providers: [
     ExecutionJobService,

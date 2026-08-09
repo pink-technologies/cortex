@@ -24,12 +24,18 @@ describe('createNodeConfiguration', () => {
     it('reads from process.env when no environment argument is provided', () => {
       const previous = {
         CORTEX_API_URL: process.env.CORTEX_API_URL,
+        CORTEX_JIRA_CONNECTIONS: process.env.CORTEX_JIRA_CONNECTIONS,
+        CORTEX_JIRA_PROJECT_REPOS: process.env.CORTEX_JIRA_PROJECT_REPOS,
         CORTEX_NODE_ID: process.env.CORTEX_NODE_ID,
         CORTEX_NODE_NAME: process.env.CORTEX_NODE_NAME,
         CORTEX_NODE_VERSION: process.env.CORTEX_NODE_VERSION,
+        CORTEX_SC_CONNECTIONS: process.env.CORTEX_SC_CONNECTIONS,
       }
 
       process.env.CORTEX_API_URL = 'https://api.cortex.example'
+      delete process.env.CORTEX_JIRA_CONNECTIONS
+      delete process.env.CORTEX_JIRA_PROJECT_REPOS
+      delete process.env.CORTEX_SC_CONNECTIONS
       process.env.CORTEX_NODE_ID = 'node-1'
       process.env.CORTEX_NODE_NAME = 'worker'
       process.env.CORTEX_NODE_VERSION = '1.0.0'
@@ -391,6 +397,24 @@ describe('createNodeConfiguration', () => {
             name: 'app',
             owner: 'acme',
             projectKey: 'JC',
+            projectLead: {
+              displayName: 'Jorge',
+              email: 'jorge@pink-tech.io',
+            },
+            areas: {
+              App: {
+                aliases: ['TruVideoApp'],
+                suiteKeys: ['TruVideoSdkCore'],
+              },
+            },
+            suites: {
+              TruVideoSdkCore: {
+                command: 'xcodebuild test -scheme TruVideoSdkCore',
+              },
+              TruVideoSdkCamera: {
+                command: 'xcodebuild test -scheme TruVideoSdkCamera',
+              },
+            },
             unitTestCommand: 'npm test',
           },
         ]),
@@ -407,8 +431,26 @@ describe('createNodeConfiguration', () => {
         },
       ])
       expect(configuration.jiraProjectRepos[0]).toMatchObject({
+        areas: {
+          App: {
+            aliases: ['TruVideoApp'],
+            suiteKeys: ['TruVideoSdkCore'],
+          },
+        },
         defaultBranch: 'main',
         projectKey: 'JC',
+        projectLead: {
+          displayName: 'Jorge',
+          email: 'jorge@pink-tech.io',
+        },
+        suites: {
+          TruVideoSdkCamera: {
+            command: 'xcodebuild test -scheme TruVideoSdkCamera',
+          },
+          TruVideoSdkCore: {
+            command: 'xcodebuild test -scheme TruVideoSdkCore',
+          },
+        },
         unitTestCommand: 'npm test',
       })
       expect(configuration.jiraAutomationAssigneeAccountId).toBe('automation')

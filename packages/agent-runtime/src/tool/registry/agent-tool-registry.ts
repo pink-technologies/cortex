@@ -2,11 +2,11 @@
 // https://pink-tech.io/
 
 import z, { type ZodType } from 'zod'
+import { LLMToolDefinition } from '@cortex/llm'
 import type { AgentExecutionContext } from '@/execution/agent-execution-context'
 import { AgentToolAlreadyRegisteredError, AgentToolNotFoundError } from '@/tool/error/error'
 import type { AgentTool } from '@/tool/models/agent-tool'
 import type { RegisteredAgentTool } from '@/tool/models/'
-import { LLMToolDefinition } from '@cortex/llm'
 
 /**
  * Stores and resolves tools available to the agent runtime.
@@ -47,14 +47,14 @@ export class AgentToolRegistry<Context extends AgentExecutionContext = AgentExec
     let definitions: LLMToolDefinition[] = []
 
     for (const name of names) {
-        const tool = this.resolve(name)
-        const toolDefinition: LLMToolDefinition = {
-            description: tool.description,
-            name: tool.name,
-            parameters: z.toJSONSchema(tool.inputSchema, {
-              io: 'input',
-            }),
-          }
+      const tool = this.resolve(name)
+      const toolDefinition: LLMToolDefinition = {
+        description: tool.description,
+        name: tool.name,
+        parameters: z.toJSONSchema(tool.inputSchema, {
+          io: 'input',
+        }),
+      }
 
       definitions.push(toolDefinition)
     }
@@ -114,7 +114,7 @@ export class AgentToolRegistry<Context extends AgentExecutionContext = AgentExec
     return Array.from(this.tools.values())
   }
 
-  // MARK: - Private Methods
+  // MARK: - Private methods
 
   private erase<Input, Output>(tool: AgentTool<Input, Output, Context>): RegisteredAgentTool<Context> {
     return {

@@ -1,7 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { JiraClient, JiraCommentResource } from '../../../../src/jira'
+import {
+  JiraClient,
+  JiraCommentMentionPlaceholder,
+  JiraCommentResource,
+} from '../../../../src/jira'
 
 describe('JiraCommentResource', () => {
   const connection = {
@@ -27,6 +31,67 @@ describe('JiraCommentResource', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'POST' })
+  })
+
+  it('embeds an ADF mention when the placeholder and mention are provided', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200 }))
+
+    await resource().create(
+      'JC-1',
+      `Done.\nEscalating the issue to ${JiraCommentMentionPlaceholder}.`,
+      new AbortController().signal,
+      { accountId: 'lead-1', displayName: 'Jorge Orjuela' },
+    )
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+    const body = JSON.parse(String(init.body)) as {
+      body: { content: Array<{ content: Array<Record<string, unknown>> }> }
+    }
+    const inline = body.body.content[0]?.content ?? []
+    expect(inline).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'hardBreak' }),
+        expect.objectContaining({
+          attrs: expect.objectContaining({
+            id: 'lead-1',
+            text: '@Jorge Orjuela',
+          }),
+          type: 'mention',
+        }),
+      ]),
+    )
+  })
+
+  it('keeps an explicit @ on the mention display name', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200 }))
+
+    await resource().create(
+      'JC-1',
+      `To ${JiraCommentMentionPlaceholder}`,
+      new AbortController().signal,
+      { accountId: 'lead-1', displayName: '@Already At' },
+    )
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+    const body = JSON.parse(String(init.body)) as {
+      body: { content: Array<{ content: Array<Record<string, unknown>> }> }
+    }
+    const mention = body.body.content[0]?.content.find((node) => node.type === 'mention')
+    expect(mention).toMatchObject({
+      attrs: { text: '@Already At' },
+    })
+  })
+
+  it('posts an empty text node for an empty body', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200 }))
+
+    await resource().create('JC-1', '', new AbortController().signal)
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+    const body = JSON.parse(String(init.body)) as {
+      body: { content: Array<{ content: Array<Record<string, unknown>> }> }
+    }
+    expect(body.body.content[0]?.content).toEqual([{ text: '', type: 'text' }])
   })
 
   it('throws when comment serialization fails softly', async () => {

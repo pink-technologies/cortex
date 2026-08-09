@@ -9,13 +9,12 @@ import { AppModule } from '../../src/app.module'
 import { Database } from '../../src/infraestructure/database'
 import { ExecutionJobStatus } from '../../src/execution/datatypes/execution-job-status'
 import { ExecutionJobService } from '../../src/execution/execution-job.service'
-import { IssueImplementFlowDefinitionKey, WorkflowOrchestrator } from '../../src/workflow'
+import { WorkflowOrchestrator, issueImplementFlow } from '../../src/workflow'
 import {
   issueImplementFlowInput,
   issueImplementResultForKind,
   repositoryReviewJobResult,
 } from './issue-implement-fixtures'
-
 describe('workflow-run controller (e2e)', () => {
   let app: INestApplication
   let database: Database
@@ -101,9 +100,12 @@ describe('workflow-run controller (e2e)', () => {
    * Drives an issue-implement run through its three JOB steps so the run
    * parks on the trailing approval step.
    */
-  async function startRunParkedOnApproval(issueKey: string): Promise<string> {
+  async function startRunParkedOnApproval(issueKey: string): Promise<{
+    runId: string
+    stepId: string
+  }> {
     const { job, run } = await orchestrator.start({
-      definitionKey: IssueImplementFlowDefinitionKey,
+      definitionKey: issueImplementFlow.key,
       input: issueImplementFlowInput(issueKey),
       triggerIdentifier: `workflow-run-e2e:${randomUUID()}`,
     })
@@ -124,16 +126,33 @@ describe('workflow-run controller (e2e)', () => {
       currentJob = nextJob ?? undefined
     }
 
-    return run.id
+    const parked = await database.workflowRun.findUniqueOrThrow({
+      where: {
+        id: run.id,
+      },
+      include: {
+        steps: {
+          orderBy: {
+            position: 'asc',
+          },
+        },
+      },
+    })
+
+    return {
+      runId: run.id,
+      stepId: parked.steps[3]!.id,
+    }
   }
 
   it('returns a parked run with ordered step progress on get', async () => {
-    const runId = await startRunParkedOnApproval('JC-30')
+    const { runId } = await startRunParkedOnApproval('JC-30')
 
     const response = await request(app.getHttpServer()).get(`/api/workflow-runs/${runId}`).expect(200)
 
     expect(response.body.id).toBe(runId)
-    expect(response.body.definitionKey).toBe(IssueImplementFlowDefinitionKey)
+    expect(response.body.definitionKey).toBe(issueImplementFlow.key)
+    expect(response.body.definitionVersion).toBe(1)
     expect(response.body.status).toBe('AWAITING_APPROVAL')
     expect(response.body.steps.map((step: { key: string }) => step.key)).toEqual([
       'triage',
@@ -149,11 +168,16 @@ describe('workflow-run controller (e2e)', () => {
   })
 
   it('approves a parked run and returns the completed run', async () => {
-    const runId = await startRunParkedOnApproval('JC-31')
+    const { runId, stepId } = await startRunParkedOnApproval('JC-31')
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/approve`)
       .set('Authorization', `Bearer ${operatorToken}`)
+      .send({
+        actorId: 'operator-e2e',
+        decisionId: randomUUID(),
+        stepId,
+      })
       .expect(200)
 
     expect(response.body.status).toBe('COMPLETED')
@@ -168,11 +192,16 @@ describe('workflow-run controller (e2e)', () => {
   })
 
   it('rejects a parked run and returns the failed run', async () => {
-    const runId = await startRunParkedOnApproval('JC-32')
+    const { runId, stepId } = await startRunParkedOnApproval('JC-32')
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/reject`)
       .set('Authorization', `Bearer ${operatorToken}`)
+      .send({
+        actorId: 'operator-e2e',
+        decisionId: randomUUID(),
+        stepId,
+      })
       .expect(200)
 
     expect(response.body.status).toBe('FAILED')
@@ -184,17 +213,28 @@ describe('workflow-run controller (e2e)', () => {
     expect(response.body.steps[3].status).toBe('FAILED')
   })
 
-  it('returns 409 when the run has no step awaiting approval', async () => {
-    const runId = await startRunParkedOnApproval('JC-33')
+  it('returns 409 when reject targets an already-approved step', async () => {
+    const { runId, stepId } = await startRunParkedOnApproval('JC-33')
+    const approveDecisionId = randomUUID()
 
     await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/approve`)
       .set('Authorization', `Bearer ${operatorToken}`)
+      .send({
+        actorId: 'operator-e2e',
+        decisionId: approveDecisionId,
+        stepId,
+      })
       .expect(200)
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/reject`)
       .set('Authorization', `Bearer ${operatorToken}`)
+      .send({
+        actorId: 'operator-e2e',
+        decisionId: randomUUID(),
+        stepId,
+      })
       .expect(409)
 
     expect(response.body.code).toBe('WORKFLOW_APPROVAL_ERROR')
@@ -204,22 +244,44 @@ describe('workflow-run controller (e2e)', () => {
     await request(app.getHttpServer())
       .post(`/api/workflow-runs/${randomUUID()}/approve`)
       .set('Authorization', `Bearer ${operatorToken}`)
+      .send({
+        actorId: 'operator-e2e',
+        decisionId: randomUUID(),
+        stepId: randomUUID(),
+      })
       .expect(404)
 
     await request(app.getHttpServer())
       .post(`/api/workflow-runs/${randomUUID()}/reject`)
       .set('Authorization', `Bearer ${operatorToken}`)
+      .send({
+        actorId: 'operator-e2e',
+        decisionId: randomUUID(),
+        stepId: randomUUID(),
+      })
       .expect(404)
   })
 
   it('returns 401 on mutating endpoints without a valid operator token', async () => {
-    const runId = await startRunParkedOnApproval('JC-34')
+    const { runId, stepId } = await startRunParkedOnApproval('JC-34')
 
-    await request(app.getHttpServer()).post(`/api/workflow-runs/${runId}/approve`).expect(401)
+    await request(app.getHttpServer())
+      .post(`/api/workflow-runs/${runId}/approve`)
+      .send({
+        actorId: 'operator-e2e',
+        decisionId: randomUUID(),
+        stepId,
+      })
+      .expect(401)
 
     await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/reject`)
       .set('Authorization', 'Bearer wrong-token')
+      .send({
+        actorId: 'operator-e2e',
+        decisionId: randomUUID(),
+        stepId,
+      })
       .expect(401)
 
     await request(app.getHttpServer())
@@ -232,12 +294,12 @@ describe('workflow-run controller (e2e)', () => {
   })
 
   it('lists runs filtered by status and definition key with paging metadata', async () => {
-    const runId = await startRunParkedOnApproval('JC-35')
+    const { runId } = await startRunParkedOnApproval('JC-35')
 
     const response = await request(app.getHttpServer())
       .get('/api/workflow-runs')
       .query({
-        definitionKey: IssueImplementFlowDefinitionKey,
+        definitionKey: issueImplementFlow.key,
         limit: 100,
         status: 'AWAITING_APPROVAL',
       })
@@ -250,7 +312,7 @@ describe('workflow-run controller (e2e)', () => {
     const listed = response.body.items.find((item: { id: string }) => item.id === runId)
     expect(listed).toBeDefined()
     expect(listed.status).toBe('AWAITING_APPROVAL')
-    expect(listed.definitionKey).toBe(IssueImplementFlowDefinitionKey)
+    expect(listed.definitionKey).toBe(issueImplementFlow.key)
     expect(listed.steps).toHaveLength(4)
   })
 
@@ -259,7 +321,7 @@ describe('workflow-run controller (e2e)', () => {
   })
 
   it('cancels a parked run and returns 409 for a second cancellation', async () => {
-    const runId = await startRunParkedOnApproval('JC-36')
+    const { runId } = await startRunParkedOnApproval('JC-36')
 
     const response = await request(app.getHttpServer())
       .post(`/api/workflow-runs/${runId}/cancel`)

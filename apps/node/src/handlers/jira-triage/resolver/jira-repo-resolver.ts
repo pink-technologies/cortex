@@ -3,10 +3,11 @@
 
 import type { JiraProjectRepoMapping } from '../../../connection'
 import type { JiraIssue } from '@cortex/integrations/jira'
-import type { JiraRepoResolution } from '../models'
+import type { JiraRepoResolution, ResolvedJiraRepository } from '../models'
 
 /**
- * Parses `owner/repo` or a GitHub URL into owner/name/cloneUrl.
+ * Parses `owner/repo`, HTTPS GitHub URLs, or `git@github.com:` SSH URLs into
+ * a credential-free HTTPS clone target.
  */
 export function parseGitHubRepositoryReference(
   value: string,
@@ -15,33 +16,27 @@ export function parseGitHubRepositoryReference(
 
   const slugMatch = trimmed.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/)
   if (slugMatch) {
-    const owner = slugMatch[1]!
-    const name = slugMatch[2]!
-    return {
-      cloneUrl: `https://github.com/${owner}/${name}.git`,
-      name,
-      owner,
-    }
+    return toHttpsClone(slugMatch[1]!, slugMatch[2]!)
+  }
+
+  const sshMatch = trimmed.match(/^git@github\.com:([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?$/i)
+  if (sshMatch) {
+    return toHttpsClone(sshMatch[1]!, sshMatch[2]!)
   }
 
   try {
     const url = new URL(trimmed)
-    if (!url.hostname.endsWith('github.com')) {
+    const host = url.hostname.toLowerCase()
+    if (host !== 'github.com' && host !== 'www.github.com') {
       return undefined
     }
 
-    const parts = url.pathname.replace(/\.git$/, '').split('/').filter(Boolean)
+    const parts = url.pathname.replace(/\.git$/i, '').split('/').filter(Boolean)
     if (parts.length < 2) {
       return undefined
     }
 
-    const owner = parts[0]!
-    const name = parts[1]!
-    return {
-      cloneUrl: `https://github.com/${owner}/${name}.git`,
-      name,
-      owner,
-    }
+    return toHttpsClone(parts[0]!, parts[1]!)
   } catch {
     return undefined
   }
@@ -51,6 +46,8 @@ export function parseGitHubRepositoryReference(
  * Resolves a single GitHub repository for a Jira issue.
  *
  * Priority: payload override → remote links → custom field → project map.
+ * Project-map metadata (test commands, escalate account, SC connection, default
+ * branch) is merged whenever a mapping exists for the issue's project key.
  */
 export function resolveJiraRepository(input: {
   readonly customFieldId?: string
@@ -63,24 +60,21 @@ export function resolveJiraRepository(input: {
   }
   readonly projectRepos: readonly JiraProjectRepoMapping[]
 }): JiraRepoResolution {
-  if (input.payloadRepository) {
-    const mapping = input.projectRepos.find(
-      (entry) => entry.projectKey.toUpperCase() === input.issue.projectKey.toUpperCase(),
-    )
+  const mapping = findProjectMapping(input.projectRepos, input.issue.projectKey)
 
+  if (input.payloadRepository) {
     return {
       kind: 'resolved',
-      repository: {
-        cloneUrl: input.payloadRepository.cloneUrl,
-        defaultBranch: input.payloadRepository.defaultBranch,
-        escalateAccountId: mapping?.escalateAccountId,
-        name: input.payloadRepository.name,
-        owner: input.payloadRepository.owner,
-        source: 'payload',
-        sourceControlConnectionId: mapping?.sourceControlConnectionId,
-        uiTestCommand: mapping?.uiTestCommand,
-        unitTestCommand: mapping?.unitTestCommand,
-      },
+      repository: applyProjectMapping(
+        {
+          cloneUrl: input.payloadRepository.cloneUrl,
+          defaultBranch: input.payloadRepository.defaultBranch,
+          name: input.payloadRepository.name,
+          owner: input.payloadRepository.owner,
+          source: 'payload',
+        },
+        mapping,
+      ),
     }
   }
 
@@ -92,21 +86,17 @@ export function resolveJiraRepository(input: {
 
   if (fromLinks.length === 1) {
     const repository = fromLinks[0]!
-    const mapping = input.projectRepos.find(
-      (entry) => entry.projectKey.toUpperCase() === input.issue.projectKey.toUpperCase(),
-    )
 
     return {
       kind: 'resolved',
-      repository: {
-        ...repository,
-        defaultBranch: mapping?.defaultBranch ?? 'main',
-        escalateAccountId: mapping?.escalateAccountId,
-        source: 'jira_links',
-        sourceControlConnectionId: mapping?.sourceControlConnectionId,
-        uiTestCommand: mapping?.uiTestCommand,
-        unitTestCommand: mapping?.unitTestCommand,
-      },
+      repository: applyProjectMapping(
+        {
+          ...repository,
+          defaultBranch: mapping?.defaultBranch ?? 'main',
+          source: 'jira_links',
+        },
+        mapping,
+      ),
     }
   }
 
@@ -118,40 +108,23 @@ export function resolveJiraRepository(input: {
   }
 
   if (input.customFieldId) {
-    const raw = input.issue.customFields[input.customFieldId]
-    const text =
-      typeof raw === 'string'
-        ? raw
-        : raw && typeof raw === 'object' && 'value' in raw && typeof (raw as { value: unknown }).value === 'string'
-          ? (raw as { value: string }).value
-          : undefined
+    const text = readCustomFieldText(input.issue.customFields[input.customFieldId])
+    const parsed = text ? parseGitHubRepositoryReference(text) : undefined
 
-    if (text) {
-      const parsed = parseGitHubRepositoryReference(text)
-      if (parsed) {
-        const mapping = input.projectRepos.find(
-          (entry) => entry.projectKey.toUpperCase() === input.issue.projectKey.toUpperCase(),
-        )
-
-        return {
-          kind: 'resolved',
-          repository: {
+    if (parsed) {
+      return {
+        kind: 'resolved',
+        repository: applyProjectMapping(
+          {
             ...parsed,
             defaultBranch: mapping?.defaultBranch ?? 'main',
-            escalateAccountId: mapping?.escalateAccountId,
             source: 'custom_field',
-            sourceControlConnectionId: mapping?.sourceControlConnectionId,
-            uiTestCommand: mapping?.uiTestCommand,
-            unitTestCommand: mapping?.unitTestCommand,
           },
-        }
+          mapping,
+        ),
       }
     }
   }
-
-  const mapping = input.projectRepos.find(
-    (entry) => entry.projectKey.toUpperCase() === input.issue.projectKey.toUpperCase(),
-  )
 
   if (!mapping) {
     return { kind: 'missing' }
@@ -165,12 +138,74 @@ export function resolveJiraRepository(input: {
       escalateAccountId: mapping.escalateAccountId,
       name: mapping.name,
       owner: mapping.owner,
+      projectLead: mapping.projectLead,
       source: 'project_map',
+      areas: mapping.areas,
       sourceControlConnectionId: mapping.sourceControlConnectionId,
+      suites: mapping.suites,
       uiTestCommand: mapping.uiTestCommand,
       unitTestCommand: mapping.unitTestCommand,
     },
   }
+}
+
+function toHttpsClone(
+  owner: string,
+  name: string,
+): { cloneUrl: string; name: string; owner: string } {
+  return {
+    cloneUrl: `https://github.com/${owner}/${name}.git`,
+    name,
+    owner,
+  }
+}
+
+function findProjectMapping(
+  projectRepos: readonly JiraProjectRepoMapping[],
+  projectKey: string,
+): JiraProjectRepoMapping | undefined {
+  return projectRepos.find((entry) => entry.projectKey.toUpperCase() === projectKey.toUpperCase())
+}
+
+/**
+ * Merges allowlisted commands and escalate/SC metadata from the project map.
+ *
+ * Payload/link/custom-field clone identity wins; mapping supplies operational
+ * defaults required for repro.
+ */
+function applyProjectMapping(
+  repository: Pick<
+    ResolvedJiraRepository,
+    'cloneUrl' | 'defaultBranch' | 'name' | 'owner' | 'source'
+  >,
+  mapping: JiraProjectRepoMapping | undefined,
+): ResolvedJiraRepository {
+  return {
+    cloneUrl: repository.cloneUrl,
+    defaultBranch: repository.defaultBranch,
+    escalateAccountId: mapping?.escalateAccountId,
+    name: repository.name,
+    owner: repository.owner,
+    projectLead: mapping?.projectLead,
+    source: repository.source,
+    areas: mapping?.areas,
+    sourceControlConnectionId: mapping?.sourceControlConnectionId,
+    suites: mapping?.suites,
+    uiTestCommand: mapping?.uiTestCommand,
+    unitTestCommand: mapping?.unitTestCommand,
+  }
+}
+
+function readCustomFieldText(raw: unknown): string | undefined {
+  if (typeof raw === 'string') {
+    return raw
+  }
+
+  if (raw && typeof raw === 'object' && 'value' in raw && typeof (raw as { value: unknown }).value === 'string') {
+    return (raw as { value: string }).value
+  }
+
+  return undefined
 }
 
 function uniqueRepositories(

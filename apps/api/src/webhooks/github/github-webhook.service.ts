@@ -1,21 +1,22 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Prisma } from '@prisma/client'
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { RepositoryReviewFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { ExecutionJobSourceType } from '@/execution/models'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
-import { mapGitHubWebhookToReviewEnqueue } from './mapper'
-import {
-  type GitHubWebhookHandleInput,
-  type GitHubWebhookHandleResult,
-} from './models'
+import { GitHubWebhookDecisionKind, GitHubWebhookHandleAction, type GitHubWebhookHandleResult } from './models'
+import { type GitHubWebhookHandleParameters } from './parameters'
+import { dispatchGitHubWebhook } from './routes'
 import { verifyGitHubWebhookSignature } from './signature'
 
 /**
- * Verifies GitHub webhook authenticity and starts `repository.review.flow`
- * workflow runs.
+ * Verifies GitHub webhook authenticity and starts workflow runs for matching
+ * event handlers.
+ *
+ * Configure GitHub to `POST /api/webhooks/github`. Handlers are selected by
+ * `X-GitHub-Event` from the route registry (for example `pull_request` →
+ * repository review).
  *
  * Configuration (from env via {@link ConfigService}):
  * - `GITHUB_WEBHOOK_SECRET` — shared HMAC secret
@@ -42,58 +43,55 @@ export class GitHubWebhookService {
   /**
    * Handles one GitHub webhook delivery.
    *
-   * @param input - Raw body, signature headers, and parsed JSON body.
+   * @param parameters - Raw body, signature headers, and parsed JSON body.
    * @returns Acknowledgement describing whether a run was started or ignored.
    */
-  async handle(input: GitHubWebhookHandleInput): Promise<GitHubWebhookHandleResult> {
+  async handle(parameters: GitHubWebhookHandleParameters): Promise<GitHubWebhookHandleResult> {
     const configuration = this.requireConfiguration()
 
-    if (!verifyGitHubWebhookSignature(input.rawBody, input.signatureHeader, configuration.secret)) {
+    if (!verifyGitHubWebhookSignature(parameters.rawBody, parameters.signatureHeader, configuration.secret)) {
       throw new UnauthorizedException('Invalid GitHub webhook signature.')
     }
 
-    const mapping = mapGitHubWebhookToReviewEnqueue(
-      input.event,
-      input.body,
-      configuration.connectionId,
-      configuration.instructions,
-    )
+    const decision = dispatchGitHubWebhook({
+      body: parameters.body,
+      connectionId: configuration.connectionId,
+      deliveryId: parameters.deliveryId,
+      event: parameters.event,
+      ...(configuration.instructions ? { instructions: configuration.instructions } : {}),
+    })
 
-    if (mapping.kind === 'ignore') {
+    if (decision.kind === GitHubWebhookDecisionKind.IGNORE) {
       return {
-        action: 'ignored',
+        action: GitHubWebhookHandleAction.IGNORED,
         ok: true,
-        reason: mapping.reason,
+        reason: decision.reason,
       }
     }
 
-    try {
-      const { job, run } = await this.orchestrator.start({
-        definitionKey: RepositoryReviewFlowDefinitionKey,
-        input: mapping.payload,
-        source: {
-          identifier: input.deliveryId ?? mapping.triggerIdentifier,
-          type: 'webhook',
-        },
-        triggerIdentifier: mapping.triggerIdentifier,
-      })
+    const result = await this.orchestrator.start({
+      definitionKey: decision.definitionKey,
+      input: decision.payload,
+      triggerIdentifier: decision.triggerIdentifier,
+      source: {
+        identifier: parameters.deliveryId ?? decision.triggerIdentifier,
+        type: ExecutionJobSourceType.WEBHOOK,
+      },
+    })
 
+    if (!result.created) {
       return {
-        action: 'enqueued',
-        jobId: job.id,
         ok: true,
-        runId: run.id,
+        action: GitHubWebhookHandleAction.ALREADY_ENQUEUED,
+        reason: decision.triggerIdentifier,
       }
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        return {
-          action: 'already_enqueued',
-          ok: true,
-          reason: mapping.triggerIdentifier,
-        }
-      }
+    }
 
-      throw error
+    return {
+      ok: true,
+      action: GitHubWebhookHandleAction.ENQUEUED,
+      jobId: result.job.id,
+      runId: result.run.id,
     }
   }
 
@@ -120,21 +118,4 @@ export class GitHubWebhookService {
       secret,
     }
   }
-}
-
-/**
- * Walks an error cause chain looking for a Prisma unique-constraint failure.
- */
-function isUniqueConstraintError(error: unknown): boolean {
-  let current: unknown = error
-
-  while (current instanceof Error) {
-    if (current instanceof Prisma.PrismaClientKnownRequestError && current.code === 'P2002') {
-      return true
-    }
-
-    current = current.cause
-  }
-
-  return false
 }

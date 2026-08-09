@@ -9,14 +9,13 @@ import { ExecutionJobStatus } from '../../src/execution/datatypes/execution-job-
 import { ExecutionJobService } from '../../src/execution/execution-job.service'
 import { ExecutionModule } from '../../src/execution/execution.module'
 import {
-  JiraTriageFlowDefinitionKey,
   WorkflowCancelError,
   WorkflowModule,
   WorkflowOrchestrator,
   WorkflowRunStatus,
   WorkflowStepStatus,
+  jiraTriageFlow,
 } from '../../src/workflow'
-
 describe('WorkflowOrchestrator cancel', () => {
   let database: Database
   let executionJobService: ExecutionJobService
@@ -98,7 +97,7 @@ describe('WorkflowOrchestrator cancel', () => {
 
     const { job, run } = await orchestrator.start({
       activeKey,
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-60' },
     })
     createdRunIds.push(run.id)
@@ -120,7 +119,7 @@ describe('WorkflowOrchestrator cancel', () => {
 
     const successor = await orchestrator.start({
       activeKey,
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-60' },
     })
     createdRunIds.push(successor.run.id)
@@ -130,7 +129,7 @@ describe('WorkflowOrchestrator cancel', () => {
 
   it('flags a running job and neutralizes its late completion', async () => {
     const { job, run } = await orchestrator.start({
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-61' },
       triggerIdentifier: `workflow-cancel-late:${randomUUID()}`,
     })
@@ -187,7 +186,7 @@ describe('WorkflowOrchestrator cancel', () => {
 
   it('throws WorkflowCancelError for a terminal run and leaves it untouched', async () => {
     const { job, run } = await orchestrator.start({
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-62' },
       triggerIdentifier: `workflow-cancel-terminal:${randomUUID()}`,
     })

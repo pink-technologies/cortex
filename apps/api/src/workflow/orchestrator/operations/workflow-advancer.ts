@@ -1,63 +1,46 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { forwardRef, Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { Database } from '@/infraestructure/database'
-import { ExecutionJobService } from '../../../execution/execution-job.service'
-import type { ExecutionJob } from '../../../execution/models/execution-job'
+import {
+  EXECUTION_JOB_REPOSITORY,
+  type ExecutionJobRepository,
+} from '@/execution/execution-job-repository'
+import { ExecutionJobStatus } from '@/execution/datatypes/execution-job-status'
 import { WorkflowStepStatus } from '../../datatypes'
+import { sanitizeWorkflowRunFailure } from '../../sanitize'
 import { WorkflowTransitioner } from '../transitions'
-import type { WorkflowRun } from '../../models/workflow-run'
-import type { WorkflowStep } from '../../models/workflow-step'
 import { WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../../repository'
-
-/**
- * Resolved workflow context for a terminal child job.
- *
- * Produced by the advancer's linked-step lookup when the job belongs to a run
- * and its step is still active.
- */
-interface LinkedStepContext {
-  /**
-   * Terminal child execution job that triggered advance or fail.
-   */
-  readonly job: ExecutionJob
-
-  /**
-   * Run that owns {@link LinkedStepContext#step}.
-   */
-  readonly run: WorkflowRun
-
-  /**
-   * Non-terminal step linked to {@link LinkedStepContext#job}.
-   */
-  readonly step: WorkflowStep
-}
 
 /**
  * Advances or fails workflow runs after a child execution job terminates.
  *
- * Owns the job-driven flow only: resolving the run and step linked to a
- * terminal job, then delegating the actual transition to
- * {@link WorkflowTransitioner} inside one transaction. Approval decisions
- * live in their own collaborator behind {@link WorkflowOrchestrator}.
+ * Owns the job-driven flow only: loading the terminal job, locking its run,
+ * revalidating the job status and linked step under that lock, then delegating
+ * to {@link WorkflowTransitioner}. Approval decisions live in their own
+ * collaborator behind {@link WorkflowOrchestrator}.
  */
 @Injectable()
 export class WorkflowAdvancer {
+  // MARK: - Properties
+
+  private readonly logger = new Logger(WorkflowAdvancer.name)
+
   // MARK: - Constructor
 
   /**
    * Creates a workflow advancer.
    *
    * @param database - Database client used for advance/fail transactions.
-   * @param executionJobService - Service used to load terminal child jobs.
+   * @param executionJobRepository - Persistence port used to load child jobs.
    * @param transitioner - Transition writer applying step and run updates.
    * @param workflowRunRepository - Persistence port for runs and steps.
    */
   constructor(
     private readonly database: Database,
-    @Inject(forwardRef(() => ExecutionJobService))
-    private readonly executionJobService: ExecutionJobService,
+    @Inject(EXECUTION_JOB_REPOSITORY)
+    private readonly executionJobRepository: ExecutionJobRepository,
     private readonly transitioner: WorkflowTransitioner,
     @Inject(WORKFLOW_RUN_REPOSITORY)
     private readonly workflowRunRepository: WorkflowRunRepository,
@@ -68,28 +51,65 @@ export class WorkflowAdvancer {
   /**
    * Advances the workflow after a child execution job completes successfully.
    *
-   * No-ops when the job is not linked to a run/step, or when the step is already
-   * terminal (idempotent retries of complete). Completes the current step with
-   * the job's result as its output, then activates the next `JOB` step with a
-   * payload resolved from the run's definition, completes the run when no
-   * steps remain, or parks the run in `AWAITING_APPROVAL` when the next step
-   * is `APPROVAL`.
-   *
-   * Workflow writes run in a single transaction with an optimistic step-status
-   * guard so concurrent completes do not double-advance.
+   * No-ops when the job is not linked to a run/step (valid), when the step is
+   * already terminal (idempotent duplicate), or when the reloaded job is not
+   * `COMPLETED` (integrity failure — logged, no advance). Completes the
+   * current step with the job's result as its output, then activates the next
+   * `JOB` step, completes the run when no steps remain, or parks the run in
+   * `AWAITING_APPROVAL` when the next step is `APPROVAL`.
    *
    * @param jobId - Primary key of the completed execution job.
    */
   async onJobCompleted(jobId: string): Promise<void> {
-    const context = await this.resolveLinkedStep(jobId)
+    const linked = await this.executionJobRepository.findById(jobId)
 
-    if (!context) {
+    if (linked?.runId == null || linked.stepId == null) {
       return
     }
 
-    const { job, run, step } = context
-
     await this.database.withTransaction(async (transaction) => {
+      const run = await this.workflowRunRepository.lockById(linked.runId!, { transaction })
+
+      if (!run) {
+        this.logger.error('Linked execution job references a missing workflow run', {
+          jobId,
+          runId: linked.runId,
+        })
+        return
+      }
+
+      const step = run.steps.find((candidate) => candidate.id === linked.stepId)
+
+      if (!step) {
+        this.logger.error('Linked execution job references a missing workflow step', {
+          jobId,
+          runId: run.id,
+          stepId: linked.stepId,
+        })
+        return
+      }
+
+      if (step.isTerminal) {
+        this.logger.debug('Ignoring duplicate job-completed callback for terminal step', {
+          jobId,
+          runId: run.id,
+          stepId: step.id,
+        })
+        return
+      }
+
+      const job = await this.executionJobRepository.findById(jobId, { transaction })
+
+      if (job?.status !== ExecutionJobStatus.COMPLETED) {
+        this.logger.error('onJobCompleted received a job that is not COMPLETED', {
+          jobId,
+          runId: run.id,
+          status: job?.status ?? null,
+          stepId: step.id,
+        })
+        return
+      }
+
       await this.transitioner.completeStepAndAdvance({
         guardStatuses: [WorkflowStepStatus.QUEUED, WorkflowStepStatus.RUNNING],
         output: job.result,
@@ -103,52 +123,70 @@ export class WorkflowAdvancer {
   /**
    * Fails the workflow after a child execution job fails terminally.
    *
-   * No-ops when the job is not linked to a run/step, or when the step is already
-   * terminal. Marks the step and run `FAILED` in one transaction.
+   * No-ops when the job is not linked to a run/step (valid), when the step is
+   * already terminal (idempotent duplicate), or when the reloaded job is not
+   * `FAILED` (integrity failure — logged, no fail). Marks the step and run
+   * `FAILED` in one transaction with a sanitized failure payload.
    *
    * @param jobId - Primary key of the failed execution job.
    */
   async onJobFailed(jobId: string): Promise<void> {
-    const context = await this.resolveLinkedStep(jobId)
+    const linked = await this.executionJobRepository.findById(jobId)
 
-    if (!context) {
+    if (linked?.runId == null || linked.stepId == null) {
       return
     }
 
-    const { job, run, step } = context
-
     await this.database.withTransaction(async (transaction) => {
+      const run = await this.workflowRunRepository.lockById(linked.runId!, { transaction })
+
+      if (!run) {
+        this.logger.error('Linked execution job references a missing workflow run', {
+          jobId,
+          runId: linked.runId,
+        })
+        return
+      }
+
+      const step = run.steps.find((candidate) => candidate.id === linked.stepId)
+
+      if (!step) {
+        this.logger.error('Linked execution job references a missing workflow step', {
+          jobId,
+          runId: run.id,
+          stepId: linked.stepId,
+        })
+        return
+      }
+
+      if (step.isTerminal) {
+        this.logger.debug('Ignoring duplicate job-failed callback for terminal step', {
+          jobId,
+          runId: run.id,
+          stepId: step.id,
+        })
+        return
+      }
+
+      const job = await this.executionJobRepository.findById(jobId, { transaction })
+
+      if (job?.status !== ExecutionJobStatus.FAILED) {
+        this.logger.error('onJobFailed received a job that is not FAILED', {
+          jobId,
+          runId: run.id,
+          status: job?.status ?? null,
+          stepId: step.id,
+        })
+        return
+      }
+
       await this.transitioner.failStepAndRun({
-        failure: job.failure,
+        failure: sanitizeWorkflowRunFailure(job.failure),
         guardStatuses: [WorkflowStepStatus.QUEUED, WorkflowStepStatus.RUNNING],
         run,
         step,
         transaction,
       })
     })
-  }
-
-  // MARK: - Private methods
-
-  private async resolveLinkedStep(jobId: string): Promise<LinkedStepContext | null> {
-    const job = await this.executionJobService.findById(jobId)
-
-    if (job?.runId == null || job.stepId == null) {
-      return null
-    }
-
-    const run = await this.workflowRunRepository.findById(job.runId)
-
-    if (!run) {
-      return null
-    }
-
-    const step = run.steps.find((candidate) => candidate.id === job.stepId)
-
-    if (!step || step.isTerminal) {
-      return null
-    }
-
-    return { job, run, step }
   }
 }

@@ -75,4 +75,14 @@ describe('AgentProcessResolver', () => {
       /No default agent is configured/,
     )
   })
+
+  it('resolves an agent by package id', () => {
+    const agentRegistry = new AgentDefinitionRegistry()
+    const coder = { id: 'coder' } as AgentDefinition
+    agentRegistry.register(coder)
+
+    const resolver = new AgentProcessResolver(agentRegistry, new CapabilityRegistry())
+
+    expect(resolver.resolveAgentById('coder')).toBe(coder)
+  })
 })

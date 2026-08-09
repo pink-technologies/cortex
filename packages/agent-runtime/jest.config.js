@@ -27,6 +27,7 @@ module.exports = {
     '<rootDir>/src/execution/scope/capability-agent-execution-scope-resolver.ts',
     '<rootDir>/src/execution/scope/default-agent-execution-scope-resolver.ts',
     '<rootDir>/src/kernel/**/*.ts',
+    '<rootDir>/src/registry/keyed-registry.ts',
     '<rootDir>/src/skills/**/*.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',

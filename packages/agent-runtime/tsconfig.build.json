@@ -9,7 +9,6 @@
     "test",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
-    "src/tool/clients/**",
     "src/delegation/**",
     "src/execution/agent-execution-request.ts",
     "src/execution/agent-execution-result.ts"

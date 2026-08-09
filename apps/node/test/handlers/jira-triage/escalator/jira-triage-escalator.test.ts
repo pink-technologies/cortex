@@ -1,29 +1,90 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { JiraCommentMentionPlaceholder } from '@cortex/integrations/jira'
 import type { JiraCommentResource, JiraIssueResource } from '@cortex/integrations/jira'
 import { JiraTriageEscalator } from '../../../../src/handlers/jira-triage/escalator/jira-triage-escalator'
 import { JiraTriageEscalationError } from '../../../../src/handlers/jira-triage/error/error'
 
 describe('JiraTriageEscalator', () => {
-  const classification = {
-    automationEligible: false,
-    class: 'chore' as const,
-    confidence: 0.7,
-    rationale: 'Not a bug.',
-  }
-
-  it('formats an escalation comment with classification fields', () => {
+  it('formats a short start comment', () => {
     const escalator = new JiraTriageEscalator()
-    const comment = escalator.formatComment({
-      classification,
-      issueKey: 'JC-11',
-      reason: 'Ticket is not an automation-eligible bug.',
+    const comment = escalator.formatStartComment()
+
+    expect(comment).toContain('Cortex is looking at this ticket.')
+    expect(comment).toContain('I’ll leave an update here when I’m done.')
+    expect(comment).not.toContain('classify')
+    expect(comment).not.toContain('mapped tests')
+  })
+
+  it('formats suite_broken with a mention placeholder when a lead name is known', () => {
+    const escalator = new JiraTriageEscalator()
+    const comment = escalator.formatFinishComment({
+      mentionDisplayName: 'Jorge Orjuela',
+      outcome: 'suite_broken',
     })
 
-    expect(comment).toContain('JC-11')
-    expect(comment).toContain('chore')
-    expect(comment).toContain('Not a bug.')
+    expect(comment).toContain('Cortex is done with this ticket.')
+    expect(comment).toContain('something’s off with the project setup')
+    expect(comment).toContain(`Escalating the issue to ${JiraCommentMentionPlaceholder}.`)
+    expect(comment).not.toContain('suite_broken')
+    expect(comment).not.toContain('automationEligible')
+  })
+
+  it('formats escalate finishes without a lead as project owner', () => {
+    const escalator = new JiraTriageEscalator()
+    const comment = escalator.formatFinishComment({ outcome: 'not_reproduced' })
+
+    expect(comment).toContain('I wasn’t able to recreate the problem.')
+    expect(comment).toContain('Escalating this to the project owner.')
+    expect(comment).not.toContain(JiraCommentMentionPlaceholder)
+  })
+
+  it('formats fix_succeeded with a draft change link', () => {
+    const escalator = new JiraTriageEscalator()
+    const comment = escalator.formatFinishComment({
+      outcome: 'fix_succeeded',
+      pullRequestUrl: 'https://github.com/acme/app/pull/1',
+    })
+
+    expect(comment).toContain('opened a draft change for review')
+    expect(comment).toContain('https://github.com/acme/app/pull/1')
+  })
+
+  it('formats the remaining human finish outcomes', () => {
+    const escalator = new JiraTriageEscalator()
+
+    expect(escalator.formatFinishComment({ outcome: 'not_bug' })).toContain(
+      'doesn’t look like a bug',
+    )
+    expect(escalator.formatFinishComment({ outcome: 'wrong_assignee' })).toContain(
+      'isn’t assigned to me',
+    )
+    expect(escalator.formatFinishComment({ outcome: 'missing_repo' })).toContain(
+      'which GitHub project',
+    )
+    expect(escalator.formatFinishComment({ outcome: 'ambiguous_repo' })).toContain(
+      'which GitHub project',
+    )
+    expect(escalator.formatFinishComment({ outcome: 'no_suites' })).toContain(
+      'nothing set up for me to check',
+    )
+    expect(
+      escalator.formatFinishComment({
+        mentionDisplayName: 'Lead',
+        outcome: 'reproduced_fix_failed',
+      }),
+    ).toContain('couldn’t fix it on my own')
+    expect(escalator.formatFinishComment({ outcome: 'reproduced_no_fix' })).toContain(
+      'couldn’t fix it on my own',
+    )
+    expect(escalator.formatFinishComment({ outcome: 'classify_only' })).toContain(
+      'quick read of the ticket',
+    )
+    expect(escalator.formatFinishComment({ outcome: 'dry_run' })).toContain('dry run')
+    expect(escalator.formatFinishComment({ outcome: 'fix_succeeded' })).toContain(
+      'draft change for review',
+    )
   })
 
   it('comments and reassigns when escalateAccountId is provided', async () => {
@@ -37,17 +98,23 @@ describe('JiraTriageEscalator', () => {
       escalateAccountId: 'human',
       issueKey: 'JC-11',
       issues: { assign } as unknown as JiraIssueResource,
-      reason: 'Not automation-eligible.',
+      mention: { accountId: 'human', displayName: 'Human Lead' },
+      reason: 'Needs a human.',
       reassign: true,
       signal: new AbortController().signal,
     })
 
-    expect(create).toHaveBeenCalledWith('JC-11', 'body', expect.any(AbortSignal))
+    expect(create).toHaveBeenCalledWith(
+      'JC-11',
+      'body',
+      expect.any(AbortSignal),
+      { accountId: 'human', displayName: 'Human Lead' },
+    )
     expect(assign).toHaveBeenCalledWith('JC-11', 'human', expect.any(AbortSignal))
     expect(result).toEqual({
       action: 'reassign',
       assigneeAccountId: 'human',
-      reason: 'Not automation-eligible.',
+      reason: 'Needs a human.',
     })
   })
 
@@ -72,69 +139,6 @@ describe('JiraTriageEscalator', () => {
       action: 'comment',
       reason: 'Dry-run only.',
     })
-  })
-
-  it('formats repository, repro, and fix details when present', () => {
-    const escalator = new JiraTriageEscalator()
-    const comment = escalator.formatComment({
-      classification,
-      fix: {
-        attempted: true,
-        pullRequestUrl: 'https://github.com/pink-tech/cortex/pull/1',
-        succeeded: true,
-        summary: 'Patched null guard.',
-      },
-      issueKey: 'JC-11',
-      reason: 'Fixed after repro.',
-      repository: {
-        cloneUrl: 'https://github.com/pink-tech/cortex.git',
-        defaultBranch: 'main',
-        name: 'cortex',
-        owner: 'pink-tech',
-        source: 'project_map',
-      },
-      repro: {
-        status: 'reproduced',
-        summary: 'Unit suite failed.',
-        suites: [
-          {
-            command: 'npm test',
-            exitCode: 1,
-            suiteId: 'unit',
-            summary: '1 failing',
-          },
-          {
-            command: 'npm run e2e',
-            suiteId: 'e2e',
-            summary: 'skipped',
-          },
-        ],
-      },
-    })
-
-    expect(comment).toContain('pink-tech/cortex (project_map)')
-    expect(comment).toContain('reproduced — Unit suite failed.')
-    expect(comment).toContain('unit: `npm test` (exit 1)')
-    expect(comment).toContain('e2e: `npm run e2e`')
-    expect(comment).toContain('Fix attempted: true, succeeded: true')
-    expect(comment).toContain('Draft PR: https://github.com/pink-tech/cortex/pull/1')
-  })
-
-  it('formats a fix attempt without a draft PR URL', () => {
-    const escalator = new JiraTriageEscalator()
-    const comment = escalator.formatComment({
-      classification,
-      fix: {
-        attempted: true,
-        succeeded: false,
-        summary: 'Could not land a patch.',
-      },
-      issueKey: 'JC-12',
-      reason: 'Fix failed.',
-    })
-
-    expect(comment).toContain('Fix attempted: true, succeeded: false')
-    expect(comment).not.toContain('Draft PR:')
   })
 
   it('wraps Jira failures as JiraTriageEscalationError', async () => {

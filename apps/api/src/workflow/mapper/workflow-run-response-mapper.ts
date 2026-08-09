@@ -26,6 +26,7 @@ export class WorkflowRunResponseMapper {
       completedAt: run.completedAt?.toISOString() ?? null,
       createdAt: run.createdAt.toISOString(),
       definitionKey: run.definitionKey,
+      definitionVersion: run.definitionVersion,
       failedAt: run.failedAt?.toISOString() ?? null,
       failure: run.failure,
       result: run.result,

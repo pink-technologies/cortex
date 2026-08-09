@@ -4,13 +4,21 @@
 import { AgentExecuteJobKind } from '@cortex/protocol'
 import { WorkflowStepKind } from '../../datatypes'
 import type { WorkflowDefinition } from '../models'
-import { AgentExecuteFlowDefinitionKey } from '../keys'
 
 /**
- * One-step flow that runs an `agent.execute` execution job.
+ * One-step entrypoint that runs a single `agent.execute` job.
+ *
+ * Registered as `agent.execute.flow`. Start input is forwarded as the child
+ * job payload (no `buildPayload`); callers must supply a value that satisfies
+ * {@link AgentExecuteJobPayloadSchema}. The run becomes `RUNNING` when the job
+ * is queued and completes or fails with that job.
+ *
+ * Prefer embedding `agent.execute` inside a multi-step definition (for example
+ * {@link issueImplementFlow}) when the agent needs prior-step context.
  */
-export const agentExecuteFlow: WorkflowDefinition = {
-  key: AgentExecuteFlowDefinitionKey,
+export const agentExecuteFlow = {
+  key: 'agent.execute.flow',
+  version: 1,
   steps: [
     {
       key: 'main',
@@ -19,4 +27,4 @@ export const agentExecuteFlow: WorkflowDefinition = {
       position: 0,
     },
   ],
-}
+} satisfies WorkflowDefinition

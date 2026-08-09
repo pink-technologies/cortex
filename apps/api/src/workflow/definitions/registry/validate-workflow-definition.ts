@@ -20,6 +20,13 @@ export function validateWorkflowDefinition(definition: WorkflowDefinition): void
     throw new WorkflowDefinitionInvalidError(definition.key, 'Workflow definition key must not be empty')
   }
 
+  if (!Number.isInteger(definition.version) || definition.version < 1) {
+    throw new WorkflowDefinitionInvalidError(
+      definition.key,
+      `Workflow definition ${definition.key} version must be a positive integer`,
+    )
+  }
+
   if (definition.steps.length === 0) {
     throw new WorkflowDefinitionInvalidError(
       definition.key,

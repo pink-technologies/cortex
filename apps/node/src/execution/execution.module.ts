@@ -11,7 +11,10 @@ import {
   AgentExecuteJobHandler,
   JiraTriageClassifier,
   JiraTriageEscalator,
+  JiraTriageFixAttempter,
   JiraTriageJobHandler,
+  JiraTriageReproAttempter,
+  IosSimulatorDestinationResolver,
   RepositoryReviewJobHandler,
   TestRunner,
 } from '../handlers'
@@ -35,7 +38,10 @@ import { ExecutionJobProcessingResult, ExecutionJobProcessor } from './jobs/proc
     GitWorkspaceManager,
     JiraTriageClassifier,
     JiraTriageEscalator,
+    JiraTriageFixAttempter,
     JiraTriageJobHandler,
+    JiraTriageReproAttempter,
+    IosSimulatorDestinationResolver,
     RepositoryReviewJobHandler,
     TestRunner,
     {

@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type { ZodType } from 'zod'
+import { ExecutionJobResultInvalidError } from '../error/error'
 import {
   AgentExecuteJobKind,
   AgentExecuteJobResultSchema,
@@ -9,8 +11,6 @@ import {
   RepositoryReviewJobKind,
   RepositoryReviewJobResultSchema,
 } from '@cortex/protocol'
-import type { ZodType } from 'zod'
-import { ExecutionJobResultInvalidError } from '../error/error'
 
 /**
  * Contract result schemas registered per execution-job kind.

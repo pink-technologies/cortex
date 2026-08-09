@@ -5,31 +5,7 @@ import { HTTPMethod, JSONParameterEncoder } from '@cortex/networking'
 import type { GitHubClient } from '../../github-client'
 import { GitHubDraftPullCreationError, GitHubDraftPullMissingUrlError, GitHubPullLookupError } from './error/error'
 import { GitHubPullRequest, type GitHubPullRequestResponse } from './models'
-
-/**
- * Inputs for {@link GitHubPullResource.createDraft}.
- */
-export interface GitHubCreateDraftPullRequest {
-  /**
-   * Target branch the draft pull request merges into.
-   */
-  readonly base: string
-
-  /**
-   * Markdown or plain-text body for the draft pull request.
-   */
-  readonly body: string
-
-  /**
-   * Source branch containing the proposed changes.
-   */
-  readonly head: string
-
-  /**
-   * Title of the draft pull request.
-   */
-  readonly title: string
-}
+import { GitHubCreateDraftPullRequest } from './parameters'
 
 /**
  * GitHub REST resource for the `/repos/{owner}/{repo}/pulls` path.

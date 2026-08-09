@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { ExecutionNode as ExecutionNodeRecord } from '@/infraestructure/database'
+
 /**
  * Canonical CPU architecture values supported by Cortex execution nodes.
  *
@@ -86,4 +88,30 @@ export class ExecutionNode {
     readonly updatedAt: Date,
     readonly version: string | null,
   ) {}
+
+   // MARK: - Static Methods
+
+  /**
+   * Creates a domain {@link ExecutionJob} from a persistence record.
+   *
+   * @param record - Database row for the job.
+   * @returns A domain-level execution job.
+   */
+  static from(record: ExecutionNodeRecord): ExecutionNode {
+    return new ExecutionNode(
+      record.id,
+      record.architecture,
+      [...record.capabilities],
+      record.createdAt,
+      record.installationId,
+      [...record.labels],
+      record.lastSeenAt,
+      record.name,
+      record.operatingSystem,
+      record.state,
+      [...record.supportedKinds],
+      record.updatedAt,
+      record.version,
+    )
+  }
 }

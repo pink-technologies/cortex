@@ -7,6 +7,7 @@ export {
   ExecutionJobStatus,
   NodeOperatingSystem,
   NodeState,
+  WorkflowApprovalDecisionOutcome,
   WorkflowRunStatus,
   WorkflowStepKind,
   WorkflowStepStatus,
@@ -23,6 +24,7 @@ export type {
   ExecutionNode,
   ExecutionWorker,
   Message,
+  WorkflowApprovalDecision,
   WorkflowRun,
   WorkflowStep,
 } from '@prisma/client'

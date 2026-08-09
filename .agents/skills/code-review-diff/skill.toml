@@ -2,5 +2,5 @@
 # https://pink-tech.io/
 
 id = "code-review-diff"
-description = "Diff-focused code review guidance for pull-request style changes."
+description = "Diff-focused code review guidance for pull-request."
 prompt_file = "prompt.md"

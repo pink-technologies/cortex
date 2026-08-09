@@ -1,6 +1,10 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+export {
+  DecideWorkflowRunApprovalRequestSchema,
+} from './decide-workflow-run-approval-request'
+export type { DecideWorkflowRunApprovalRequest } from './decide-workflow-run-approval-request'
 export { ListWorkflowRunsQuerySchema } from './list-workflow-runs-query'
 export type { ListWorkflowRunsQuery } from './list-workflow-runs-query'
 export { WorkflowRunListResponseSchema } from './workflow-run-list-response'

@@ -6,14 +6,28 @@ import type { DatabaseTransaction } from '@/infraestructure/database'
 import { ExecutionJobService } from '../../../execution/execution-job.service'
 import type { ExecutionJob } from '../../../execution/models/execution-job'
 import type { ExecutionJobSource } from '../../../execution/models/execution-job-source'
+import { resolveWorkflowStepPayload, WorkflowStepPayloadContextBuilder } from '../../definitions/payload'
 import { WorkflowRunStatus, WorkflowStepKind, WorkflowStepStatus } from '../../datatypes'
 import type { WorkflowStepPayloadContext } from '../../definitions/models'
-import { resolveWorkflowStepPayload } from '../../definitions/payload'
 import { WorkflowDefinitionRegistry } from '../../definitions/registry'
 import { WorkflowAdvanceError } from '../../error/error'
 import type { WorkflowRun } from '../../models/workflow-run'
+import type { WorkflowRunFailure } from '../../models/workflow-run-failure'
 import type { WorkflowStep } from '../../models/workflow-step'
+import type { UpdateWorkflowRunStatusParameters } from '../../parameters'
 import { WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../../repository'
+
+/**
+ * Run statuses that may still accept a step advance.
+ *
+ * Used as an optimistic guard after a step completion wins so a concurrent
+ * terminal transition (cancel/fail) cannot be overwritten by enqueueing the
+ * next job or promoting the run back to `RUNNING`.
+ */
+const AdvancingRunStatuses: readonly WorkflowRunStatus[] = [
+  WorkflowRunStatus.AWAITING_APPROVAL,
+  WorkflowRunStatus.RUNNING,
+]
 
 /**
  * Parameters for {@link WorkflowTransitioner.activateApprovalStep} — parking
@@ -99,9 +113,9 @@ interface CompleteStepAndAdvanceParameters {
   /**
    * Run that owns {@link CompleteStepAndAdvanceParameters#step}. Supplies the
    * ordered `steps` that decide what comes next and whose stored outputs feed
-   * payload building, the `definitionKey` resolved for `buildPayload` lookups,
-   * the `input` used as the payload fallback, and the `status` that decides
-   * whether a resume write back to `RUNNING` is needed.
+   * payload building, the `definitionKey` / `definitionVersion` resolved for
+   * `buildPayload` lookups, the `input` used as the payload fallback, and the
+   * `status` that decides whether a resume write back to `RUNNING` is needed.
    */
   readonly run: WorkflowRun
 
@@ -123,11 +137,13 @@ interface CompleteStepAndAdvanceParameters {
  */
 interface FailStepAndRunParameters {
   /**
-   * Sanitized failure payload persisted on the run, such as the child job's
-   * failure or an approval-rejection record. Stored as-is; callers must not
-   * include internal diagnostics.
+   * Sanitized failure payload persisted on the run.
+   *
+   * Callers must pass values through {@link sanitizeWorkflowRunFailure} (or
+   * construct an already-public {@link WorkflowRunFailure}) before invoking
+   * this transition.
    */
-  readonly failure: unknown
+  readonly failure: WorkflowRunFailure
 
   /**
    * Statuses the step must still be in for the failure to apply.
@@ -169,12 +185,15 @@ interface FailStepAndRunParameters {
  * Each transition exists here exactly once so the job-driven and
  * approval-driven paths cannot drift apart.
  *
- * Concurrency is handled with optimistic status guards: transitions that race
- * (duplicate job callbacks, competing approval decisions) degrade to no-ops
- * instead of double-applying. Callers open the transaction and pass it in;
- * this class never commits on its own, so a flow's transitions always commit
- * atomically with the caller's other writes — and any error thrown here rolls
- * the whole flow back.
+ * Concurrency uses a single lock order: each mutating method first locks the
+ * run with `SELECT ... FOR UPDATE` (callers that already hold the lock simply
+ * re-acquire it in the same transaction), reloads steps, then updates steps
+ * and the run. Optimistic status guards remain as a second line of defense.
+ * After a step guard wins, further run writes require the run to still be
+ * {@link AdvancingRunStatuses}; when a concurrent cancel/fail already moved the
+ * run terminal, the advance throws {@link WorkflowAdvanceError} so the
+ * caller's transaction rolls back. Callers open the transaction and pass it
+ * in; this class never commits on its own.
  *
  * Next-step payloads are resolved from the run's registered definition: a
  * step's `buildPayload` when declared, otherwise the most recent step output
@@ -212,32 +231,30 @@ export class WorkflowTransitioner {
    *
    * Two writes, both in the caller's transaction: the step moves to
    * `AWAITING_APPROVAL` with `startedAt` stamped, then the owning run moves to
-   * `AWAITING_APPROVAL`. From there only an approval decision (approve or
-   * reject) resumes or terminates the run; job callbacks no longer apply.
-   *
-   * No status guard is applied: callers reach this only from a transition
-   * that already won its own guard.
+   * `AWAITING_APPROVAL` only while it is still {@link AdvancingRunStatuses}.
+   * From there only an approval decision (approve or reject) resumes or
+   * terminates the run; job callbacks no longer apply.
    *
    * @param parameters - Approval step and enclosing transaction.
+   * @throws {@link WorkflowAdvanceError} When the run left
+   *   {@link AdvancingRunStatuses} before the park could apply.
    */
   async activateApprovalStep(parameters: ActivateApprovalStepParameters): Promise<void> {
-    const { step, transaction } = parameters
-
     await this.workflowRunRepository.updateStepStatus(
-      step.id,
+      parameters.step.id,
       {
         startedAt: new Date(),
         status: WorkflowStepStatus.AWAITING_APPROVAL,
       },
-      { transaction },
+      { transaction: parameters.transaction },
     )
 
-    await this.workflowRunRepository.updateRunStatus(
-      step.runId,
+    await this.claimAdvanceableRunStatus(
+      parameters.step.runId,
       {
         status: WorkflowRunStatus.AWAITING_APPROVAL,
       },
-      { transaction },
+      parameters.transaction,
     )
   }
 
@@ -259,36 +276,37 @@ export class WorkflowTransitioner {
    * @throws {@link WorkflowAdvanceError} When the step is not a `JOB` with a `jobKind`.
    */
   async activateJobStep(parameters: ActivateJobStepParameters): Promise<ExecutionJob> {
-    const { payload, priority = 0, source, step, transaction } = parameters
-
-    if (step.kind !== WorkflowStepKind.JOB || step.jobKind == null) {
-      throw new WorkflowAdvanceError(step.runId, `Workflow step ${step.key} must be a JOB with jobKind to activate`)
+    if (parameters.step.kind !== WorkflowStepKind.JOB || parameters.step.jobKind == null) {
+      throw new WorkflowAdvanceError(
+        parameters.step.runId,
+        `Workflow step ${parameters.step.key} must be a JOB with jobKind to activate`,
+      )
     }
 
     const job = await this.executionJobService.create(
       {
-        kind: step.jobKind,
-        payload,
+        kind: parameters.step.jobKind,
+        payload: parameters.payload,
         payloadVersion: 1,
         policy: {},
-        priority,
-        runId: step.runId,
-        source,
-        stepId: step.id,
+        priority: parameters.priority ?? 0,
+        runId: parameters.step.runId,
+        source: parameters.source,
+        stepId: parameters.step.id,
         requirements: {
           allOf: [],
         },
       },
-      { transaction },
+      { transaction: parameters.transaction },
     )
 
     await this.workflowRunRepository.updateStepStatus(
-      step.id,
+      parameters.step.id,
       {
         startedAt: new Date(),
         status: WorkflowStepStatus.QUEUED,
       },
-      { transaction },
+      { transaction: parameters.transaction },
     )
 
     return job
@@ -297,38 +315,56 @@ export class WorkflowTransitioner {
   /**
    * Completes a step and advances its run to whatever comes next.
    *
-   * First applies the guarded step completion (`COMPLETED`, `completedAt`,
-   * optional output). When the guard loses — the step already left
-   * `guardStatuses` because a concurrent caller applied first — the whole
-   * transition is a no-op and nothing else is written.
+   * Locks the run, reloads steps, then applies the guarded step completion.
+   * When the step already left `guardStatuses`, the transition is a no-op.
    *
    * When the guard wins, exactly one of three outcomes follows, by position
-   * order of the run's steps:
+   * order of the run's steps. Each outcome first claims the run is still in
+   * {@link AdvancingRunStatuses}; when that claim loses, this method throws so
+   * the caller's transaction rolls back the step completion:
    * - **No step remains** — the run moves to `COMPLETED` with the most
    *   recent step output as its result (`null` when no step produced any)
    *   and its `activeKey` is released for reuse by a later run.
    * - **Next step is `APPROVAL`** — the run parks via
    *   {@link activateApprovalStep}.
-   * - **Next step is `JOB`** — the step is activated via
-   *   {@link activateJobStep} with a payload resolved from the run's
+   * - **Next step is `JOB`** — the run is claimed as `RUNNING` (including
+   *   when it was parked in `AWAITING_APPROVAL`), then the step is activated
+   *   via {@link activateJobStep} with a payload resolved from the run's
    *   definition: the definition step's `buildPayload` when declared,
    *   otherwise the most recent step output falling back to the run input.
-   *   When the run was parked (for example resuming from an approval), it is
-   *   first moved back to `RUNNING`.
    *
    * @param parameters - Guard, step outcome, and transaction.
-   * @throws {@link WorkflowAdvanceError} When the next step cannot be
-   *   activated, is missing from the registered definition, or its payload
-   *   builder throws.
+   * @throws {@link WorkflowAdvanceError} When the run left
+   *   {@link AdvancingRunStatuses} before the advance could finish, the next
+   *   step cannot be activated, is missing from the registered definition, or
+   *   its payload builder throws.
    * @throws {@link WorkflowDefinitionNotFoundError} When the run's definition
    *   is no longer registered.
    */
   async completeStepAndAdvance(parameters: CompleteStepAndAdvanceParameters): Promise<void> {
+    const run = await this.workflowRunRepository.lockById(parameters.run.id, {
+      transaction: parameters.transaction,
+    })
+
+    if (!run) {
+      return
+    }
+
+    const step = run.steps.find((candidate) => candidate.id === parameters.step.id)
+
+    if (!step || !parameters.guardStatuses.includes(step.status)) {
+      return
+    }
+
     const completedAt = new Date()
-    const nextStep = parameters.run.steps.find((candidate) => candidate.position > parameters.step.position)
-    const context = this.buildPayloadContext(parameters.run, parameters.step, parameters.output)
+    const nextStep = run.steps.find((candidate) => candidate.position > step.position)
+    const context = new WorkflowStepPayloadContextBuilder()
+      .withInput(run.input)
+      .addOutputsThroughStep(run, step, parameters.output)
+      .build()
+
     const stepped = await this.workflowRunRepository.updateStepStatus(
-      parameters.step.id,
+      step.id,
       {
         completedAt,
         output: parameters.output,
@@ -345,15 +381,15 @@ export class WorkflowTransitioner {
     }
 
     if (!nextStep) {
-      await this.workflowRunRepository.updateRunStatus(
-        parameters.run.id,
+      await this.claimAdvanceableRunStatus(
+        run.id,
         {
           activeKey: null,
           completedAt,
           result: context.latestOutput ?? null,
           status: WorkflowRunStatus.COMPLETED,
         },
-        { transaction: parameters.transaction },
+        parameters.transaction,
       )
       return
     }
@@ -363,18 +399,16 @@ export class WorkflowTransitioner {
       return
     }
 
-    if (parameters.run.status !== WorkflowRunStatus.RUNNING) {
-      await this.workflowRunRepository.updateRunStatus(
-        parameters.run.id,
-        {
-          status: WorkflowRunStatus.RUNNING,
-        },
-        { transaction: parameters.transaction },
-      )
-    }
+    await this.claimAdvanceableRunStatus(
+      run.id,
+      {
+        status: WorkflowRunStatus.RUNNING,
+      },
+      parameters.transaction,
+    )
 
     await this.activateJobStep({
-      payload: this.resolveNextStepPayload(parameters.run, nextStep, context),
+      payload: this.resolveNextStepPayload(run, nextStep, context),
       step: nextStep,
       transaction: parameters.transaction,
     })
@@ -383,10 +417,8 @@ export class WorkflowTransitioner {
   /**
    * Fails a step together with its run, terminally.
    *
-   * First applies the guarded step failure (`FAILED`, `failedAt`). When the
-   * guard loses — the step already left `guardStatuses` because a concurrent
-   * caller applied first — the whole transition is a no-op and the run is
-   * left untouched.
+   * Locks the run, reloads steps, then applies the guarded step failure.
+   * When the step already left `guardStatuses`, the transition is a no-op.
    *
    * When the guard wins, the run moves to `FAILED` with the same `failedAt`
    * and the given failure payload, and its `activeKey` is released for reuse
@@ -396,7 +428,23 @@ export class WorkflowTransitioner {
    * @param parameters - Guard, failure payload, step, run, and transaction.
    */
   async failStepAndRun(parameters: FailStepAndRunParameters): Promise<void> {
-    const { failure, guardStatuses, run, step, transaction } = parameters
+    const { failure, guardStatuses, transaction } = parameters
+    const run = await this.workflowRunRepository.lockById(parameters.run.id, { transaction })
+
+    if (!run) {
+      return
+    }
+
+    if (!AdvancingRunStatuses.includes(run.status)) {
+      return
+    }
+
+    const step = run.steps.find((candidate) => candidate.id === parameters.step.id)
+
+    if (!step || !guardStatuses.includes(step.status)) {
+      return
+    }
+
     const failedAt = new Date()
 
     const stepped = await this.workflowRunRepository.updateStepStatus(
@@ -415,7 +463,7 @@ export class WorkflowTransitioner {
       return
     }
 
-    await this.workflowRunRepository.updateRunStatus(
+    const failed = await this.workflowRunRepository.updateRunStatus(
       run.id,
       {
         activeKey: null,
@@ -423,39 +471,46 @@ export class WorkflowTransitioner {
         failure,
         status: WorkflowRunStatus.FAILED,
       },
-      { transaction },
+      {
+        onlyIfStatusIn: AdvancingRunStatuses,
+        transaction,
+      },
     )
+
+    if (!failed) {
+      throw new WorkflowAdvanceError(
+        run.id,
+        `Workflow run ${run.id} is no longer RUNNING or AWAITING_APPROVAL and cannot fail`,
+      )
+    }
   }
 
   // MARK: - Private methods
 
-  private buildPayloadContext(
-    run: WorkflowRun,
-    completingStep: WorkflowStep,
-    output: unknown,
-  ): WorkflowStepPayloadContext {
-    const outputs: Record<string, unknown> = {}
-    let latestOutput: unknown
+  /**
+   * Applies a run status write only while the run is still advanceable.
+   *
+   * @param runId - Primary key of the run to update.
+   * @param parameters - Target status and optional terminal fields.
+   * @param transaction - Open transaction the write joins.
+   * @throws {@link WorkflowAdvanceError} When the run is no longer
+   *   {@link AdvancingRunStatuses}.
+   */
+  private async claimAdvanceableRunStatus(
+    runId: string,
+    parameters: UpdateWorkflowRunStatusParameters,
+    transaction: DatabaseTransaction,
+  ): Promise<void> {
+    const claimed = await this.workflowRunRepository.updateRunStatus(runId, parameters, {
+      onlyIfStatusIn: AdvancingRunStatuses,
+      transaction,
+    })
 
-    const orderedSteps = [...run.steps].sort((left, right) => left.position - right.position)
-
-    for (const candidate of orderedSteps) {
-      if (candidate.position > completingStep.position) {
-        continue
-      }
-
-      const candidateOutput = candidate.id === completingStep.id ? output : candidate.output
-
-      if (candidateOutput != null) {
-        outputs[candidate.key] = candidateOutput
-        latestOutput = candidateOutput
-      }
-    }
-
-    return {
-      input: run.input,
-      latestOutput,
-      outputs,
+    if (!claimed) {
+      throw new WorkflowAdvanceError(
+        runId,
+        `Workflow run ${runId} is no longer RUNNING or AWAITING_APPROVAL and cannot advance`,
+      )
     }
   }
 
@@ -464,13 +519,13 @@ export class WorkflowTransitioner {
     nextStep: WorkflowStep,
     context: WorkflowStepPayloadContext,
   ): unknown {
-    const definition = this.definitionRegistry.resolve(run.definitionKey)
+    const definition = this.definitionRegistry.resolve(run.definitionKey, run.definitionVersion)
     const stepDefinition = definition.steps.find((candidate) => candidate.key === nextStep.key)
 
     if (!stepDefinition) {
       throw new WorkflowAdvanceError(
         run.id,
-        `Workflow run ${run.id} step ${nextStep.key} is not part of definition ${run.definitionKey}`,
+        `Workflow run ${run.id} step ${nextStep.key} is not part of definition ${run.definitionKey}@${run.definitionVersion}`,
       )
     }
 

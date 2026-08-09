@@ -31,19 +31,17 @@ const CancellableStepStatuses: readonly WorkflowStepStatus[] = [
 /**
  * Cancels in-flight workflow runs on operator request.
  *
- * Owns the cancellation flow only: moving a non-terminal run and its
- * non-terminal steps to `CANCELLED` and requesting cancellation of the run's
- * active child execution jobs, all in one transaction. Starting, advancing,
- * and approval decisions live in their own collaborators behind
- * {@link WorkflowOrchestrator}.
+ * Owns the cancellation flow only: locking the run, moving it and its
+ * non-terminal steps to `CANCELLED`, and requesting cancellation of the run's
+ * active child execution jobs, all in one transaction. The run row is locked
+ * with `SELECT ... FOR UPDATE` before any step or job writes so cancel and
+ * advance share one lock order.
  *
- * Concurrency is resolved with optimistic status guards: the run update
- * applies only while the run is still cancellable, so a terminal transition
- * that commits first wins and the cancellation fails with
- * {@link WorkflowCancelError} instead of overwriting it. `RUNNING` child jobs
- * keep executing until their node observes `cancellationRequestedAt`; their
- * eventual terminal callbacks degrade to no-ops because the cancelled steps
- * no longer pass the advance guards.
+ * When the run is already terminal under the lock, cancellation fails with
+ * {@link WorkflowCancelError}. `RUNNING` child jobs keep executing until their
+ * node observes `cancellationRequestedAt`; their eventual terminal callbacks
+ * degrade to no-ops because the cancelled steps no longer pass the advance
+ * guards.
  */
 @Injectable()
 export class WorkflowCanceller {
@@ -69,11 +67,9 @@ export class WorkflowCanceller {
   /**
    * Cancels a workflow run and its in-flight work.
    *
-   * Moves the run to `CANCELLED` (releasing its `activeKey` for reuse by a
-   * later run), cancels every non-terminal step, moves the run's `QUEUED`
-   * child jobs to `CANCELLED`, and flags `RUNNING` child jobs with
-   * `cancellationRequestedAt`. All writes commit in one transaction; when the
-   * run reaches a terminal state first, nothing is written.
+   * Locks the run, moves it to `CANCELLED` (releasing its `activeKey`),
+   * cancels every non-terminal step, moves the run's `QUEUED` child jobs to
+   * `CANCELLED`, and flags `RUNNING` child jobs with `cancellationRequestedAt`.
    *
    * @param runId - Primary key of the run to cancel.
    * @returns The refreshed run after cancellation; `null` when the run does not exist.
@@ -81,17 +77,17 @@ export class WorkflowCanceller {
    *   including when a concurrent terminal transition wins the race.
    */
   async cancel(runId: string): Promise<WorkflowRun | null> {
-    const run = await this.workflowRunRepository.findById(runId)
+    return this.database.withTransaction(async (transaction) => {
+      const run = await this.workflowRunRepository.lockById(runId, { transaction })
 
-    if (!run) {
-      return null
-    }
+      if (!run) {
+        return null
+      }
 
-    if (!CancellableRunStatuses.includes(run.status)) {
-      throw new WorkflowCancelError(runId, `Workflow run ${runId} is already ${run.status} and cannot be cancelled`)
-    }
+      if (!CancellableRunStatuses.includes(run.status)) {
+        throw new WorkflowCancelError(runId, `Workflow run ${runId} is already ${run.status} and cannot be cancelled`)
+      }
 
-    await this.database.withTransaction(async (transaction) => {
       const cancelled = await this.workflowRunRepository.updateRunStatus(
         run.id,
         {
@@ -126,8 +122,8 @@ export class WorkflowCanceller {
       }
 
       await this.executionJobService.requestCancellationForRun(run.id, { transaction })
-    })
 
-    return this.workflowRunRepository.findById(runId)
+      return this.workflowRunRepository.findById(runId, { transaction })
+    })
   }
 }

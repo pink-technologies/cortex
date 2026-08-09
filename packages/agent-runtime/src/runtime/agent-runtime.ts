@@ -4,7 +4,7 @@
 import { AgentFactory } from '@/agent'
 import { AgentDefinitionRegistry } from '@/definition/registry/agent-definition-registry'
 import type { AgentExecutionContext } from '@/execution/agent-execution-context'
-import type { AgentExecutionScopeResolver } from '@/execution/scope'
+import type { AgentExecutionScopeResolver } from '@/execution/'
 import { Kernel, type KernelResult } from '@/kernel'
 import { AgentToolRegistry } from '@/tool'
 import type { AgentRuntimeRequest } from './models'

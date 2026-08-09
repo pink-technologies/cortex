@@ -125,10 +125,12 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
 
       if (jobPayload.change.pullRequestNumber) {
         await comments.create(
-          jobPayload.repository.owner,
-          jobPayload.repository.name,
-          jobPayload.change.pullRequestNumber,
-          formatRepositoryReviewComment(result),
+          {
+            owner: jobPayload.repository.owner,
+            repository: jobPayload.repository.name,
+            issueNumber: jobPayload.change.pullRequestNumber,
+            body: formatRepositoryReviewComment(result),
+          },
           context.signal,
         )
       }

@@ -7,7 +7,8 @@ import { JiraWebhookController } from './controller/jira-webhook.controller'
 import { JiraWebhookService } from './jira-webhook.service'
 
 /**
- * Jira webhook ingress starting jira.triage workflow runs.
+ * Jira webhook ingress for named routes (for example `jira-triage` →
+ * `POST /api/webhooks/jira/jira-triage`).
  */
 @Module({
   controllers: [JiraWebhookController],

@@ -4,17 +4,12 @@
 import { UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Test, type TestingModule } from '@nestjs/testing'
-import { Prisma } from '@prisma/client'
 import { RepositoryReviewJobKind } from '@cortex/protocol'
-import { RepositoryReviewFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { repositoryReviewFlow } from '@/workflow/definitions'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { WorkflowRunCreateError } from '@/workflow/error/error'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
-import {
-  GitHubWebhookService,
-  signGitHubWebhookPayload,
-} from '../../../src/webhooks/github'
-
+import { GitHubWebhookService, signGitHubWebhookPayload } from '../../../src/webhooks/github'
 describe('GitHubWebhookService', () => {
   const secret = 'webhook-secret'
   const pullRequestBody = {
@@ -92,6 +87,7 @@ describe('GitHubWebhookService', () => {
     const now = new Date('2026-07-31T12:00:00.000Z')
 
     start.mockResolvedValue({
+      created: true,
       job: {
         id: 'job-1',
         kind: RepositoryReviewJobKind,
@@ -120,7 +116,7 @@ describe('GitHubWebhookService', () => {
     })
 
     expect(start).toHaveBeenCalledWith({
-      definitionKey: RepositoryReviewFlowDefinitionKey,
+      definitionKey: repositoryReviewFlow.key,
       input: expect.objectContaining({
         connectionId: 'github-main',
         instructions: 'Focus on bugs.',
@@ -134,18 +130,18 @@ describe('GitHubWebhookService', () => {
     })
   })
 
-  it('returns already_enqueued on unique triggerIdentifier collisions', async () => {
+  it('returns already_enqueued when start reuses an existing triggerIdentifier', async () => {
     const rawBody = Buffer.from(JSON.stringify(pullRequestBody), 'utf8')
-    const prismaError = new Prisma.PrismaClientKnownRequestError('Unique', {
-      clientVersion: 'test',
-      code: 'P2002',
-    })
 
-    start.mockRejectedValue(
-      new WorkflowRunCreateError('Failed to create workflow run', {
-        cause: prismaError,
-      }),
-    )
+    start.mockResolvedValue({
+      created: false,
+      job: {
+        id: 'job-1',
+      },
+      run: {
+        id: 'run-1',
+      },
+    })
 
     const result = await service.handle({
       body: pullRequestBody,
@@ -162,7 +158,7 @@ describe('GitHubWebhookService', () => {
     })
   })
 
-  it('rethrows non-unique start failures', async () => {
+  it('rethrows start failures', async () => {
     const rawBody = Buffer.from(JSON.stringify(pullRequestBody), 'utf8')
     const failure = new WorkflowRunCreateError('Failed to create workflow run', {
       cause: new Error('connection reset'),

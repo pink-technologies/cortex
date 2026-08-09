@@ -2,81 +2,17 @@
 // https://pink-tech.io/
 
 import type { WorkflowRunStatus } from '../datatypes'
-import { WorkflowStep, type WorkflowStepRecord } from './workflow-step'
+import { WorkflowStep } from './workflow-step'
+import type {
+  WorkflowRun as WorkflowRunPersistence,
+  WorkflowStep as WorkflowStepPersistence,
+} from '@/infraestructure/database'
 
 /**
- * Persistence fields required to build a {@link WorkflowRun}.
+ * Prisma workflow-run row, optionally with nested steps from an `include`.
  */
-export interface WorkflowRunRecord {
-  /**
-   * Optional uniqueness key for concurrent runs of the same logical work.
-   */
-  readonly activeKey: string | null
-
-  /**
-   * Timestamp when the run completed successfully.
-   */
-  readonly completedAt: Date | null
-
-  /**
-   * Timestamp when the run row was first persisted.
-   */
-  readonly createdAt: Date
-
-  /**
-   * Registry key of the workflow definition that produced this run.
-   */
-  readonly definitionKey: string
-
-  /**
-   * Timestamp when the run entered a terminal failure state.
-   */
-  readonly failedAt: Date | null
-
-  /**
-   * Sanitized failure payload persisted for the run.
-   */
-  readonly failure: unknown | null
-
-  /**
-   * Stable run primary key.
-   */
-  readonly id: string
-
-  /**
-   * Opaque run input supplied at start.
-   */
-  readonly input: unknown
-
-  /**
-   * Aggregated or final result for the run, when completed.
-   */
-  readonly result: unknown | null
-
-  /**
-   * Timestamp when the run left `PENDING`.
-   */
-  readonly startedAt: Date | null
-
-  /**
-   * Current run lifecycle status.
-   */
-  readonly status: string
-
-  /**
-   * Optional nested step rows from persistence.
-   */
-  readonly steps?: readonly WorkflowStepRecord[]
-
-  /**
-   * Optional enqueue idempotency key for the whole run.
-   */
-  readonly triggerIdentifier: string | null
-
-  /**
-   * Timestamp when the run row was last updated.
-   */
-  readonly updatedAt: Date
+type WorkflowRunPersistenceRecord = WorkflowRunPersistence & {
+  readonly steps?: readonly WorkflowStepPersistence[]
 }
 
 /**
@@ -107,6 +43,11 @@ export class WorkflowRun {
    * Registry key of the workflow definition that produced this run.
    */
   readonly definitionKey: string
+
+  /**
+   * Immutable definition revision pinned when this run was created.
+   */
+  readonly definitionVersion: number
 
   /**
    * Timestamp when the run entered a terminal failure state.
@@ -161,15 +102,15 @@ export class WorkflowRun {
   // MARK: - Static methods
 
   /**
-   * Maps a persistence run record into a domain run.
+   * Maps a database workflow-run row into a domain run.
    *
    * Included steps are sorted by `position` ascending. Missing `steps` yield an
    * empty array.
    *
-   * @param record - Persisted run fields, optionally with steps.
+   * @param record - Persisted run row, optionally with nested steps.
    * @returns Domain run ready for workflow consumers.
    */
-  static from(record: WorkflowRunRecord): WorkflowRun {
+  static from(record: WorkflowRunPersistenceRecord): WorkflowRun {
     const steps = [...(record.steps ?? [])]
       .sort((left, right) => left.position - right.position)
       .map((step) => WorkflowStep.from(step))
@@ -177,6 +118,7 @@ export class WorkflowRun {
     return new WorkflowRun(
       record.id,
       record.definitionKey,
+      record.definitionVersion,
       record.status as WorkflowRunStatus,
       record.input,
       steps,
@@ -199,6 +141,7 @@ export class WorkflowRun {
    *
    * @param id - Stable run primary key.
    * @param definitionKey - Registry key of the workflow definition.
+   * @param definitionVersion - Immutable definition revision pinned at start.
    * @param status - Current run lifecycle status.
    * @param input - Opaque run input supplied at start.
    * @param steps - Ordered steps belonging to this run.
@@ -215,6 +158,7 @@ export class WorkflowRun {
   constructor(
     id: string,
     definitionKey: string,
+    definitionVersion: number,
     status: WorkflowRunStatus,
     input: unknown,
     steps: readonly WorkflowStep[],
@@ -230,6 +174,7 @@ export class WorkflowRun {
   ) {
     this.id = id
     this.definitionKey = definitionKey
+    this.definitionVersion = definitionVersion
     this.status = status
     this.input = input
     this.steps = steps

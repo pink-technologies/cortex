@@ -8,13 +8,16 @@ import { WorkflowRunListResponseMapper, WorkflowRunResponseMapper } from '../map
 import { WorkflowOrchestrator } from '../orchestrator'
 import { WORKFLOW_RUN_REPOSITORY, type WorkflowRunRepository } from '../repository'
 import {
+  DecideWorkflowRunApprovalRequestSchema,
   ListWorkflowRunsQuerySchema,
+  type DecideWorkflowRunApprovalRequest,
   type ListWorkflowRunsQuery,
   type WorkflowRunListResponse,
   type WorkflowRunResponse,
 } from '@cortex/protocol'
 
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -34,15 +37,15 @@ import {
  * Exposes:
  * - `GET /workflow-runs` — list runs with status/definition filters and paging.
  * - `GET /workflow-runs/:id` — retrieve a run's status and step progress.
- * - `POST /workflow-runs/:id/approve` — apply a positive approval decision.
+ * - `POST /workflow-runs/:id/approve` — approve a named approval step.
  * - `POST /workflow-runs/:id/cancel` — cancel an in-flight run.
- * - `POST /workflow-runs/:id/reject` — apply a negative approval decision.
+ * - `POST /workflow-runs/:id/reject` — reject a named approval step.
  *
  * Mutating endpoints require the operator bearer token enforced by
- * {@link WorkflowOperatorGuard}; reads are open. Approval decisions apply only
- * while the run has a step in `AWAITING_APPROVAL`, and cancellation applies
- * only while the run is non-terminal; otherwise the request fails with
- * HTTP 409.
+ * {@link WorkflowOperatorGuard}; reads are open. Approval bodies must include
+ * the `stepId` being decided so delayed retries cannot target a later gate.
+ * Cancellation applies only while the run is non-terminal; otherwise the
+ * request fails with HTTP 409.
  *
  * Unexpected workflow domain failures are converted to sanitized HTTP
  * responses by {@link WorkflowExceptionFilter}.
@@ -68,21 +71,33 @@ export class WorkflowRunController {
   // MARK: - Instance methods
 
   /**
-   * Applies a positive approval decision to a parked run.
+   * Applies a positive approval decision to a named approval step.
    *
-   * Completes the step awaiting approval and resumes the run: the next `JOB`
-   * step is activated, or the run completes when no steps remain.
+   * Completes the named step when it is still awaiting approval and resumes
+   * the run. Retries that name an already-completed approval step are
+   * idempotent.
    *
    * @param id - Primary key of the workflow run.
+   * @param body - Decision body naming the approval step.
    * @returns The refreshed run after the decision.
    * @throws NotFoundException When no run exists for the identifier.
-   * @throws WorkflowApprovalError When no step is awaiting approval (HTTP 409).
+   * @throws WorkflowApprovalError When the step cannot accept approve (HTTP 409).
    */
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
   @UseGuards(WorkflowOperatorGuard)
-  async approve(@Param('id') id: string): Promise<WorkflowRunResponse> {
-    const run = await this.orchestrator.approve(id)
+  async approve(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(DecideWorkflowRunApprovalRequestSchema))
+    body: DecideWorkflowRunApprovalRequest,
+  ): Promise<WorkflowRunResponse> {
+    const run = await this.orchestrator.approve({
+      actorId: body.actorId,
+      decisionId: body.decisionId,
+      reason: body.reason,
+      runId: id,
+      stepId: body.stepId,
+    })
 
     if (!run) {
       throw new NotFoundException(`Workflow run '${id}' was not found`)
@@ -166,20 +181,33 @@ export class WorkflowRunController {
   }
 
   /**
-   * Applies a negative approval decision to a parked run.
+   * Applies a negative approval decision to a named approval step.
    *
-   * Fails the step awaiting approval and the run.
+   * Fails the named step and the run when the step is still awaiting
+   * approval. Retries that name an already-failed approval step are
+   * idempotent.
    *
    * @param id - Primary key of the workflow run.
+   * @param body - Decision body naming the approval step.
    * @returns The refreshed run after the decision.
    * @throws NotFoundException When no run exists for the identifier.
-   * @throws WorkflowApprovalError When no step is awaiting approval (HTTP 409).
+   * @throws WorkflowApprovalError When the step cannot accept reject (HTTP 409).
    */
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
   @UseGuards(WorkflowOperatorGuard)
-  async reject(@Param('id') id: string): Promise<WorkflowRunResponse> {
-    const run = await this.orchestrator.reject(id)
+  async reject(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(DecideWorkflowRunApprovalRequestSchema))
+    body: DecideWorkflowRunApprovalRequest,
+  ): Promise<WorkflowRunResponse> {
+    const run = await this.orchestrator.reject({
+      actorId: body.actorId,
+      decisionId: body.decisionId,
+      reason: body.reason,
+      runId: id,
+      stepId: body.stepId,
+    })
 
     if (!run) {
       throw new NotFoundException(`Workflow run '${id}' was not found`)

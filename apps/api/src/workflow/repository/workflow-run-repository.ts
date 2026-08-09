@@ -3,8 +3,10 @@
 
 import { Injectable } from '@nestjs/common'
 import { WorkflowRunStatus, WorkflowStepStatus } from '../datatypes'
-import { WorkflowRun } from '../models'
-import { Database, Prisma } from '@/infraestructure/database'
+import { WorkflowApprovalDecision, WorkflowRun } from '../models'
+import { Database, Prisma, type DatabaseTransaction } from '@/infraestructure/database'
+import type { CreateWorkflowRunResult } from '../models/create-workflow-run-result'
+import type { WorkflowRunPage } from '../models/workflow-run-page'
 import {
   WorkflowRunCreateError,
   WorkflowRunReadError,
@@ -12,8 +14,8 @@ import {
   WorkflowStepUpdateError,
 } from '../error/error'
 
-import type { WorkflowRunPage } from '../models/workflow-run-page'
 import type {
+  CreateWorkflowApprovalDecisionParameters,
   CreateWorkflowRunParameters,
   FindWorkflowRunsParameters,
   RepositoryWriteOptions,
@@ -31,6 +33,20 @@ import type {
 export const WORKFLOW_RUN_REPOSITORY = Symbol('WORKFLOW_RUN_REPOSITORY')
 
 /**
+ * Shared Prisma include for loading a workflow run with its steps.
+ *
+ * Steps are ordered by `position` ascending so callers see activation order
+ * without a separate sort.
+ */
+const workflowRunWithStepsInclude = {
+  steps: {
+    orderBy: {
+      position: 'asc' as const,
+    },
+  },
+} satisfies Prisma.WorkflowRunInclude
+
+/**
  * Persistence port for {@link WorkflowRun} rows and their steps.
  *
  * Implementations own mapping from create/update parameters onto Prisma models
@@ -38,18 +54,23 @@ export const WORKFLOW_RUN_REPOSITORY = Symbol('WORKFLOW_RUN_REPOSITORY')
  */
 export interface WorkflowRunRepository {
   /**
-   * Inserts a workflow run and its steps atomically, then returns the run with
-   * steps ordered by `position`.
+   * Inserts a workflow run, or returns the existing row for the same
+   * idempotency key.
+   *
+   * Lookup order: `triggerIdentifier`, then `activeKey`. When neither key is
+   * set, always inserts. Concurrent inserts are race-safe: insert first, and
+   * on a unique violation reload by those keys.
    *
    * @param parameters - Run definition key, input, optional idempotency keys, and steps.
    * @param options - Optional transaction client.
-   * @returns The newly persisted {@link WorkflowRun}.
-   * @throws {WorkflowRunCreateError} When persistence fails (including unique collisions).
+   * @returns Whether a row was inserted and the matching {@link WorkflowRun}.
+   * @throws {WorkflowRunCreateError} When persistence fails for a non-idempotent reason.
+   * @throws {WorkflowRunReadError} When a unique collision cannot be resolved to an existing run.
    */
-  create(
+  getOrCreate(
     parameters: CreateWorkflowRunParameters,
     options?: RepositoryWriteOptions,
-  ): Promise<WorkflowRun>
+  ): Promise<CreateWorkflowRunResult>
 
   /**
    * Loads a single run by primary key, including its steps.
@@ -65,6 +86,26 @@ export interface WorkflowRunRepository {
   findById(id: string, options?: RepositoryWriteOptions): Promise<WorkflowRun | null>
 
   /**
+   * Loads a run by {@link CreateWorkflowRunParameters.triggerIdentifier}.
+   *
+   * @param triggerIdentifier - Enqueue idempotency key.
+   * @param options - Optional transaction client.
+   * @returns The domain run when found; otherwise `null`.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  findByTriggerIdentifier(triggerIdentifier: string, options?: RepositoryWriteOptions): Promise<WorkflowRun | null>
+
+  /**
+   * Loads a run by {@link CreateWorkflowRunParameters.activeKey}.
+   *
+   * @param activeKey - Active-run uniqueness key.
+   * @param options - Optional transaction client.
+   * @returns The domain run when found; otherwise `null`.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  findByActiveKey(activeKey: string, options?: RepositoryWriteOptions): Promise<WorkflowRun | null>
+
+  /**
    * Lists a page of runs ordered by creation time descending, including steps.
    *
    * Optional status and definition-key filters combine with logical AND. The
@@ -76,6 +117,55 @@ export interface WorkflowRunRepository {
    * @throws {WorkflowRunReadError} When the persistence operation fails.
    */
   findMany(parameters: FindWorkflowRunsParameters): Promise<WorkflowRunPage>
+
+  /**
+   * Persists an approval decision audit row.
+   *
+   * {@link CreateWorkflowApprovalDecisionParameters.decisionId} is unique; a
+   * collision surfaces as a Prisma unique-constraint error for the caller to
+   * treat as an idempotent retry or conflict.
+   *
+   * @param parameters - Decision identity, outcome, actor, and optional reason.
+   * @param options - Optional transaction client.
+   * @returns The persisted domain decision.
+   * @throws {WorkflowRunCreateError} When persistence fails.
+   */
+  createApprovalDecision(
+    parameters: CreateWorkflowApprovalDecisionParameters,
+    options?: RepositoryWriteOptions,
+  ): Promise<WorkflowApprovalDecision>
+
+  /**
+   * Loads an approval decision by client idempotency key.
+   *
+   * @param decisionId - Client-supplied decision idempotency key.
+   * @param options - Optional transaction client.
+   * @returns The domain decision when found; otherwise `null`.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  findApprovalDecisionByDecisionId(
+    decisionId: string,
+    options?: RepositoryWriteOptions,
+  ): Promise<WorkflowApprovalDecision | null>
+
+  /**
+   * Locks a run row for update and reloads it with ordered steps.
+   *
+   * Callers must hold an open transaction. Acquiring the run lock before any
+   * step or job writes keeps cancel/advance/approval on one lock order and
+   * avoids deadlocks.
+   *
+   * @param id - Stable primary key of the workflow run.
+   * @param options - Transaction that will own the row lock.
+   * @returns The locked domain run when found; otherwise `null`.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  lockById(
+    id: string,
+    options: {
+      readonly transaction: DatabaseTransaction
+    },
+  ): Promise<WorkflowRun | null>
 
   /**
    * Updates a run's status and optional terminal fields.
@@ -129,30 +219,41 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
   // MARK: - WorkflowRunRepository
 
   /**
-   * Inserts a workflow run and its steps atomically, then returns the run with
-   * steps ordered by `position`.
+   * Inserts a workflow run, or returns the existing row for the same
+   * idempotency key.
    *
    * @param parameters - Run definition key, input, optional idempotency keys, and steps.
    * @param options - Optional transaction client.
-   * @returns The newly persisted {@link WorkflowRun}.
-   * @throws {WorkflowRunCreateError} When persistence fails (including unique collisions).
+   * @returns Whether a row was inserted and the matching {@link WorkflowRun}.
+   * @throws {WorkflowRunCreateError} When persistence fails for a non-idempotent reason.
+   * @throws {WorkflowRunReadError} When a unique collision cannot be resolved to an existing run.
    */
-  async create(
+  async getOrCreate(
     parameters: CreateWorkflowRunParameters,
     options?: RepositoryWriteOptions,
-  ): Promise<WorkflowRun> {
+  ): Promise<CreateWorkflowRunResult> {
+    const existing = await this.findByIdempotencyKeys(parameters, options)
+
+    if (existing) {
+      return {
+        created: false,
+        run: existing,
+      }
+    }
+
     try {
       const client = options?.transaction ?? this.database
       const record = await client.workflowRun.create({
         data: {
           activeKey: parameters.activeKey,
           definitionKey: parameters.definitionKey,
+          definitionVersion: parameters.definitionVersion,
           input: parameters.input as Prisma.InputJsonValue,
           status: WorkflowRunStatus.PENDING,
+          triggerIdentifier: parameters.triggerIdentifier,
           steps: {
             create: parameters.steps.map((step) => ({
-              input:
-                step.input === undefined ? Prisma.DbNull : (step.input as Prisma.InputJsonValue),
+              input: step.input === undefined ? Prisma.DbNull : (step.input as Prisma.InputJsonValue),
               jobKind: step.jobKind,
               key: step.key,
               kind: step.kind,
@@ -160,20 +261,31 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
               status: WorkflowStepStatus.PENDING,
             })),
           },
-          triggerIdentifier: parameters.triggerIdentifier,
         },
-        include: {
-          steps: {
-            orderBy: {
-              position: 'asc',
-            },
-          },
-        },
+        include: workflowRunWithStepsInclude,
       })
 
-      return WorkflowRun.from(record)
+      return {
+        created: true,
+        run: WorkflowRun.from(record),
+      }
     } catch (error) {
-      throw new WorkflowRunCreateError('Failed to create workflow run', { cause: error })
+      if (!isUniqueConstraintViolation(error)) {
+        throw new WorkflowRunCreateError('Failed to create workflow run', { cause: error })
+      }
+
+      const raced = await this.findByIdempotencyKeys(parameters, options)
+
+      if (raced) {
+        return {
+          created: false,
+          run: raced,
+        }
+      }
+
+      throw new WorkflowRunReadError('Failed to resolve workflow run after unique conflict', {
+        cause: error,
+      })
     }
   }
 
@@ -192,13 +304,7 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
         where: {
           id,
         },
-        include: {
-          steps: {
-            orderBy: {
-              position: 'asc',
-            },
-          },
-        },
+        include: workflowRunWithStepsInclude,
       })
 
       if (!record) {
@@ -208,6 +314,67 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
       return WorkflowRun.from(record)
     } catch (error) {
       throw new WorkflowRunReadError('Failed to read workflow run', { cause: error })
+    }
+  }
+
+  /**
+   * Loads a run by enqueue idempotency key.
+   *
+   * @param triggerIdentifier - Enqueue idempotency key.
+   * @param options - Optional transaction client.
+   * @returns The domain run when found; otherwise `null`.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  async findByTriggerIdentifier(
+    triggerIdentifier: string,
+    options?: RepositoryWriteOptions,
+  ): Promise<WorkflowRun | null> {
+    try {
+      const client = options?.transaction ?? this.database
+      const record = await client.workflowRun.findUnique({
+        include: workflowRunWithStepsInclude,
+        where: {
+          triggerIdentifier,
+        },
+      })
+
+      if (!record) {
+        return null
+      }
+
+      return WorkflowRun.from(record)
+    } catch (error) {
+      throw new WorkflowRunReadError('Failed to read workflow run by trigger identifier', {
+        cause: error,
+      })
+    }
+  }
+
+  /**
+   * Loads a run by active-run uniqueness key.
+   *
+   * @param activeKey - Active-run uniqueness key.
+   * @param options - Optional transaction client.
+   * @returns The domain run when found; otherwise `null`.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  async findByActiveKey(activeKey: string, options?: RepositoryWriteOptions): Promise<WorkflowRun | null> {
+    try {
+      const client = options?.transaction ?? this.database
+      const record = await client.workflowRun.findUnique({
+        where: {
+          activeKey,
+        },
+        include: workflowRunWithStepsInclude,
+      })
+
+      if (!record) {
+        return null
+      }
+
+      return WorkflowRun.from(record)
+    } catch (error) {
+      throw new WorkflowRunReadError('Failed to read workflow run by active key', { cause: error })
     }
   }
 
@@ -225,7 +392,8 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
         ...(parameters.status ? { status: parameters.status } : {}),
       }
 
-      const [records, total] = await Promise.all([
+      const [total, records] = await Promise.all([
+        this.database.workflowRun.count({ where }),
         this.database.workflowRun.findMany({
           where,
           include: {
@@ -241,7 +409,6 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
           skip: Math.max(0, (parameters.page - 1) * parameters.limit),
           take: parameters.limit,
         }),
-        this.database.workflowRun.count({ where }),
       ])
 
       return {
@@ -250,6 +417,100 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
       }
     } catch (error) {
       throw new WorkflowRunReadError('Failed to list workflow runs', { cause: error })
+    }
+  }
+
+  /**
+   * Persists an approval decision audit row.
+   *
+   * @param parameters - Decision identity, outcome, actor, and optional reason.
+   * @param options - Optional transaction client.
+   * @returns The persisted domain decision.
+   * @throws {WorkflowRunCreateError} When persistence fails.
+   */
+  async createApprovalDecision(
+    parameters: CreateWorkflowApprovalDecisionParameters,
+    options?: RepositoryWriteOptions,
+  ): Promise<WorkflowApprovalDecision> {
+    try {
+      const client = options?.transaction ?? this.database
+      const record = await client.workflowApprovalDecision.create({
+        data: {
+          actorId: parameters.actorId,
+          decisionId: parameters.decisionId,
+          outcome: parameters.outcome,
+          reason: parameters.reason,
+          runId: parameters.runId,
+          stepId: parameters.stepId,
+        },
+      })
+
+      return WorkflowApprovalDecision.from(record)
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw error
+      }
+
+      throw new WorkflowRunCreateError('Failed to create workflow approval decision', { cause: error })
+    }
+  }
+
+  /**
+   * Loads an approval decision by client idempotency key.
+   *
+   * @param decisionId - Client-supplied decision idempotency key.
+   * @param options - Optional transaction client.
+   * @returns The domain decision when found; otherwise `null`.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  async findApprovalDecisionByDecisionId(
+    decisionId: string,
+    options?: RepositoryWriteOptions,
+  ): Promise<WorkflowApprovalDecision | null> {
+    try {
+      const client = options?.transaction ?? this.database
+      const record = await client.workflowApprovalDecision.findUnique({
+        where: {
+          decisionId,
+        },
+      })
+
+      if (!record) {
+        return null
+      }
+
+      return WorkflowApprovalDecision.from(record)
+    } catch (error) {
+      throw new WorkflowRunReadError('Failed to read workflow approval decision', { cause: error })
+    }
+  }
+
+  /**
+   * Locks a run row for update and reloads it with ordered steps.
+   *
+   * @param id - Stable primary key of the workflow run.
+   * @param options - Transaction that will own the row lock.
+   * @returns The locked domain run when found; otherwise `null`.
+   * @throws {WorkflowRunReadError} When the persistence operation fails.
+   */
+  async lockById(
+    id: string,
+    options: {
+      readonly transaction: DatabaseTransaction
+    },
+  ): Promise<WorkflowRun | null> {
+    try {
+      const locked = await options.transaction.$queryRaw<{ id: string }[]>`
+        SELECT id FROM workflow_run WHERE id = ${id} FOR UPDATE
+      `
+
+      if (locked.length === 0) {
+        return null
+      }
+
+      return this.findById(id, { transaction: options.transaction })
+    } catch (error) {
+      throw new WorkflowRunReadError('Failed to lock workflow run', { cause: error })
     }
   }
 
@@ -291,16 +552,15 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
       }
 
       if (parameters.result !== undefined) {
-        data.result =
-          parameters.result === null ? Prisma.DbNull : (parameters.result as Prisma.InputJsonValue)
+        data.result = parameters.result === null ? Prisma.DbNull : (parameters.result as Prisma.InputJsonValue)
       }
 
       if (parameters.failure !== undefined) {
-        data.failure =
-          parameters.failure === null ? Prisma.DbNull : (parameters.failure as Prisma.InputJsonValue)
+        data.failure = parameters.failure === null ? Prisma.DbNull : (parameters.failure as Prisma.InputJsonValue)
       }
 
       const result = await client.workflowRun.updateMany({
+        data,
         where: {
           id,
           ...(options?.onlyIfStatusIn
@@ -311,7 +571,6 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
               }
             : {}),
         },
-        data,
       })
 
       return result.count === 1
@@ -353,11 +612,11 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
       }
 
       if (parameters.output !== undefined) {
-        data.output =
-          parameters.output === null ? Prisma.DbNull : (parameters.output as Prisma.InputJsonValue)
+        data.output = parameters.output === null ? Prisma.DbNull : (parameters.output as Prisma.InputJsonValue)
       }
 
       const result = await client.workflowStep.updateMany({
+        data,
         where: {
           id,
           ...(options?.onlyIfStatusIn
@@ -368,7 +627,6 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
               }
             : {}),
         },
-        data,
       })
 
       return result.count === 1
@@ -376,4 +634,35 @@ export class WorkflowRunRepositoryImpl implements WorkflowRunRepository {
       throw new WorkflowStepUpdateError('Failed to update workflow step status', { cause: error })
     }
   }
+
+  // MARK: - Private methods
+
+  private async findByIdempotencyKeys(
+    parameters: CreateWorkflowRunParameters,
+    options?: RepositoryWriteOptions,
+  ): Promise<WorkflowRun | null> {
+    if (parameters.triggerIdentifier) {
+      const byTrigger = await this.findByTriggerIdentifier(parameters.triggerIdentifier, options)
+
+      if (byTrigger) {
+        return byTrigger
+      }
+    }
+
+    if (parameters.activeKey) {
+      return this.findByActiveKey(parameters.activeKey, options)
+    }
+
+    return null
+  }
+}
+
+/**
+ * Returns whether Prisma reported a unique-constraint violation.
+ *
+ * Used by {@link WorkflowRunRepositoryImpl.getOrCreate} and approval-decision
+ * inserts to distinguish an idempotent collision (`P2002`) from other failures.
+ */
+export function isUniqueConstraintViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
 }

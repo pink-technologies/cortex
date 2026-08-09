@@ -18,10 +18,7 @@ import type { WorkflowDefinitionStep, WorkflowStepPayloadContext } from '../mode
  * @throws Whatever the step's `buildPayload` throws (for example a failed
  *   schema parse); callers wrap it in their flow's semantic error.
  */
-export function resolveWorkflowStepPayload(
-  step: WorkflowDefinitionStep,
-  context: WorkflowStepPayloadContext,
-): unknown {
+export function resolveWorkflowStepPayload(step: WorkflowDefinitionStep, context: WorkflowStepPayloadContext): unknown {
   if (step.buildPayload) {
     return step.buildPayload(context)
   }

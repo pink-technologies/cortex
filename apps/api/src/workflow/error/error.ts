@@ -155,16 +155,23 @@ export class WorkflowDefinitionAlreadyRegisteredError extends WorkflowModuleErro
    */
   readonly definitionKey: string
 
+  /**
+   * Definition version that collided.
+   */
+  readonly definitionVersion: number
+
   // MARK: - Constructor
 
   /**
    * Creates an error for a duplicate workflow definition registration.
    *
    * @param definitionKey - Definition key that is already registered.
+   * @param definitionVersion - Definition version that is already registered.
    */
-  constructor(definitionKey: string) {
-    super(`Workflow definition already registered: ${definitionKey}`)
+  constructor(definitionKey: string, definitionVersion: number) {
+    super(`Workflow definition already registered: ${definitionKey}@${definitionVersion}`)
     this.definitionKey = definitionKey
+    this.definitionVersion = definitionVersion
   }
 }
 
@@ -236,10 +243,12 @@ export class WorkflowAdvanceError extends WorkflowModuleError {
 /**
  * Indicates that an approval decision could not be applied.
  *
- * Raised when a run has no step awaiting approval — for example the run has
- * not reached its approval gate, the decision was already applied, or the run
- * is terminal. Missing runs are not represented by this error; the
- * orchestrator returns `null`.
+ * Raised when the named step is not the run's current `AWAITING_APPROVAL`
+ * gate (obsolete step → HTTP 409), is not an `APPROVAL` kind, or when a
+ * {@link DecideWorkflowRunApprovalParameters.decisionId} is reused with a
+ * conflicting command. Idempotent retries that repeat the same decision id,
+ * run, step, and outcome succeed without this error. Missing runs are not
+ * represented by this error; the orchestrator returns `null`.
  */
 export class WorkflowApprovalError extends WorkflowModuleError {
   // MARK: - Properties
@@ -359,15 +368,26 @@ export class WorkflowDefinitionNotFoundError extends WorkflowModuleError {
    */
   readonly definitionKey: string
 
+  /**
+   * Definition version that was requested, when an exact pin was required.
+   */
+  readonly definitionVersion?: number
+
   // MARK: - Constructor
 
   /**
    * Creates an error for a missing workflow definition.
    *
    * @param definitionKey - Definition key that could not be resolved.
+   * @param definitionVersion - Optional exact version that could not be resolved.
    */
-  constructor(definitionKey: string) {
-    super(`Workflow definition not found: ${definitionKey}`)
+  constructor(definitionKey: string, definitionVersion?: number) {
+    super(
+      definitionVersion === undefined
+        ? `Workflow definition not found: ${definitionKey}`
+        : `Workflow definition not found: ${definitionKey}@${definitionVersion}`,
+    )
     this.definitionKey = definitionKey
+    this.definitionVersion = definitionVersion
   }
 }

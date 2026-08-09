@@ -92,9 +92,25 @@ export interface ExecutionJobRepository {
    * error. Persistence failures propagate to the caller.
    *
    * @param id - Stable primary key of the execution job (`ExecutionJob.id`).
+   * @param options - Optional transaction client.
    * @returns The domain job when found; otherwise `null`.
    */
-  findById(id: string): Promise<ExecutionJob | null>
+  findById(id: string, options?: { transaction?: DatabaseTransaction }): Promise<ExecutionJob | null>
+
+  /**
+   * Loads the earliest job linked to a workflow step.
+   *
+   * Used when an idempotent workflow start reuses an existing run and needs
+   * the first-step child job without activating again.
+   *
+   * @param stepId - Owning workflow step primary key.
+   * @param options - Optional transaction client.
+   * @returns The domain job when found; otherwise `null`.
+   */
+  findByStepId(
+    stepId: string,
+    options?: { transaction?: DatabaseTransaction },
+  ): Promise<ExecutionJob | null>
 
   /**
    * Returns a page of jobs ordered by `createdAt` descending (newest first).
@@ -401,12 +417,45 @@ export class ExecutionJobRepositoryImpl implements ExecutionJobRepository {
    * error. Persistence failures propagate to the caller.
    *
    * @param id - Stable primary key of the execution job (`ExecutionJob.id`).
+   * @param options - Optional transaction client.
    * @returns The domain job when found; otherwise `null`.
    */
-  async findById(id: string): Promise<ExecutionJob | null> {
-    const executionJob = await this.database.executionJob.findUnique({
+  async findById(
+    id: string,
+    options?: { transaction?: DatabaseTransaction },
+  ): Promise<ExecutionJob | null> {
+    const client = options?.transaction ?? this.database
+    const executionJob = await client.executionJob.findUnique({
       where: {
         id,
+      },
+    })
+
+    if (!executionJob) {
+      return null
+    }
+
+    return ExecutionJob.from(executionJob)
+  }
+
+  /**
+   * Loads the earliest job linked to a workflow step.
+   *
+   * @param stepId - Owning workflow step primary key.
+   * @param options - Optional transaction client.
+   * @returns The domain job when found; otherwise `null`.
+   */
+  async findByStepId(
+    stepId: string,
+    options?: { transaction?: DatabaseTransaction },
+  ): Promise<ExecutionJob | null> {
+    const client = options?.transaction ?? this.database
+    const executionJob = await client.executionJob.findFirst({
+      where: {
+        stepId,
+      },
+      orderBy: {
+        createdAt: 'asc',
       },
     })
 

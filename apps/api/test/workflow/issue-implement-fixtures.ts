@@ -35,6 +35,7 @@ export function issueImplementFlowInput(issueKey: string): IssueImplementFlowInp
 export function jiraTriageJobResult(issueKey: string): JiraTriageJobResult {
   return {
     classification: {
+      areas: [],
       automationEligible: true,
       class: 'bug',
       confidence: 0.9,

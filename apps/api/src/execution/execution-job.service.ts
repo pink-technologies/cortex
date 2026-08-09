@@ -142,6 +142,25 @@ export class ExecutionJobService {
   }
 
   /**
+   * Loads the earliest job linked to a workflow step.
+   *
+   * @param stepId - Owning workflow step primary key.
+   * @param options - Optional transaction client.
+   * @returns The domain job when found; otherwise `null`.
+   * @throws ExecutionJobReadError When the persistence operation fails.
+   */
+  async findByStepId(
+    stepId: string,
+    options?: { transaction?: DatabaseTransaction },
+  ): Promise<ExecutionJob | null> {
+    try {
+      return await this.executionJobRepository.findByStepId(stepId, options)
+    } catch (error) {
+      throw new ExecutionJobReadError('Failed to read execution job by step', { cause: error })
+    }
+  }
+
+  /**
    * Marks a running execution job as failed.
    *
    * Delegates the guarded `RUNNING` → `FAILED` transition to the repository.

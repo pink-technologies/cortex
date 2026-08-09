@@ -49,7 +49,7 @@ describe('SkillDefinitionLoader', () => {
     ])
   })
 
-  it('loads skills nested under domain packages', async () => {
+  it('skips nested directories that are not immediate skill packages', async () => {
     const skillDirectory = join(rootDirectory, 'jira.triage', 'skills', 'jira-classify')
     await mkdir(skillDirectory, { recursive: true })
     await writeFile(
@@ -63,26 +63,10 @@ describe('SkillDefinitionLoader', () => {
       'utf8',
     )
     await writeFile(join(skillDirectory, 'prompt.md'), 'Classify the issue.\n', 'utf8')
-    await mkdir(join(rootDirectory, 'repository.review'), { recursive: true })
 
     const loader = new SkillDefinitionLoader(new TomlDecoder())
-    const definitions = await loader.loadFromDomainPackages(rootDirectory)
 
-    expect(definitions).toEqual([
-      {
-        description: 'Jira classification guidance.',
-        id: 'jira-classify',
-        prompt: 'Classify the issue.',
-      },
-    ])
-  })
-
-  it('returns an empty list when the capabilities root is missing', async () => {
-    const loader = new SkillDefinitionLoader(new TomlDecoder())
-
-    await expect(
-      loader.loadFromDomainPackages(join(rootDirectory, 'missing-capabilities')),
-    ).resolves.toEqual([])
+    await expect(loader.loadFromRootDirectory(rootDirectory)).resolves.toEqual([])
   })
 
   it('rethrows non-ENOENT errors when reading skill roots', async () => {
@@ -91,15 +75,6 @@ describe('SkillDefinitionLoader', () => {
     await writeFile(filePath, 'x', 'utf8')
 
     await expect(loader.loadFromRootDirectory(filePath)).rejects.toBeTruthy()
-    await expect(loader.loadFromDomainPackages(filePath)).rejects.toBeTruthy()
-  })
-
-  it('ignores non-directory entries under the capabilities root', async () => {
-    await writeFile(join(rootDirectory, 'README.md'), '# capabilities\n', 'utf8')
-
-    const loader = new SkillDefinitionLoader(new TomlDecoder())
-
-    await expect(loader.loadFromDomainPackages(rootDirectory)).resolves.toEqual([])
   })
 
   it('returns an empty list when the root directory is missing', async () => {

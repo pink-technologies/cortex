@@ -3,25 +3,18 @@
 
 import { WorkflowStepKind } from '../../src/workflow/datatypes'
 import { AgentExecuteJobKind, JiraTriageJobKind, RepositoryReviewJobKind } from '@cortex/protocol'
-
 import {
   agentExecuteFlow,
-  AgentExecuteFlowDefinitionKey,
   issueImplementFlow,
-  IssueImplementFlowDefinitionKey,
   jiraTriageFlow,
-  JiraTriageFlowDefinitionKey,
   repositoryReviewFlow,
-  RepositoryReviewFlowDefinitionKey,
   WorkflowDefinitionRegistry,
 } from '../../src/workflow/definitions'
-
 import {
   WorkflowDefinitionAlreadyRegisteredError,
   WorkflowDefinitionInvalidError,
   WorkflowDefinitionNotFoundError,
 } from '../../src/workflow/error/error'
-
 function registerBuiltInFlows(registry: WorkflowDefinitionRegistry): void {
   registry.register(agentExecuteFlow)
   registry.register(issueImplementFlow)
@@ -34,8 +27,9 @@ describe('WorkflowDefinitionRegistry', () => {
     const registry = new WorkflowDefinitionRegistry()
     registerBuiltInFlows(registry)
 
-    expect(registry.resolve(JiraTriageFlowDefinitionKey)).toEqual({
-      key: JiraTriageFlowDefinitionKey,
+    expect(registry.resolve(jiraTriageFlow.key)).toEqual({
+      key: jiraTriageFlow.key,
+      version: 1,
       steps: [
         {
           key: 'main',
@@ -46,24 +40,18 @@ describe('WorkflowDefinitionRegistry', () => {
       ],
     })
 
-    expect(registry.resolve(RepositoryReviewFlowDefinitionKey).steps[0]?.jobKind).toBe(
-      RepositoryReviewJobKind,
-    )
-    expect(registry.resolve(AgentExecuteFlowDefinitionKey).steps[0]?.jobKind).toBe(AgentExecuteJobKind)
+    expect(registry.resolve(repositoryReviewFlow.key).steps[0]?.jobKind).toBe(RepositoryReviewJobKind)
+    expect(registry.resolve(agentExecuteFlow.key).steps[0]?.jobKind).toBe(AgentExecuteJobKind)
   })
 
   it('resolves the issue.implement.flow with triage through approval', () => {
     const registry = new WorkflowDefinitionRegistry()
     registerBuiltInFlows(registry)
 
-    const definition = registry.resolve(IssueImplementFlowDefinitionKey)
+    const definition = registry.resolve(issueImplementFlow.key)
 
-    expect(definition.steps.map((step) => step.key)).toEqual([
-      'triage',
-      'implement',
-      'review',
-      'approval',
-    ])
+    expect(definition.version).toBe(1)
+    expect(definition.steps.map((step) => step.key)).toEqual(['triage', 'implement', 'review', 'approval'])
     expect(definition.steps.map((step) => step.kind)).toEqual([
       WorkflowStepKind.JOB,
       WorkflowStepKind.JOB,
@@ -89,6 +77,7 @@ describe('WorkflowDefinitionRegistry', () => {
 
     registry.register({
       key: 'unordered.flow',
+      version: 1,
       steps: [
         {
           key: 'second',
@@ -105,10 +94,50 @@ describe('WorkflowDefinitionRegistry', () => {
       ],
     })
 
-    expect(registry.resolve('unordered.flow').steps.map((step) => step.key)).toEqual([
-      'first',
-      'second',
-    ])
+    expect(registry.resolve('unordered.flow').steps.map((step) => step.key)).toEqual(['first', 'second'])
+  })
+
+  it('resolves an exact pinned version and keeps later versions for new starts', () => {
+    const registry = new WorkflowDefinitionRegistry()
+
+    registry.register({
+      key: 'versioned.flow',
+      version: 1,
+      steps: [
+        {
+          buildPayload: () => ({ revision: 1 }),
+          key: 'main',
+          kind: WorkflowStepKind.JOB,
+          jobKind: JiraTriageJobKind,
+          position: 0,
+        },
+      ],
+    })
+    registry.register({
+      key: 'versioned.flow',
+      version: 2,
+      steps: [
+        {
+          buildPayload: () => ({ revision: 2 }),
+          key: 'main',
+          kind: WorkflowStepKind.JOB,
+          jobKind: JiraTriageJobKind,
+          position: 0,
+        },
+      ],
+    })
+
+    expect(registry.resolve('versioned.flow').version).toBe(2)
+    expect(registry.resolve('versioned.flow', 1).version).toBe(1)
+    expect(
+      registry.resolve('versioned.flow', 1).steps[0]?.buildPayload?.({
+        input: {},
+        latestOutput: undefined,
+        outputs: {},
+      }),
+    ).toEqual({ revision: 1 })
+    expect(registry.has('versioned.flow', 1)).toBe(true)
+    expect(registry.has('versioned.flow', 3)).toBe(false)
   })
 
   it('throws when resolving an unknown definition key', () => {
@@ -118,11 +147,11 @@ describe('WorkflowDefinitionRegistry', () => {
     expect(registry.has('missing.flow')).toBe(false)
   })
 
-  it('rejects duplicate registration', () => {
+  it('rejects duplicate key+version registration', () => {
     const registry = new WorkflowDefinitionRegistry()
     registerBuiltInFlows(registry)
 
-    expect(() => registry.register(registry.resolve(JiraTriageFlowDefinitionKey))).toThrow(
+    expect(() => registry.register(registry.resolve(jiraTriageFlow.key))).toThrow(
       WorkflowDefinitionAlreadyRegisteredError,
     )
   })
@@ -133,13 +162,30 @@ describe('WorkflowDefinitionRegistry', () => {
     expect(() =>
       registry.register({
         key: 'empty.steps.flow',
+        version: 1,
         steps: [],
       }),
     ).toThrow(WorkflowDefinitionInvalidError)
 
     expect(() =>
       registry.register({
+        key: 'bad.version.flow',
+        version: 0,
+        steps: [
+          {
+            key: 'main',
+            kind: WorkflowStepKind.JOB,
+            jobKind: JiraTriageJobKind,
+            position: 0,
+          },
+        ],
+      }),
+    ).toThrow(WorkflowDefinitionInvalidError)
+
+    expect(() =>
+      registry.register({
         key: 'missing.job-kind.flow',
+        version: 1,
         steps: [
           {
             key: 'main',
@@ -153,6 +199,7 @@ describe('WorkflowDefinitionRegistry', () => {
     expect(() =>
       registry.register({
         key: 'approval.with.job-kind.flow',
+        version: 1,
         steps: [
           {
             key: 'approval',
@@ -167,6 +214,7 @@ describe('WorkflowDefinitionRegistry', () => {
     expect(() =>
       registry.register({
         key: 'approval.with.build-payload.flow',
+        version: 1,
         steps: [
           {
             buildPayload: () => ({}),
@@ -181,6 +229,7 @@ describe('WorkflowDefinitionRegistry', () => {
     expect(() =>
       registry.register({
         key: 'duplicate.step.flow',
+        version: 1,
         steps: [
           {
             key: 'main',

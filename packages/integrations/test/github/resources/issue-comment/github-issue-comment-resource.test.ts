@@ -21,7 +21,15 @@ describe('GitHubIssueCommentResource', () => {
   it('creates comments', async () => {
     const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200 }))
 
-    await resource().create('acme', 'app', 12, '## Review', new AbortController().signal)
+    await resource().create(
+      {
+        owner: 'acme',
+        repository: 'app',
+        issueNumber: 12,
+        body: '## Review',
+      },
+      new AbortController().signal,
+    )
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'POST' })
@@ -31,7 +39,15 @@ describe('GitHubIssueCommentResource', () => {
     jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('missing', { status: 404 }))
 
     await expect(
-      resource().create('acme', 'app', 12, '## Review', new AbortController().signal),
+      resource().create(
+        {
+          owner: 'acme',
+          repository: 'app',
+          issueNumber: 12,
+          body: '## Review',
+        },
+        new AbortController().signal,
+      ),
     ).rejects.toMatchObject({
       code: 'GITHUB_ISSUE_COMMENT_CREATE_ERROR',
       name: 'GitHubIssueCommentCreateError',
@@ -55,7 +71,15 @@ describe('GitHubIssueCommentResource', () => {
       })
     })
 
-    const pending = resource().create('acme', 'app', 12, '## Review', controller.signal)
+    const pending = resource().create(
+      {
+        owner: 'acme',
+        repository: 'app',
+        issueNumber: 12,
+        body: '## Review',
+      },
+      controller.signal,
+    )
     queueMicrotask(() => controller.abort())
 
     await expect(pending).rejects.toMatchObject({

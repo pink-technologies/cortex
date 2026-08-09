@@ -4,7 +4,10 @@
 import { ExecutionJobStatus } from '../datatypes/execution-job-status'
 import { ExecutionJobPolicy } from './execution-job-policy'
 import { ExecutionJobRequirements } from './execution-job-requirements'
-import { ExecutionJobSource } from './execution-job-source'
+import {
+  type ExecutionJobSource,
+  type ExecutionJobSourceType,
+} from './execution-job-source'
 import type { ExecutionJob as ExecutionJobPersistence } from '@/infraestructure/database'
 
 /**
@@ -29,7 +32,7 @@ export class ExecutionJob {
       ? undefined
       : {
           identifier: record.sourceIdentifier,
-          type: record.sourceType,
+          type: record.sourceType as ExecutionJobSourceType,
         }
 
     return new ExecutionJob(

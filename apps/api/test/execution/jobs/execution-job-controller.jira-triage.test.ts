@@ -3,12 +3,11 @@
 
 import { Test } from '@nestjs/testing'
 import { JiraTriageJobKind } from '@cortex/protocol'
-import { JiraTriageFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { jiraTriageFlow } from '@/workflow/definitions'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobController } from '../../../src/execution/controller/execution-job.controller'
 import { ExecutionJobService } from '../../../src/execution/execution-job.service'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
-
 describe('ExecutionJobController jira triages', () => {
   let controller: ExecutionJobController
   let start: jest.Mock
@@ -84,7 +83,7 @@ describe('ExecutionJobController jira triages', () => {
 
     expect(start).toHaveBeenCalledWith(
       expect.objectContaining({
-        definitionKey: JiraTriageFlowDefinitionKey,
+        definitionKey: jiraTriageFlow.key,
         input: expect.objectContaining({ issueKey: 'JC-1' }),
       }),
     )

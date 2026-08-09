@@ -10,22 +10,22 @@ import { ExecutionJobStatus } from '../../src/execution/datatypes/execution-job-
 import { ExecutionJobService } from '../../src/execution/execution-job.service'
 import { ExecutionModule } from '../../src/execution/execution.module'
 import {
-  IssueImplementFlowDefinitionKey,
-  JiraTriageFlowDefinitionKey,
+  WorkflowDefinitionRegistry,
   WorkflowModule,
   WorkflowOrchestrator,
   WorkflowRunStatus,
+  WorkflowStepKind,
   WorkflowStepStatus,
+  issueImplementFlow,
+  jiraTriageFlow,
 } from '../../src/workflow'
-import {
-  agentExecuteJobResult,
-  issueImplementFlowInput,
-  jiraTriageJobResult,
-} from './issue-implement-fixtures'
+import { agentExecuteJobResult, issueImplementFlowInput, jiraTriageJobResult } from './issue-implement-fixtures'
+const PinFlowDefinitionKeyPrefix = 'pin-definition.flow'
 
 describe('WorkflowOrchestrator advance', () => {
   let database: Database
   let executionJobService: ExecutionJobService
+  let moduleRef: TestingModule
   let orchestrator: WorkflowOrchestrator
 
   const createdRunIds: string[] = []
@@ -33,7 +33,7 @@ describe('WorkflowOrchestrator advance', () => {
   beforeAll(async () => {
     process.env.NODE_ENV ??= 'development'
 
-    const module: TestingModule = await Test.createTestingModule({
+    moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
           envFilePath: `env/.env.${process.env.NODE_ENV ?? 'development'}`,
@@ -45,11 +45,11 @@ describe('WorkflowOrchestrator advance', () => {
       ],
     }).compile()
 
-    await module.init()
+    await moduleRef.init()
 
-    database = module.get(Database)
-    executionJobService = module.get(ExecutionJobService)
-    orchestrator = module.get(WorkflowOrchestrator)
+    database = moduleRef.get(Database)
+    executionJobService = moduleRef.get(ExecutionJobService)
+    orchestrator = moduleRef.get(WorkflowOrchestrator)
   })
 
   afterEach(async () => {
@@ -101,7 +101,7 @@ describe('WorkflowOrchestrator advance', () => {
 
   it('completes a one-step flow when its job completes', async () => {
     const { job, run } = await orchestrator.start({
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-10' },
       triggerIdentifier: `workflow-advance-one:${randomUUID()}`,
     })
@@ -136,7 +136,7 @@ describe('WorkflowOrchestrator advance', () => {
   it('advances JOB→JOB with built payloads and parks before APPROVAL', async () => {
     const input = issueImplementFlowInput('JC-11')
     const { job, run } = await orchestrator.start({
-      definitionKey: IssueImplementFlowDefinitionKey,
+      definitionKey: issueImplementFlow.key,
       input,
       triggerIdentifier: `workflow-advance-multi:${randomUUID()}`,
     })
@@ -248,12 +248,7 @@ describe('WorkflowOrchestrator advance', () => {
     })
 
     expect(parked?.status).toBe(WorkflowRunStatus.AWAITING_APPROVAL)
-    expect(parked?.steps.map((step) => step.key)).toEqual([
-      'triage',
-      'implement',
-      'review',
-      'approval',
-    ])
+    expect(parked?.steps.map((step) => step.key)).toEqual(['triage', 'implement', 'review', 'approval'])
     expect(parked?.steps.map((step) => step.status)).toEqual([
       WorkflowStepStatus.COMPLETED,
       WorkflowStepStatus.COMPLETED,
@@ -263,10 +258,67 @@ describe('WorkflowOrchestrator advance', () => {
     expect(parked?.steps[3]?.startedAt).toBeInstanceOf(Date)
   })
 
+  it('does not advance or revive a run that was cancelled before the job completed', async () => {
+    const input = issueImplementFlowInput('JC-17')
+    const { job, run } = await orchestrator.start({
+      definitionKey: issueImplementFlow.key,
+      input,
+      triggerIdentifier: `workflow-advance-cancelled-run:${randomUUID()}`,
+    })
+    createdRunIds.push(run.id)
+
+    // Simulate the cancel/advance race window: the run is already terminal
+    // while the active step is still QUEUED.
+    await database.workflowRun.update({
+      where: {
+        id: run.id,
+      },
+      data: {
+        activeKey: null,
+        status: WorkflowRunStatus.CANCELLED,
+      },
+    })
+
+    const claim = await markRunning(job.id)
+
+    await expect(
+      executionJobService.complete(job.id, {
+        claimToken: claim.claimToken,
+        nodeId: claim.nodeId,
+        result: jiraTriageJobResult(input.issueKey),
+      }),
+    ).rejects.toThrow()
+
+    const updated = await database.workflowRun.findUnique({
+      where: {
+        id: run.id,
+      },
+      include: {
+        steps: {
+          orderBy: {
+            position: 'asc',
+          },
+        },
+      },
+    })
+
+    expect(updated?.status).toBe(WorkflowRunStatus.CANCELLED)
+    expect(updated?.steps[0]?.status).toBe(WorkflowStepStatus.QUEUED)
+    expect(updated?.steps[1]?.status).toBe(WorkflowStepStatus.PENDING)
+
+    const implementJob = await database.executionJob.findFirst({
+      where: {
+        runId: run.id,
+        kind: AgentExecuteJobKind,
+      },
+    })
+    expect(implementJob).toBeNull()
+  })
+
   it('fails the advance without completing the step when the payload builder rejects the output', async () => {
     const input = issueImplementFlowInput('JC-16')
     const { job, run } = await orchestrator.start({
-      definitionKey: IssueImplementFlowDefinitionKey,
+      definitionKey: issueImplementFlow.key,
       input,
       triggerIdentifier: `workflow-advance-bad-output:${randomUUID()}`,
     })
@@ -309,9 +361,101 @@ describe('WorkflowOrchestrator advance', () => {
     expect(implementJob).toBeNull()
   })
 
+  it('does not advance when onJobCompleted receives a non-completed job', async () => {
+    const { job, run } = await orchestrator.start({
+      definitionKey: jiraTriageFlow.key,
+      input: { issueKey: 'JC-13' },
+      triggerIdentifier: `workflow-advance-premature:${randomUUID()}`,
+    })
+    createdRunIds.push(run.id)
+
+    await orchestrator.onJobCompleted(job.id)
+
+    const updated = await database.workflowRun.findUnique({
+      where: {
+        id: run.id,
+      },
+      include: {
+        steps: true,
+      },
+    })
+
+    expect(updated?.status).toBe(WorkflowRunStatus.RUNNING)
+    expect(updated?.steps[0]?.status).toBe(WorkflowStepStatus.QUEUED)
+  })
+
+  it('advances with the pinned definition version after a newer revision is registered', async () => {
+    const definitionKey = `${PinFlowDefinitionKeyPrefix}:${randomUUID()}`
+    const registry = moduleRef.get(WorkflowDefinitionRegistry)
+
+    registry.register({
+      key: definitionKey,
+      version: 1,
+      steps: [
+        {
+          key: 'first',
+          kind: WorkflowStepKind.JOB,
+          jobKind: JiraTriageJobKind,
+          position: 0,
+        },
+        {
+          buildPayload: () => ({ revision: 1 }),
+          key: 'second',
+          kind: WorkflowStepKind.JOB,
+          jobKind: JiraTriageJobKind,
+          position: 1,
+        },
+      ],
+    })
+
+    const { job, run } = await orchestrator.start({
+      definitionKey,
+      input: { issueKey: 'JC-16' },
+      triggerIdentifier: `workflow-advance-pin:${randomUUID()}`,
+    })
+    createdRunIds.push(run.id)
+    expect(run.definitionVersion).toBe(1)
+
+    registry.register({
+      key: definitionKey,
+      version: 2,
+      steps: [
+        {
+          key: 'first',
+          kind: WorkflowStepKind.JOB,
+          jobKind: JiraTriageJobKind,
+          position: 0,
+        },
+        {
+          buildPayload: () => ({ revision: 2 }),
+          key: 'second',
+          kind: WorkflowStepKind.JOB,
+          jobKind: JiraTriageJobKind,
+          position: 1,
+        },
+      ],
+    })
+
+    const claim = await markRunning(job.id)
+    await executionJobService.complete(job.id, {
+      claimToken: claim.claimToken,
+      nodeId: claim.nodeId,
+      result: jiraTriageJobResult('JC-16'),
+    })
+
+    const secondJob = await database.executionJob.findFirst({
+      where: {
+        runId: run.id,
+        stepId: run.steps[1]?.id,
+      },
+    })
+
+    expect(secondJob?.payload).toEqual({ revision: 1 })
+  })
+
   it('fails the run when a linked job fails', async () => {
     const { job, run } = await orchestrator.start({
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-12' },
       triggerIdentifier: `workflow-advance-fail:${randomUUID()}`,
     })
@@ -352,7 +496,7 @@ describe('WorkflowOrchestrator advance', () => {
 
     const { job, run } = await orchestrator.start({
       activeKey,
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-14' },
     })
     createdRunIds.push(run.id)
@@ -374,7 +518,7 @@ describe('WorkflowOrchestrator advance', () => {
 
     const successor = await orchestrator.start({
       activeKey,
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-14' },
     })
     createdRunIds.push(successor.run.id)
@@ -387,7 +531,7 @@ describe('WorkflowOrchestrator advance', () => {
 
     const { job, run } = await orchestrator.start({
       activeKey,
-      definitionKey: JiraTriageFlowDefinitionKey,
+      definitionKey: jiraTriageFlow.key,
       input: { issueKey: 'JC-15' },
     })
     createdRunIds.push(run.id)

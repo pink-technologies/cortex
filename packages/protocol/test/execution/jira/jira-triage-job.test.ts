@@ -107,6 +107,12 @@ describe('jira.triage protocol', () => {
             suiteId: 'unit',
             summary: '1 failing',
           },
+          {
+            command: 'xcodebuild test -scheme TruVideoSdkCore',
+            exitCode: 1,
+            suiteId: 'TruVideoSdkCore',
+            summary: '1 failing',
+          },
         ],
       },
       repository: {
@@ -119,5 +125,6 @@ describe('jira.triage protocol', () => {
     })
 
     expect(result.issueKey).toBe('JC-123')
+    expect(result.repro.suites[1]?.suiteId).toBe('TruVideoSdkCore')
   })
 })

@@ -1,25 +1,29 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Prisma } from '@prisma/client'
 import {
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { JiraTriageFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { ExecutionJobSourceType } from '@/execution/models'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
-import { mapJiraWebhookToTriageEnqueue } from './mapper'
 import {
-  type JiraWebhookHandleInput,
+  JiraWebhookDecisionKind,
+  JiraWebhookHandleAction,
   type JiraWebhookHandleResult,
 } from './models'
+import { type JiraWebhookHandleParameters } from './parameters'
+import { dispatchJiraWebhook } from './routes'
 import { verifyJiraWebhookSignature } from './signature'
 
 /**
- * Verifies Jira webhook authenticity and starts `jira.triage.flow` workflow
- * runs.
+ * Verifies Jira webhook authenticity and starts workflow runs for named routes.
+ *
+ * Configure Jira to POST to `/api/webhooks/jira/<routeName>` (triage:
+ * `/api/webhooks/jira/jira-triage`). The unscoped `/api/webhooks/jira` path is
+ * not registered.
  *
  * Configuration (from env via {@link ConfigService}):
  * - `JIRA_WEBHOOK_SECRET` — shared HMAC secret
@@ -34,7 +38,7 @@ export class JiraWebhookService {
    * Creates a Jira webhook verification and enqueue service.
    *
    * @param configService - Nest config providing webhook secret and defaults.
-   * @param orchestrator - Orchestrator used to start triage workflow runs.
+   * @param orchestrator - Orchestrator used to start workflow runs.
    */
   constructor(
     private readonly configService: ConfigService,
@@ -46,64 +50,63 @@ export class JiraWebhookService {
   /**
    * Handles one Jira webhook delivery.
    *
-   * @param input - Raw body, signature header, and parsed JSON body.
+   * @param parameters - Raw body, signature header, route name, and parsed JSON body.
    * @returns Acknowledgement describing whether a run was started or ignored.
    */
-  async handle(input: JiraWebhookHandleInput): Promise<JiraWebhookHandleResult> {
+  async handle(parameters: JiraWebhookHandleParameters): Promise<JiraWebhookHandleResult> {
     const configuration = this.requireConfiguration()
 
     if (
       !verifyJiraWebhookSignature(
-        input.rawBody,
-        input.signatureHeader,
+        parameters.rawBody,
+        parameters.signatureHeader,
         configuration.secret,
       )
     ) {
       throw new UnauthorizedException('Invalid Jira webhook signature.')
     }
 
-    const mapping = mapJiraWebhookToTriageEnqueue(
-      input.body,
-      configuration.connectionId,
-      configuration.automationAssigneeAccountId,
-    )
+    const decision = dispatchJiraWebhook({
+      body: parameters.body,
+      connectionId: configuration.connectionId,
+      routeName: parameters.routeName,
+      ...(configuration.automationAssigneeAccountId
+        ? { automationAssigneeAccountId: configuration.automationAssigneeAccountId }
+        : {}),
+    })
 
-    if (mapping.kind === 'ignore') {
+    if (decision.kind === JiraWebhookDecisionKind.IGNORE) {
       return {
-        action: 'ignored',
+        action: JiraWebhookHandleAction.IGNORED,
         ok: true,
-        reason: mapping.reason,
+        reason: decision.reason,
       }
     }
 
-    try {
-      const { job, run } = await this.orchestrator.start({
-        activeKey: `jira.triage:${mapping.payload.issueKey}`,
-        definitionKey: JiraTriageFlowDefinitionKey,
-        input: mapping.payload,
-        source: {
-          identifier: mapping.triggerIdentifier,
-          type: 'webhook',
-        },
-        triggerIdentifier: mapping.triggerIdentifier,
-      })
+    const { created, job, run } = await this.orchestrator.start({
+      activeKey: decision.activeKey,
+      definitionKey: decision.definitionKey,
+      input: decision.payload,
+      source: {
+        identifier: decision.triggerIdentifier,
+        type: ExecutionJobSourceType.WEBHOOK,
+      },
+      triggerIdentifier: decision.triggerIdentifier,
+    })
 
+    if (!created) {
       return {
-        action: 'enqueued',
-        jobId: job.id,
+        action: JiraWebhookHandleAction.ALREADY_ENQUEUED,
         ok: true,
-        runId: run.id,
+        reason: decision.triggerIdentifier,
       }
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        return {
-          action: 'already_enqueued',
-          ok: true,
-          reason: mapping.triggerIdentifier,
-        }
-      }
+    }
 
-      throw error
+    return {
+      action: JiraWebhookHandleAction.ENQUEUED,
+      jobId: job.id,
+      ok: true,
+      runId: run.id,
     }
   }
 
@@ -134,21 +137,4 @@ export class JiraWebhookService {
       secret,
     }
   }
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  let current: unknown = error
-
-  while (current instanceof Error) {
-    if (
-      current instanceof Prisma.PrismaClientKnownRequestError &&
-      current.code === 'P2002'
-    ) {
-      return true
-    }
-
-    current = current.cause
-  }
-
-  return false
 }

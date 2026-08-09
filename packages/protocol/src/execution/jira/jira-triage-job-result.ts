@@ -19,7 +19,19 @@ export type JiraTriageClassificationClass = z.infer<typeof JiraTriageClassificat
 export const JiraTriageClassificationSchema = z
   .object({
     /**
-     * Whether Cortex automation should continue past classification.
+     * Optional product-area labels inferred from the ticket.
+     *
+     * Values should be drawn from the project allowlist (for example `App` or
+     * `Camera`). The Node maps them to allowlisted suite commands; unknown
+     * values are ignored. Empty means no area was identified.
+     */
+    areas: z.array(z.string().trim().min(1)).default([]),
+
+    /**
+     * Whether Cortex automation continued (or should continue) past classification.
+     *
+     * Classifiers may still emit a value, but the Node overwrites this to `true`
+     * for bugs that enter evidence-based clone/repro. Non-bugs remain `false`.
      */
     automationEligible: z.boolean(),
 
@@ -61,9 +73,12 @@ export const JiraTriageTestSuiteResultSchema = z
     exitCode: z.number().int().optional(),
 
     /**
-     * Suite identifier (`unit` or `ui`).
+     * Allowlisted suite identifier from the project→repo map.
+     *
+     * Legacy mappings use `unit` / `ui`. Named suite catalogs use the configured
+     * suite key (for example a scheme or package name).
      */
-    suiteId: z.enum(['unit', 'ui']),
+    suiteId: z.string().trim().min(1),
 
     /**
      * Truncated combined stdout/stderr when available.
@@ -81,10 +96,11 @@ export type JiraTriageTestSuiteResult = z.infer<typeof JiraTriageTestSuiteResult
  * Reproduction status after running (or dry-running) mapped tests.
  */
 export const JiraTriageReproStatusSchema = z.enum([
+  'dry_run',
   'reproduced',
   'not_reproduced',
+  'suite_broken',
   'skipped',
-  'dry_run',
   'ambiguous_repo',
   'missing_repo',
 ])

@@ -127,8 +127,10 @@ Prioritize findings that could cause:
 5. Incorrect error propagation, recovery, cancellation, retry, or cleanup.
 6. Memory leaks, reference cycles, abandoned work, leaked observers, or
    unbounded resource retention.
-7. Missing or ineffective tests for meaningful new behavior.
-8. Significant performance or operational regressions.
+7. Invalid, mismatched, missing, or orphaned call sites and implementations
+   that leave required behavior unwired or unreachable.
+8. Missing or ineffective tests for meaningful new behavior.
+9. Significant performance or operational regressions.
 
 Prefer findings that would cause a human teammate to request changes.
 
@@ -167,6 +169,45 @@ For each potential issue:
 - Distinguish confirmed defects from optional improvements.
 
 Do not report a finding without sufficient evidence of a concrete problem.
+
+- Separate facts about the current configuration from general platform
+  capabilities. Do not infer that a tool, runner, platform, or workflow is
+  inherently unsupported solely because the reviewed configuration is
+  incompatible with it.
+
+## Review call sites and orphaned surface
+
+When the change adds, renames, removes, or re-shapes APIs, methods, functions,
+callbacks, hooks, interface or protocol requirements, trait or abstract-type
+members, extensions, default implementations, or dispatch targets:
+
+- Check that call sites still target a real, reachable member with a compatible
+  signature (name, arity, parameter labels or names, types, optionality,
+  mutability, async or throwing shape, and other language-visible contract).
+- Check for invalid or mismatched invocation: calling a member that no longer
+  exists, using the wrong overload, satisfying the wrong contract, or invoking
+  an extension or default implementation that does not actually match the
+  declared requirement and will never be selected by the type system or runtime
+  dispatch.
+- Check for missing required calls: newly introduced lifecycle hooks, setup or
+  teardown steps, registration, observer attachment, or mandatory collaborator
+  methods that existing paths should invoke but do not.
+- Check for orphaned or unused surface introduced or left behind by the change:
+  dead helpers, unused private members, unreachable branches, unused exports
+  when the change claimed to wire them up, and implementations that nothing
+  calls or dispatches to after a rename, extraction, or interface split.
+- Trace both declaration and use: an implementation that looks complete can
+  still be orphaned if no conforming type, subclass, adapter, or call site
+  selects it.
+- Prefer findings when the mismatch or dead surface is reachable from the
+  change set and would cause incorrect behavior, broken wiring, or a false
+  sense that a required path is covered.
+- Do not turn the review into a repository-wide unused-code audit. Report only
+  orphaned or mismatched surface introduced, exposed, or materially affected by
+  the change.
+- Do not report mere “could be deleted later” leftovers without evidence they
+  are unused or unreachable in the affected paths, or that the change was
+  supposed to use them.
 
 ## Review concurrency and ownership
 
@@ -252,6 +293,15 @@ For every finding:
 - Explain the user, caller, system, compatibility, or operational impact.
 - Reference the smallest relevant changed location whenever possible.
 - Provide enough evidence for another engineer to validate it.
+- Keep every claim scoped to the evidence that supports it.
+- Do not generalize a limitation of a specific job, workflow, target, file, or
+  configuration into a limitation of the entire repository, platform, or
+  ecosystem unless the evidence establishes that broader claim.
+- Distinguish inherent platform requirements from requirements of the current
+  implementation. Prefer "this job requires macOS because it invokes Xcode"
+  over "iOS workflows require macOS" when Linux-safe workflows may also exist.
+- Preserve relevant qualifiers such as "current implementation", "affected
+  jobs", or "when this step executes" when they materially change the claim.
 - Recommend a resolution direction without prescribing unnecessary rewrites.
 - Assign severity based on actual impact.
 - Assign confidence based on the strength of the evidence.
@@ -277,3 +327,7 @@ Order findings by severity and impact, not by file order.
 - Record unresolved revisions, missing context, unreadable instructions, and
   unavailable validation as limitations.
 - Do not modify reviewed code unless the task explicitly requests changes.
+- Ensure the review summary does not make broader claims than the findings
+  support.
+- Preserve important scope and qualifiers from the underlying findings when
+  summarizing them.

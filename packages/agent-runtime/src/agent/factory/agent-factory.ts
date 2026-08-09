@@ -28,9 +28,7 @@ export class AgentFactory {
    *   {@link AgentDefinition.llm} (model/provider settings) plus host-supplied
    *   credentials. Injected by the application composition root.
    */
-  constructor(
-    private readonly llmResolver: AgentLLMResolver,
-  ) {}
+  constructor(private readonly llmResolver: AgentLLMResolver) {}
 
   // MARK: - Instance methods
 

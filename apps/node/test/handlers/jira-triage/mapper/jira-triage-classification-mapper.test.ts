@@ -13,10 +13,25 @@ describe('mapJiraTriageClassification', () => {
 {"class":"bug","confidence":0.8,"automationEligible":true,"rationale":"Crash"}
 \`\`\``),
     ).toEqual({
+      areas: [],
       automationEligible: true,
       class: 'bug',
       confidence: 0.8,
       rationale: 'Crash',
+    })
+  })
+
+  it('parses classification areas', () => {
+    expect(
+      mapJiraTriageClassification(
+        '{"class":"bug","confidence":0.9,"automationEligible":true,"areas":["App"],"rationale":"TruVideoApp race"}',
+      ),
+    ).toEqual({
+      areas: ['App'],
+      automationEligible: true,
+      class: 'bug',
+      confidence: 0.9,
+      rationale: 'TruVideoApp race',
     })
   })
 

@@ -22,6 +22,11 @@ import { validateUniqueValues } from '@/manifest'
 export const capabilitySchema = z
   .object({
     /**
+     * Stable capability identifier agents reference in their manifests.
+     */
+    id: identifierSchema,
+
+    /**
      * Optional default agent that owns this capability for job routing.
      *
      * When set, Node process resolvers map the capability / job kind to this
@@ -33,11 +38,6 @@ export const capabilitySchema = z
      * Human-readable explanation of what the capability provides.
      */
     description: z.string().trim().min(1),
-
-    /**
-     * Stable capability identifier agents reference in their manifests.
-     */
-    id: identifierSchema,
 
     /**
      * Tool names this capability contributes when authorized.

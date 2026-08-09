@@ -200,6 +200,7 @@ export class JiraIssueRemoteLink {
    */
   static from(response: JiraRemoteLinkResponse): JiraIssueRemoteLink | undefined {
     const url = response.object?.url?.trim()
+    
     if (!url) {
       return undefined
     }

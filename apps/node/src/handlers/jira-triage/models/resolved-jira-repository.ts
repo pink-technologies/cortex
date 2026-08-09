@@ -1,10 +1,21 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type {
+  JiraProjectRepoArea,
+  JiraProjectRepoLead,
+  JiraProjectRepoSuite,
+} from '../../../connection'
+
 /**
  * Resolved clone target for a triage job.
  */
 export interface ResolvedJiraRepository {
+  /**
+   * Optional area → suite routing from the project map.
+   */
+  readonly areas?: Readonly<Record<string, JiraProjectRepoArea>>
+
   /**
    * Credential-free HTTPS clone URL.
    */
@@ -17,6 +28,8 @@ export interface ResolvedJiraRepository {
 
   /**
    * Jira account id to reassign to when escalating.
+   *
+   * Prefer {@link projectLead} (email lookup). Kept as a temporary fallback.
    */
   readonly escalateAccountId?: string
 
@@ -24,6 +37,11 @@ export interface ResolvedJiraRepository {
    * Repository name within its owner namespace.
    */
   readonly name: string
+
+  /**
+   * Project lead contacted when triage needs a human.
+   */
+  readonly projectLead?: JiraProjectRepoLead
 
   /**
    * Owner or organization namespace.
@@ -39,6 +57,11 @@ export interface ResolvedJiraRepository {
    * Optional Node-local GitHub connection id for clone/PR work.
    */
   readonly sourceControlConnectionId?: string
+
+  /**
+   * Named allowlisted suites from the project map, when configured.
+   */
+  readonly suites?: Readonly<Record<string, JiraProjectRepoSuite>>
 
   /**
    * Allowlisted UI test command (for example Playwright).

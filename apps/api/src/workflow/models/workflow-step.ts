@@ -2,81 +2,7 @@
 // https://pink-tech.io/
 
 import { WorkflowStepStatus, type WorkflowStepKind } from '../datatypes'
-
-/**
- * Persistence fields required to build a {@link WorkflowStep}.
- */
-export interface WorkflowStepRecord {
-  /**
-   * Timestamp when the step completed successfully.
-   */
-  readonly completedAt: Date | null
-
-  /**
-   * Timestamp when the step row was first persisted.
-   */
-  readonly createdAt: Date
-
-  /**
-   * Timestamp when the step entered a terminal failure state.
-   */
-  readonly failedAt: Date | null
-
-  /**
-   * Stable step primary key.
-   */
-  readonly id: string
-
-  /**
-   * Optional step-scoped input projection.
-   */
-  readonly input: unknown | null
-
-  /**
-   * Handler kind when the step kind is `JOB`.
-   */
-  readonly jobKind: string | null
-
-  /**
-   * Stable key within the run.
-   */
-  readonly key: string
-
-  /**
-   * Whether this step enqueues a job or waits for human approval.
-   */
-  readonly kind: string
-
-  /**
-   * Optional step-scoped output produced on completion.
-   */
-  readonly output: unknown | null
-
-  /**
-   * Zero-based order of this step within the run.
-   */
-  readonly position: number
-
-  /**
-   * Owning workflow run primary key.
-   */
-  readonly runId: string
-
-  /**
-   * Timestamp when the step became active.
-   */
-  readonly startedAt: Date | null
-
-  /**
-   * Current step lifecycle status.
-   */
-  readonly status: string
-
-  /**
-   * Timestamp when the step row was last updated.
-   */
-  readonly updatedAt: Date
-}
+import type { WorkflowStep as WorkflowStepPersistence } from '@/infraestructure/database'
 
 /**
  * Domain model for a single step inside a {@link WorkflowRun}.
@@ -85,8 +11,6 @@ export interface WorkflowStepRecord {
  * {@link position} within their run.
  */
 export class WorkflowStep {
-  // MARK: - Properties
-
   /**
    * Timestamp when the step completed successfully.
    */
@@ -176,12 +100,12 @@ export class WorkflowStep {
   // MARK: - Static methods
 
   /**
-   * Maps a persistence step record into a domain step.
+   * Maps a Prisma workflow-step row into a domain step.
    *
-   * @param record - Persisted step fields.
+   * @param record - Persisted step row.
    * @returns Domain step ready for workflow consumers.
    */
-  static from(record: WorkflowStepRecord): WorkflowStep {
+  static from(record: WorkflowStepPersistence): WorkflowStep {
     return new WorkflowStep(
       record.id,
       record.runId,

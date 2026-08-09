@@ -3,12 +3,11 @@
 
 import { Test, type TestingModule } from '@nestjs/testing'
 import { AgentExecuteJobKind, RepositoryReviewJobKind } from '@cortex/protocol'
-import { RepositoryReviewFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { repositoryReviewFlow } from '@/workflow/definitions'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { ExecutionJobController } from '../../../src/execution/controller/execution-job.controller'
 import { ExecutionJobService } from '../../../src/execution/execution-job.service'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
-
 describe('ExecutionJobController repository reviews', () => {
   let controller: ExecutionJobController
   let start: jest.Mock
@@ -95,7 +94,7 @@ describe('ExecutionJobController repository reviews', () => {
     })
 
     expect(start).toHaveBeenCalledWith({
-      definitionKey: RepositoryReviewFlowDefinitionKey,
+      definitionKey: repositoryReviewFlow.key,
       input: expect.objectContaining({
         connectionId: 'github-main',
       }),

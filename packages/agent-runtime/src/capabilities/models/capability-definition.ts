@@ -20,6 +20,12 @@
  */
 export interface CapabilityDefinition {
   /**
+   * Stable identifier agents use to reference the capability (for example
+   * `repository.review`).
+   */
+  readonly id: string
+  
+  /**
    * Optional default agent id that owns this capability for job routing.
    */
   readonly defaultAgentId?: string
@@ -28,12 +34,6 @@ export interface CapabilityDefinition {
    * Human-readable explanation of what the capability provides.
    */
   readonly description: string
-
-  /**
-   * Stable identifier agents use to reference the capability (for example
-   * `repository.review`).
-   */
-  readonly id: string
 
   /**
    * Names of the tools this capability contributes to authorized executions.

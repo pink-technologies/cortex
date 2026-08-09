@@ -4,15 +4,9 @@
 import { UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
-import { Prisma } from '@prisma/client'
-import { JiraTriageFlowDefinitionKey } from '@/workflow/definitions/keys'
+import { jiraTriageFlow } from '@/workflow/definitions'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
-import { WorkflowRunCreateError } from '@/workflow/error/error'
-import {
-  JiraWebhookService,
-  signJiraWebhookPayload,
-} from '../../../src/webhooks/jira'
-
+import { JiraWebhookService, signJiraWebhookPayload } from '../../../src/webhooks/jira'
 describe('JiraWebhookService', () => {
   const secret = 'jira-secret'
   const body = {
@@ -30,7 +24,11 @@ describe('JiraWebhookService', () => {
   let start: jest.Mock
 
   beforeEach(async () => {
-    start = jest.fn().mockResolvedValue({ job: { id: 'job-1' }, run: { id: 'run-1' } })
+    start = jest.fn().mockResolvedValue({
+      created: true,
+      job: { id: 'job-1' },
+      run: { id: 'run-1' },
+    })
 
     const module = await Test.createTestingModule({
       providers: [
@@ -63,6 +61,7 @@ describe('JiraWebhookService', () => {
       service.handle({
         body,
         rawBody,
+        routeName: 'jira-triage',
         signatureHeader: 'sha256=deadbeef',
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException)
@@ -75,6 +74,7 @@ describe('JiraWebhookService', () => {
       service.handle({
         body,
         rawBody,
+        routeName: 'jira-triage',
         signatureHeader: signJiraWebhookPayload(rawBody, secret),
       }),
     ).resolves.toEqual({
@@ -87,29 +87,26 @@ describe('JiraWebhookService', () => {
     expect(start).toHaveBeenCalledWith(
       expect.objectContaining({
         activeKey: 'jira.triage:JC-7',
-        definitionKey: JiraTriageFlowDefinitionKey,
+        definitionKey: jiraTriageFlow.key,
         triggerIdentifier: 'jira:issue:JC-7:2026-08-01T12:00:00.000+0000',
       }),
     )
   })
 
-  it('returns already_enqueued on unique key collisions', async () => {
+  it('returns already_enqueued when start reuses an existing idempotency key', async () => {
     const rawBody = Buffer.from(JSON.stringify(body), 'utf8')
-    const prismaError = new Prisma.PrismaClientKnownRequestError('Unique', {
-      clientVersion: 'test',
-      code: 'P2002',
-    })
 
-    start.mockRejectedValue(
-      new WorkflowRunCreateError('Failed to create workflow run', {
-        cause: prismaError,
-      }),
-    )
+    start.mockResolvedValue({
+      created: false,
+      job: { id: 'job-1' },
+      run: { id: 'run-1' },
+    })
 
     await expect(
       service.handle({
         body,
         rawBody,
+        routeName: 'jira-triage',
         signatureHeader: signJiraWebhookPayload(rawBody, secret),
       }),
     ).resolves.toEqual({
