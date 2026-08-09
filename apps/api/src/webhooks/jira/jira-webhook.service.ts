@@ -2,11 +2,12 @@
 // https://pink-tech.io/
 
 import {
+  Inject,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
+import { API_CONFIGURATION, type ApiConfiguration } from '@/configuration'
 import { ExecutionJobSourceType } from '@/execution/models'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import {
@@ -25,7 +26,7 @@ import { verifyJiraWebhookSignature } from './signature'
  * `/api/webhooks/jira/jira-triage`). The unscoped `/api/webhooks/jira` path is
  * not registered.
  *
- * Configuration (from env via {@link ConfigService}):
+ * Configuration (from env via {@link ApiConfiguration}):
  * - `JIRA_WEBHOOK_SECRET` — shared HMAC secret
  * - `JIRA_DEFAULT_CONNECTION_ID` — Node `CORTEX_JIRA_CONNECTIONS` id
  * - `JIRA_AUTOMATION_ASSIGNEE_ACCOUNT_ID` — optional assignee gate at ingress
@@ -37,11 +38,12 @@ export class JiraWebhookService {
   /**
    * Creates a Jira webhook verification and enqueue service.
    *
-   * @param configService - Nest config providing webhook secret and defaults.
+   * @param configuration - Validated API configuration providing webhook secrets.
    * @param orchestrator - Orchestrator used to start workflow runs.
    */
   constructor(
-    private readonly configService: ConfigService,
+    @Inject(API_CONFIGURATION)
+    private readonly configuration: ApiConfiguration,
     private readonly orchestrator: WorkflowOrchestrator,
   ) {}
 
@@ -117,13 +119,9 @@ export class JiraWebhookService {
     connectionId: string
     secret: string
   } {
-    const secret = this.configService.get<string>('JIRA_WEBHOOK_SECRET')?.trim()
-    const connectionId = this.configService
-      .get<string>('JIRA_DEFAULT_CONNECTION_ID')
-      ?.trim()
-    const automationAssigneeAccountId = this.configService
-      .get<string>('JIRA_AUTOMATION_ASSIGNEE_ACCOUNT_ID')
-      ?.trim()
+    const secret = this.configuration.jiraWebhookSecret
+    const connectionId = this.configuration.jiraDefaultConnectionId
+    const automationAssigneeAccountId = this.configuration.jiraAutomationAssigneeAccountId
 
     if (!secret || !connectionId) {
       throw new ServiceUnavailableException(

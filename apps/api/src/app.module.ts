@@ -6,6 +6,7 @@ import path from 'path'
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_FILTER, RouterModule } from '@nestjs/core'
+import { ApiConfigurationModule } from './configuration'
 import { DatabaseExceptionFilter, DatabaseModule } from './infraestructure/database'
 import { ExecutionModule } from './execution/execution.module'
 import { I18nModule as CortexI18nModule } from './i18n'
@@ -25,7 +26,8 @@ import {
     ConfigModule.forRoot({
       envFilePath: `env/.env.${process.env.NODE_ENV ?? 'development'}`,
       isGlobal: true,
-    }),    
+    }),
+    ApiConfigurationModule,
     CortexI18nModule,
     DatabaseModule,
     ExecutionModule,

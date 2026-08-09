@@ -2,20 +2,21 @@
 // https://pink-tech.io/
 
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { ConfigService } from '@nestjs/config'
 import type { Request } from 'express'
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common'
+import { API_CONFIGURATION, type ApiConfiguration } from '@/configuration'
 
 /**
  * Requires a shared operator bearer token on mutating workflow-run endpoints.
  *
- * Configuration (from env via {@link ConfigService}):
+ * Configuration (from env via {@link ApiConfiguration}):
  * - `WORKFLOW_OPERATOR_TOKEN` — shared secret expected in the
  *   `Authorization: Bearer <token>` request header.
  *
@@ -30,9 +31,12 @@ export class WorkflowOperatorGuard implements CanActivate {
   /**
    * Creates a workflow operator guard.
    *
-   * @param configService - Nest config providing the expected operator token.
+   * @param configuration - Validated API configuration providing the operator token.
    */
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    @Inject(API_CONFIGURATION)
+    private readonly configuration: ApiConfiguration,
+  ) {}
 
   // MARK: - CanActivate
 
@@ -45,7 +49,7 @@ export class WorkflowOperatorGuard implements CanActivate {
    * @throws {UnauthorizedException} When the header is missing or does not match.
    */
   canActivate(context: ExecutionContext): boolean {
-    const expectedToken = this.configService.get<string>('WORKFLOW_OPERATOR_TOKEN')?.trim()
+    const expectedToken = this.configuration.workflowOperatorToken?.trim()
 
     if (!expectedToken) {
       throw new ServiceUnavailableException(

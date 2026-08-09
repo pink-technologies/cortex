@@ -2,14 +2,15 @@
 // https://pink-tech.io/
 
 import { UnauthorizedException } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { Test, type TestingModule } from '@nestjs/testing'
 import { RepositoryReviewJobKind } from '@cortex/protocol'
+import { API_CONFIGURATION } from '@/configuration'
 import { repositoryReviewFlow } from '@/workflow/definitions'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { WorkflowRunCreateError } from '@/workflow/error/error'
 import { ExecutionJobStatus } from '../../../src/execution/datatypes/execution-job-status'
 import { GitHubWebhookService, signGitHubWebhookPayload } from '../../../src/webhooks/github'
+
 describe('GitHubWebhookService', () => {
   const secret = 'webhook-secret'
   const pullRequestBody = {
@@ -37,23 +38,14 @@ describe('GitHubWebhookService', () => {
       providers: [
         GitHubWebhookService,
         {
-          provide: ConfigService,
+          provide: API_CONFIGURATION,
           useValue: {
-            get: (key: string) => {
-              if (key === 'GITHUB_WEBHOOK_SECRET') {
-                return secret
-              }
-
-              if (key === 'GITHUB_DEFAULT_CONNECTION_ID') {
-                return 'github-main'
-              }
-
-              if (key === 'GITHUB_REVIEW_INSTRUCTIONS') {
-                return 'Focus on bugs.'
-              }
-
-              return undefined
-            },
+            databaseURL: 'postgresql://postgres:postgres@localhost:5432/cortex',
+            githubDefaultConnectionId: 'github-main',
+            githubReviewInstructions: 'Focus on bugs.',
+            githubWebhookSecret: secret,
+            port: 3000,
+            redisURL: 'redis://localhost:6379',
           },
         },
         {

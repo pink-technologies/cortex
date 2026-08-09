@@ -21,6 +21,20 @@ module.exports = {
   clearMocks: true,
   // Execution-job e2e suites share one Postgres database; parallel workers race on claim.
   maxWorkers: 1,
-  // Enable collectCoverage + coverageThreshold when claim/complete/fail suites land.
-  collectCoverage: false,
+  coverageProvider: 'v8',
+  collectCoverage: true,
+  collectCoverageFrom: [
+    '<rootDir>/src/configuration/api-configuration.ts',
+    '<rootDir>/src/configuration/api-configuration.module.ts',
+  ],
+  coverageDirectory: '<rootDir>/coverage',
+  coverageReporters: ['text', 'text-summary', 'lcov'],
+  coverageThreshold: {
+    global: {
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95,
+    },
+  },
 }

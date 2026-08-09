@@ -1,8 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
+import { Inject, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
+import { API_CONFIGURATION, type ApiConfiguration } from '@/configuration'
 import { ExecutionJobSourceType } from '@/execution/models'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
 import { GitHubWebhookDecisionKind, GitHubWebhookHandleAction, type GitHubWebhookHandleResult } from './models'
@@ -18,7 +18,7 @@ import { verifyGitHubWebhookSignature } from './signature'
  * `X-GitHub-Event` from the route registry (for example `pull_request` →
  * repository review).
  *
- * Configuration (from env via {@link ConfigService}):
+ * Configuration (from env via {@link ApiConfiguration}):
  * - `GITHUB_WEBHOOK_SECRET` — shared HMAC secret
  * - `GITHUB_DEFAULT_CONNECTION_ID` — Node `CORTEX_SC_CONNECTIONS` id
  * - `GITHUB_REVIEW_INSTRUCTIONS` — optional default reviewer guidance
@@ -30,11 +30,12 @@ export class GitHubWebhookService {
   /**
    * Creates a GitHub webhook verification and enqueue service.
    *
-   * @param configService - Nest config providing webhook secret and defaults.
+   * @param configuration - Validated API configuration providing webhook secrets.
    * @param orchestrator - Orchestrator used to start review workflow runs.
    */
   constructor(
-    private readonly configService: ConfigService,
+    @Inject(API_CONFIGURATION)
+    private readonly configuration: ApiConfiguration,
     private readonly orchestrator: WorkflowOrchestrator,
   ) {}
 
@@ -102,9 +103,9 @@ export class GitHubWebhookService {
     instructions?: string
     secret: string
   } {
-    const secret = this.configService.get<string>('GITHUB_WEBHOOK_SECRET')?.trim()
-    const connectionId = this.configService.get<string>('GITHUB_DEFAULT_CONNECTION_ID')?.trim()
-    const instructions = this.configService.get<string>('GITHUB_REVIEW_INSTRUCTIONS')?.trim()
+    const secret = this.configuration.githubWebhookSecret
+    const connectionId = this.configuration.githubDefaultConnectionId
+    const instructions = this.configuration.githubReviewInstructions
 
     if (!secret || !connectionId) {
       throw new ServiceUnavailableException(

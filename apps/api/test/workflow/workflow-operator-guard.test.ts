@@ -2,18 +2,21 @@
 // https://pink-tech.io/
 
 import { ServiceUnavailableException, UnauthorizedException, type ExecutionContext } from '@nestjs/common'
-import type { ConfigService } from '@nestjs/config'
+import { type ApiConfiguration } from '@/configuration'
 import { WorkflowOperatorGuard } from '../../src/workflow/guard'
 
 /**
- * Creates a guard backed by a config stub returning the given token.
+ * Creates a guard backed by a configuration stub returning the given token.
  */
 function guardWithConfiguredToken(token: string | undefined): WorkflowOperatorGuard {
-  const configService = {
-    get: jest.fn().mockReturnValue(token),
-  } as unknown as ConfigService
+  const configuration = {
+    databaseURL: 'postgresql://postgres:postgres@localhost:5432/cortex',
+    port: 3000,
+    redisURL: 'redis://localhost:6379',
+    workflowOperatorToken: token,
+  } satisfies ApiConfiguration
 
-  return new WorkflowOperatorGuard(configService)
+  return new WorkflowOperatorGuard(configuration)
 }
 
 /**

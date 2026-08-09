@@ -4,8 +4,9 @@
 import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
+import { API_CONFIGURATION, type ApiConfiguration } from './configuration'
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   // rawBody is required so GitHub webhook HMAC can be verified against the
   // exact bytes GitHub signed (parsed JSON is not byte-identical).
   const app = await NestFactory.create(AppModule, {
@@ -21,7 +22,14 @@ async function bootstrap() {
     }),
   )
 
-  await app.listen(process.env.PORT ?? 3000)
+  const configuration = app.get<ApiConfiguration>(API_CONFIGURATION)
+  await app.listen(configuration.port)
 }
 
-bootstrap()
+void bootstrap().catch((error) => {
+  const message =
+    error instanceof Error ? `${error.message}${error.stack ? `\n${error.stack}` : ''}` : String(error)
+
+  console.error(`[CortexAPI] Bootstrap failed: ${message}`)
+  process.exit(1)
+})
