@@ -97,6 +97,8 @@ const JiraProjectRepoSchema = z
 /**
  * Runtime validator for environment variables required by a Cortex node.
  *
+ * `CORTEX_API_URL` is the complete Cortex API base URL, including any
+ * deployment path or Nest `/api` prefix (for example `http://localhost:3000/api`).
  * Numeric values are coerced from environment strings. The polling interval
  * defaults to 2,000 milliseconds when `CORTEX_POLL_INTERVAL_MS` is omitted.
  * Blank optional secrets are treated as unset.
@@ -128,7 +130,8 @@ export interface NodeConfiguration {
    * Complete base URL of the Cortex API.
    *
    * Includes any deployment path or API prefix, such as
-   * `http://localhost:3000/api`.
+   * `http://localhost:3000/api`. Trailing slashes are stripped when the
+   * configuration is created.
    */
   readonly apiURL: string
 
@@ -276,6 +279,9 @@ function parseJiraProjectRepos(raw: string | undefined): readonly JiraProjectRep
 
 /**
  * Parses and validates the environment configuration for a Cortex node.
+ *
+ * Normalizes `CORTEX_API_URL` by stripping trailing slashes so
+ * {@link NodeConfiguration.apiURL} is safe to concatenate with relative paths.
  *
  * @param environment - Environment map to parse; defaults to `process.env`.
  * @returns A validated and immutable {@link NodeConfiguration}.
