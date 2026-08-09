@@ -28,4 +28,4 @@ export const jiraTriageFlow = {
       position: 0,
     },
   ],
-} satisfies WorkflowDefinition
+} as const satisfies WorkflowDefinition

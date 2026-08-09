@@ -28,4 +28,4 @@ export const agentExecuteFlow = {
       position: 0,
     },
   ],
-} satisfies WorkflowDefinition
+} as const satisfies WorkflowDefinition
