@@ -1,29 +1,37 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { ProjectReviewRule } from './repository-review-rule-catalog'
-
-/**
- * Maximum applicable rules injected into a single review prompt.
- */
-const DEFAULT_MAX_APPLICABLE_RULES = 40
+import type { ProjectReviewRule, ProjectReviewRuleSeverity } from './repository-review-rule-catalog'
+import {
+  defaultRepositoryReviewScoringConfig,
+  type RepositoryReviewScoringConfig,
+} from './repository-review-scoring-config'
 
 /**
  * Selects project rules that apply to the current change set.
  *
  * Prefer rules whose source document / id family overlaps with changed paths.
- * When no paths are available, keep only high/blocker rules (capped). Empty
+ * When no paths are available, keep only elevated-severity rules (capped). Empty
  * catalog → empty applicable set (no invented rules).
  *
  * @param catalog - Parsed project rule catalog.
  * @param changedPaths - Repository-relative paths from the merge-base diff.
- * @param maxRules - Cap on how many rules are injected / scored.
+ * @param scoringConfig - Project scoring policy controlling caps and elevated severities.
  */
 export function selectApplicableRepositoryReviewRules(
   catalog: readonly ProjectReviewRule[],
   changedPaths: readonly string[],
-  maxRules: number = DEFAULT_MAX_APPLICABLE_RULES,
+  scoringConfig: RepositoryReviewScoringConfig = {
+    elevatedFailPenalty: defaultRepositoryReviewScoringConfig.elevatedFailPenalty,
+    elevatedSeverities: [...defaultRepositoryReviewScoringConfig.elevatedSeverities],
+    maxApplicableRules: defaultRepositoryReviewScoringConfig.maxApplicableRules,
+    schemaVersion: defaultRepositoryReviewScoringConfig.schemaVersion,
+    weights: { ...defaultRepositoryReviewScoringConfig.weights },
+  },
 ): readonly ProjectReviewRule[] {
+  const maxRules = scoringConfig.maxApplicableRules
+  const elevated = new Set(scoringConfig.elevatedSeverities)
+
   if (catalog.length === 0 || maxRules <= 0) {
     return []
   }
@@ -31,25 +39,25 @@ export function selectApplicableRepositoryReviewRules(
   const normalizedPaths = changedPaths.map((path) => path.replace(/\\/g, '/'))
 
   if (normalizedPaths.length === 0) {
-    return prioritizeRules(catalog.filter((rule) => isElevatedSeverity(rule.severity))).slice(
-      0,
-      maxRules,
-    )
+    return prioritizeRules(
+      catalog.filter((rule) => elevated.has(rule.severity)),
+      scoringConfig.weights,
+    ).slice(0, maxRules)
   }
 
   const pathHaystack = normalizedPaths.join('\n').toLowerCase()
   const scored = catalog.map((rule) => ({
     rule,
-    score: relevanceScore(rule, pathHaystack, normalizedPaths),
+    score: relevanceScore(rule, pathHaystack, normalizedPaths, elevated),
   }))
 
   const relevant = scored.filter((entry) => entry.score > 0)
 
   if (relevant.length === 0) {
-    return prioritizeRules(catalog.filter((rule) => isElevatedSeverity(rule.severity))).slice(
-      0,
-      maxRules,
-    )
+    return prioritizeRules(
+      catalog.filter((rule) => elevated.has(rule.severity)),
+      scoringConfig.weights,
+    ).slice(0, maxRules)
   }
 
   relevant.sort((left, right) => {
@@ -57,7 +65,10 @@ export function selectApplicableRepositoryReviewRules(
       return right.score - left.score
     }
 
-    return severityRank(right.rule.severity) - severityRank(left.rule.severity)
+    return (
+      severityRank(right.rule.severity, scoringConfig.weights) -
+      severityRank(left.rule.severity, scoringConfig.weights)
+    )
   })
 
   return relevant.slice(0, maxRules).map((entry) => entry.rule)
@@ -67,6 +78,7 @@ function relevanceScore(
   rule: ProjectReviewRule,
   pathHaystack: string,
   changedPaths: readonly string[],
+  elevated: ReadonlySet<string>,
 ): number {
   let score = 0
   const sourceTokens = tokenize(rule.sourcePath)
@@ -100,7 +112,7 @@ function relevanceScore(
     }
   }
 
-  if (isElevatedSeverity(rule.severity) && score > 0) {
+  if (elevated.has(rule.severity) && score > 0) {
     score += 1
   }
 
@@ -121,9 +133,12 @@ function tokenize(value: string): string[] {
     .filter((token) => token.length > 0 && !['md', 'mdc', 'references', 'skills', 'agents'].includes(token))
 }
 
-function prioritizeRules(rules: readonly ProjectReviewRule[]): ProjectReviewRule[] {
+function prioritizeRules(
+  rules: readonly ProjectReviewRule[],
+  weights: RepositoryReviewScoringConfig['weights'],
+): ProjectReviewRule[] {
   return [...rules].sort((left, right) => {
-    const severityDelta = severityRank(right.severity) - severityRank(left.severity)
+    const severityDelta = severityRank(right.severity, weights) - severityRank(left.severity, weights)
 
     if (severityDelta !== 0) {
       return severityDelta
@@ -133,21 +148,9 @@ function prioritizeRules(rules: readonly ProjectReviewRule[]): ProjectReviewRule
   })
 }
 
-function isElevatedSeverity(severity: ProjectReviewRule['severity']): boolean {
-  return severity === 'blocker' || severity === 'high'
-}
-
-function severityRank(severity: ProjectReviewRule['severity']): number {
-  switch (severity) {
-    case 'blocker':
-      return 4
-    case 'high':
-      return 3
-    case 'medium':
-      return 2
-    case 'low':
-      return 1
-    default:
-      return 0
-  }
+function severityRank(
+  severity: ProjectReviewRuleSeverity,
+  weights: RepositoryReviewScoringConfig['weights'],
+): number {
+  return weights[severity]
 }
