@@ -28,12 +28,29 @@ describe('loadRepositoryReviewGuidelines', () => {
     await writeFile(join(workspacePath, '.cursor', 'rules', 'swift.mdc'), 'Prefer value types.\n', 'utf8')
     await mkdir(join(workspacePath, 'docs'), { recursive: true })
     await writeFile(join(workspacePath, 'docs', 'style.md'), 'Use early returns.\n', 'utf8')
+    await mkdir(join(workspacePath, '.agents', 'skills', 'demo', 'references'), { recursive: true })
+    await writeFile(
+      join(workspacePath, '.agents', 'skills', 'demo', 'SKILL.md'),
+      'Load testing strategy when UITests change.\n',
+      'utf8',
+    )
+    await writeFile(
+      join(workspacePath, '.agents', 'skills', 'demo', 'references', 'testing-strategy-full-spec.md'),
+      '### TV-TEST-050 — Map UITest ids to production a11y `[HIGH]`\n\nRequire stable ids.\n',
+      'utf8',
+    )
 
     const guidelines = await loadRepositoryReviewGuidelines(workspacePath)
     const formatted = formatRepositoryReviewGuidelines(guidelines)
 
     expect(guidelines.agentsDocuments.map((document) => document.path)).toEqual(
       expect.arrayContaining(['AGENTS.md', 'Libraries/Camera/AGENTS.md']),
+    )
+    expect(guidelines.agentSkillDocuments.map((document) => document.path)).toEqual(
+      expect.arrayContaining([
+        '.agents/skills/demo/SKILL.md',
+        '.agents/skills/demo/references/testing-strategy-full-spec.md',
+      ]),
     )
     expect(guidelines.cursorRuleDocuments).toEqual([
       {
@@ -49,6 +66,7 @@ describe('loadRepositoryReviewGuidelines', () => {
     ])
     expect(formatted).toContain('## Repository agent guidelines')
     expect(formatted).toContain('### AGENTS.md')
+    expect(formatted).toContain('## Repository agent skills')
     expect(formatted).toContain('## Cursor rules')
     expect(formatted).toContain('## Referenced project guidelines')
   })
@@ -58,6 +76,7 @@ describe('loadRepositoryReviewGuidelines', () => {
 
     expect(guidelines).toEqual({
       agentsDocuments: [],
+      agentSkillDocuments: [],
       cursorRuleDocuments: [],
       referencedDocuments: [],
     })

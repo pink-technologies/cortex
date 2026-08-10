@@ -9,10 +9,17 @@ import {
   GitHubWebhookIgnoreReason,
   type GitHubWebhookDecision,
 } from '../../models'
+
 /**
  * Pull-request actions that enqueue a repository review.
  */
-const GitHubPullRequestReviewActions = ['opened', 'synchronize', 'reopened', 'ready_for_review'] as const
+const GitHubPullRequestReviewActions = [
+  'opened',
+  'synchronize',
+  'reopened',
+  'ready_for_review',
+  'review_requested',
+] as const
 
 /**
  * GitHub webhook route that decides whether a pull-request delivery should
@@ -45,6 +52,9 @@ export const repositoryReviewRoute: GitHubWebhookRoute = {
 
   /**
    * Only `pull_request` deliveries are handled by this route.
+   *
+   * GitHub sends `X-GitHub-Event: pull_request`; review triggers are filtered
+   * by {@link GitHubPullRequestReviewActions} on the payload `action`.
    */
   events: ['pull_request'],
 

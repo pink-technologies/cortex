@@ -4,13 +4,8 @@
 export { CreateRepositoryReviewJobRequestSchema } from './create-repository-review-job-request'
 export type { CreateRepositoryReviewJobRequest } from './create-repository-review-job-request'
 export { RepositoryReviewJobKind } from './repository-review-job-kind'
-export {
-  RepositoryReviewJobPayloadSchema,
-} from './repository-review-job-payload'
-export type {
-  RepositoryReviewJobPayload,
-  RepositoryReviewMode,
-} from './repository-review-job-payload'
+export { RepositoryReviewJobPayloadSchema } from './repository-review-job-payload'
+export type { RepositoryReviewJobPayload, RepositoryReviewMode } from './repository-review-job-payload'
 export {
   RepositoryReviewCategorySchema,
   RepositoryReviewConfidenceSchema,
@@ -19,9 +14,13 @@ export {
   RepositoryReviewFindingLocationSchema,
   RepositoryReviewFindingSchema,
   RepositoryReviewJobResultSchema,
+  RepositoryReviewRuleOutcomeSchema,
+  RepositoryReviewRuleOutcomeStatusSchema,
+  RepositoryReviewScoreSchema,
   RepositoryReviewSeveritySchema,
   RepositoryReviewValidationSchema,
 } from './repository-review-job-result'
+
 export type {
   RepositoryReviewCategory,
   RepositoryReviewConfidence,
@@ -30,6 +29,9 @@ export type {
   RepositoryReviewFinding,
   RepositoryReviewFindingLocation,
   RepositoryReviewJobResult,
+  RepositoryReviewRuleOutcome,
+  RepositoryReviewRuleOutcomeStatus,
+  RepositoryReviewScore,
   RepositoryReviewSeverity,
   RepositoryReviewValidation,
 } from './repository-review-job-result'

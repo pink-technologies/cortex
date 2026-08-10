@@ -207,6 +207,7 @@ describe('RepositoryReviewJobHandler', () => {
         decision: 'approve',
         findings: [],
         limitations: [],
+        ruleOutcomes: [],
         strengths: [],
         summary: 'Looks good.',
         validation: {

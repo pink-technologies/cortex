@@ -35,12 +35,18 @@ export function formatRepositoryReviewComment(result: RepositoryReviewJobResult)
                 ? '_None._'
                 : finding.verification.map((item) => `- ${item}`).join('\n')
 
+            const ruleIds =
+              finding.ruleIds.length === 0
+                ? undefined
+                : `- **rules:** ${finding.ruleIds.map((id) => `\`${id}\``).join(', ')}`
+
             return [
               `#### [${finding.severity}/${finding.disposition}] ${finding.title}${location}`,
               '',
               `- **id:** \`${finding.id}\``,
               `- **category:** ${finding.category}`,
               `- **confidence:** ${finding.confidence}`,
+              ...(ruleIds ? [ruleIds] : []),
               '',
               '**Problem**',
               '',
@@ -68,11 +74,40 @@ export function formatRepositoryReviewComment(result: RepositoryReviewJobResult)
   const listOrNone = (items: readonly string[]): string =>
     items.length === 0 ? '_None._' : items.map((item) => `- ${item}`).join('\n')
 
+  const scoreSection =
+    result.score === undefined
+      ? []
+      : [
+          '### Project rule score',
+          '',
+          `**${(result.score.value * 100).toFixed(1)}%** — ${result.score.summary}`,
+          '',
+        ]
+
+  const ruleOutcomesSection =
+    result.ruleOutcomes.length === 0
+      ? []
+      : [
+          '### Project rule outcomes',
+          '',
+          ...result.ruleOutcomes.map((outcome) => {
+            const findings =
+              outcome.findingIds.length === 0
+                ? ''
+                : ` (findings: ${outcome.findingIds.map((id) => `\`${id}\``).join(', ')})`
+            const reason = outcome.reason ? ` — ${outcome.reason}` : ''
+            return `- \`${outcome.ruleId}\`: **${outcome.status}**${findings}${reason}`
+          }),
+          '',
+        ]
+
   return [
     `## Cortex repository review (${result.decision})`,
     '',
     result.summary.trim(),
     '',
+    ...scoreSection,
+    ...ruleOutcomesSection,
     '### Strengths',
     '',
     strengths,

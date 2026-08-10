@@ -30,8 +30,10 @@ describe('repository-review prompt composer', () => {
     expect(context).toContain('Merge base could not be resolved locally')
   })
 
-  it('composes system prompt, skills, guidelines, and user context', () => {
+  it('composes system prompt, skills, guidelines, applicable rules, and user context', () => {
     const prompt = composeRepositoryReviewPrompt({
+      applicableRulesPrompt:
+        '## Applicable project rules (host checklist)\n\n- `TV-TEST-051` [high] — Element type',
       guidelinesPrompt: '## Repository agent guidelines\n\n### AGENTS.md\n\nPrefer early returns.',
       skillPrompts: ['Focus on the change set.'],
       systemPrompt: 'You are the repository reviewer.',
@@ -43,6 +45,8 @@ describe('repository-review prompt composer', () => {
     expect(prompt).toContain('Focus on the change set.')
     expect(prompt).toContain('## Repository agent guidelines')
     expect(prompt).toContain('Prefer early returns.')
+    expect(prompt).toContain('## Applicable project rules (host checklist)')
+    expect(prompt).toContain('`TV-TEST-051`')
     expect(prompt).toContain('Head revision: feature.')
   })
 })

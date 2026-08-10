@@ -127,6 +127,21 @@ describe('dispatchGitHubWebhook', () => {
     })
   })
 
+  it('maps pull_request review_requested to a review enqueue', () => {
+    expect(
+      dispatchGitHubWebhook({
+        body: { ...pullRequestBody, action: 'review_requested' },
+        connectionId: 'github-main',
+        deliveryId: undefined,
+        event: 'pull_request',
+      }),
+    ).toMatchObject({
+      kind: 'enqueue',
+      definitionKey: 'repository.review.flow',
+      triggerIdentifier: 'github:pull_request:pink-tech/cortex:42:abc123',
+    })
+  })
+
   it('ignores unsupported pull_request actions', () => {
     expect(
       dispatchGitHubWebhook({

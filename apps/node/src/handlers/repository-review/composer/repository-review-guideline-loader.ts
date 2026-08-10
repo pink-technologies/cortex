@@ -20,6 +20,11 @@ const MAX_CURSOR_RULE_FILES = 40
 const MAX_REFERENCED_FILES = 30
 
 /**
+ * Maximum skill / reference markdown files loaded from `.agents/skills`.
+ */
+const MAX_AGENT_SKILL_FILES = 80
+
+/**
  * Maximum directories visited while discovering nested instruction files.
  */
 const MAX_WALKED_DIRECTORIES = 2_000
@@ -76,6 +81,11 @@ export interface RepositoryReviewGuidelines {
   readonly agentsDocuments: readonly RepositoryReviewGuidelineDocument[]
 
   /**
+   * Skill and reference markdown under `.agents/skills`.
+   */
+  readonly agentSkillDocuments: readonly RepositoryReviewGuidelineDocument[]
+
+  /**
    * Files under `.cursor/rules`.
    */
   readonly cursorRuleDocuments: readonly RepositoryReviewGuidelineDocument[]
@@ -99,14 +109,17 @@ export async function loadRepositoryReviewGuidelines(
   workspacePath: string,
 ): Promise<RepositoryReviewGuidelines> {
   const agentsDocuments = await loadAgentsDocuments(workspacePath)
+  const agentSkillDocuments = await loadAgentSkillDocuments(workspacePath)
   const cursorRuleDocuments = await loadCursorRuleDocuments(workspacePath)
   const referencedDocuments = await loadReferencedDocuments(workspacePath, [
     ...agentsDocuments,
+    ...agentSkillDocuments,
     ...cursorRuleDocuments,
   ])
 
   return {
     agentsDocuments,
+    agentSkillDocuments,
     cursorRuleDocuments,
     referencedDocuments,
   }
@@ -124,6 +137,7 @@ export function formatRepositoryReviewGuidelines(
   const sections: string[] = []
 
   appendGuidelineSection(sections, 'Repository agent guidelines', guidelines.agentsDocuments)
+  appendGuidelineSection(sections, 'Repository agent skills', guidelines.agentSkillDocuments)
   appendGuidelineSection(sections, 'Cursor rules', guidelines.cursorRuleDocuments)
   appendGuidelineSection(sections, 'Referenced project guidelines', guidelines.referencedDocuments)
 
@@ -162,6 +176,35 @@ async function loadAgentsDocuments(
 
     if (document) {
       seen.add(document.path)
+      documents.push(document)
+    }
+  }
+
+  return documents
+}
+
+async function loadAgentSkillDocuments(
+  workspacePath: string,
+): Promise<readonly RepositoryReviewGuidelineDocument[]> {
+  const skillsRoot = join(workspacePath, '.agents', 'skills')
+
+  try {
+    await access(skillsRoot)
+  } catch {
+    return []
+  }
+
+  const relativePaths = await listFiles(skillsRoot, (_relativePath, name) => {
+    return name.endsWith('.md') || name.endsWith('.mdc')
+  })
+
+  const documents: RepositoryReviewGuidelineDocument[] = []
+
+  for (const nestedRelative of relativePaths.slice(0, MAX_AGENT_SKILL_FILES)) {
+    const repositoryRelative = join('.agents', 'skills', nestedRelative)
+    const document = await readGuidelineDocument(workspacePath, repositoryRelative)
+
+    if (document) {
       documents.push(document)
     }
   }
