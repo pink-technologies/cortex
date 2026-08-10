@@ -15,7 +15,6 @@ import { Test, type TestingModule } from '@nestjs/testing'
 import { AgentModule } from '../../src/agent/agent.module'
 import { NodeAgentLLMResolver } from '../../src/agent/provider'
 import {
-  createNodeConfiguration,
   NODE_CONFIGURATION,
   type NodeConfiguration,
 } from '../../src/configuration'
@@ -36,12 +35,20 @@ class AgentModuleConsumer {
 class AgentModuleConsumerModule {}
 
 describe('AgentModule', () => {
-  const configuration: NodeConfiguration = createNodeConfiguration({
-    CORTEX_API_URL: 'https://api.cortex.example',
-    CORTEX_NODE_NAME: 'worker',
-    CORTEX_NODE_VERSION: '1.0.0',
-    OPENAI_API_KEY: 'openai-key',
-  })
+  const configuration: NodeConfiguration = {
+    apiBaseURL: 'https://api.cortex.example',
+    jiraConnections: [],
+    jiraProjectRepos: [],
+    llm: {
+      openAI: {
+        apiKey: 'openai-key',
+      },
+    },
+    nodeName: 'worker',
+    pollingIntervalMilliseconds: 2000,
+    sourceControlConnections: [],
+    version: '1.0.0',
+  }
 
   async function createModule(): Promise<TestingModule> {
     return Test.createTestingModule({

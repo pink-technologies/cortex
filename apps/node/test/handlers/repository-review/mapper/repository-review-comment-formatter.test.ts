@@ -74,7 +74,7 @@ describe('formatRepositoryReviewComment', () => {
         strengths: ['Clear public API boundary'],
         findings: [
           {
-            category: 'testing',
+            category: 'test_coverage',
             confidence: 'medium',
             disposition: 'follow_up',
             evidence: [],

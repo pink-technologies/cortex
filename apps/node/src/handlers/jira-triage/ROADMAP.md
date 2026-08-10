@@ -13,14 +13,14 @@ forwards them into the XCTest process. This does not scale for multi-tenant or
 multi-suite production nodes.
 
 **Target:** node-local secret bundles referenced by id from the project→repo
-suite map — same trust model as `CORTEX_SC_CONNECTIONS` /
-`CORTEX_JIRA_CONNECTIONS` (materialize on the node; never put secrets on the
-job wire or inside suite `command` strings).
+suite map — same trust model as `.cortex/connections.toml` secret references
+(materialize on the node; never put secrets on the job wire or inside suite
+argument vectors).
 
 1. Load secret bundles at boot from env / Secret Manager / mounted CSI, e.g.
    `CORTEX_SUITE_SECRETS=[{"id":"truvideo-ios","env":{"TRUVIDEO_ACCESS_TOKEN":"…","TRUVIDEO_REFRESH_TOKEN":"…"}}]`.
 2. Extend suite config with `secretIds: ["truvideo-ios"]` (ids only; no secret
-   values in `CORTEX_JIRA_PROJECT_REPOS`).
+   values in `.cortex/projects/*.toml`).
 3. Resolve ids in a small store (e.g. `SuiteSecretStore`) and pass
    `env: { ...process.env, ...mergedBundleEnv }` into `TestRunner` for that
    suite invocation only.

@@ -1,0 +1,14 @@
+schemaVersion = 1
+
+[[sourceControlConnections]]
+id = "github-primary"
+provider = "github"
+apiBaseUrl = "https://api.github.com"
+token = { source = "environment", name = "GITHUB_TOKEN" }
+
+[[jiraConnections]]
+id = "jira-primary"
+provider = "jira"
+baseUrl = "https://example.atlassian.net"
+email = "automation@example.com"
+apiToken = { source = "environment", name = "JIRA_API_TOKEN" }

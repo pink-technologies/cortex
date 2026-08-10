@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { JiraProjectRepoArea } from '../../../connection'
+import type { CommandConfiguration, JiraProjectRepoArea } from '../../../connection'
 import type { ResolvedJiraRepository } from '../models'
 
 /**
@@ -22,10 +22,8 @@ export type ResolveAllowlistedSuitesInput = {
 /**
  * Builds the allowlisted suite id → command map for a resolved repository.
  *
- * Prefers a named {@link ResolvedJiraRepository.suites} catalog when present
- * and non-empty. Otherwise falls back to legacy `unit` / `ui` commands.
- *
- * When areas are configured, suite selection prefers:
+ * Uses the named {@link ResolvedJiraRepository.suites} catalog. When areas are
+ * configured, suite selection prefers:
  * 1. Classification {@link ResolveAllowlistedSuitesInput.selectedAreas}
  * 2. Alias / area-id matches in {@link ResolveAllowlistedSuitesInput.issueText}
  * 3. All named suites (no confident area match)
@@ -37,18 +35,14 @@ export type ResolveAllowlistedSuitesInput = {
 export function resolveAllowlistedSuites(
   repository: ResolvedJiraRepository,
   input: ResolveAllowlistedSuitesInput = {},
-): Readonly<Record<string, string>> {
-  const namedEntries = Object.entries(repository.suites ?? {}).filter(([, suite]) =>
-    Boolean(suite.command),
-  )
+): Readonly<Record<string, CommandConfiguration>> {
+  const namedEntries = Object.entries(repository.suites ?? {})
 
   if (namedEntries.length === 0) {
-    return legacySuites(repository)
+    return {}
   }
 
-  const catalog = Object.fromEntries(
-    namedEntries.map(([suiteId, suite]) => [suiteId, suite.command]),
-  )
+  const catalog = Object.fromEntries(namedEntries)
   const areaCatalog = repository.areas ?? {}
   const areaIds = resolveAreaIds({
     areaCatalog,
@@ -86,20 +80,6 @@ export function resolveAllowlistedSuites(
   return Object.fromEntries(
     [...suiteKeys].map((suiteId) => [suiteId, catalog[suiteId]!]),
   )
-}
-
-function legacySuites(repository: ResolvedJiraRepository): Readonly<Record<string, string>> {
-  const legacy: Record<string, string> = {}
-
-  if (repository.unitTestCommand) {
-    legacy.unit = repository.unitTestCommand
-  }
-
-  if (repository.uiTestCommand) {
-    legacy.ui = repository.uiTestCommand
-  }
-
-  return legacy
 }
 
 function resolveAreaIds(input: {

@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { JiraTriageJobKind } from '@cortex/protocol'
-import type { NodeConfiguration } from './node-configuration'
+import type { NodeConfiguration } from '../node-configuration'
 
 /**
  * Ensures the Node has the secrets required to process `jira.triage` jobs when
@@ -21,13 +21,13 @@ export function assertJiraTriageRuntimeReady(
 
   if (configuration.jiraConnections.length === 0) {
     throw new Error(
-      'CORTEX_JIRA_CONNECTIONS must include at least one Jira connection because this Node advertises jira.triage.',
+      'connections.toml must include at least one Jira connection because this Node advertises jira.triage.',
     )
   }
 
   if (configuration.sourceControlConnections.length === 0) {
     throw new Error(
-      'CORTEX_SC_CONNECTIONS must include at least one GitHub connection because jira.triage clones repositories.',
+      'connections.toml must include at least one GitHub connection because jira.triage clones repositories.',
     )
   }
 

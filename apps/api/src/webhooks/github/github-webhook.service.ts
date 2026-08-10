@@ -20,7 +20,7 @@ import { verifyGitHubWebhookSignature } from './signature'
  *
  * Configuration (from env via {@link ApiConfiguration}):
  * - `GITHUB_WEBHOOK_SECRET` — shared HMAC secret
- * - `GITHUB_DEFAULT_CONNECTION_ID` — Node `CORTEX_SC_CONNECTIONS` id
+ * - `GITHUB_DEFAULT_CONNECTION_ID` — Node `connections.toml` source-control connection id
  * - `GITHUB_REVIEW_INSTRUCTIONS` — optional default reviewer guidance
  */
 @Injectable()

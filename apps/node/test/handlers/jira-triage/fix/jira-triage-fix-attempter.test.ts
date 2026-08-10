@@ -49,7 +49,13 @@ describe('JiraTriageFixAttempter', () => {
     name: 'app',
     owner: 'acme',
     source: 'project_map',
-    unitTestCommand: 'npm test',
+    suites: {
+      unit: {
+        arguments: ['test'],
+        executable: 'npm',
+        workingDirectory: '.',
+      },
+    },
   }
 
   const sourceControlConnection = {
@@ -151,7 +157,7 @@ describe('JiraTriageFixAttempter', () => {
       repository,
       signal: new AbortController().signal,
       sourceControlConnection,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -199,7 +205,7 @@ describe('JiraTriageFixAttempter', () => {
       repository,
       signal: new AbortController().signal,
       sourceControlConnection,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -230,7 +236,7 @@ describe('JiraTriageFixAttempter', () => {
       repository,
       signal: new AbortController().signal,
       sourceControlConnection,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -260,7 +266,7 @@ describe('JiraTriageFixAttempter', () => {
       repository,
       signal: new AbortController().signal,
       sourceControlConnection,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -282,7 +288,7 @@ describe('JiraTriageFixAttempter', () => {
         repository,
         signal: new AbortController().signal,
         sourceControlConnection,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toBeInstanceOf(JiraTriageFixError)
@@ -300,7 +306,7 @@ describe('JiraTriageFixAttempter', () => {
         repository,
         signal: new AbortController().signal,
         sourceControlConnection,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toMatchObject({
@@ -324,7 +330,7 @@ describe('JiraTriageFixAttempter', () => {
         repository,
         signal: new AbortController().signal,
         sourceControlConnection,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toBe(abortError)
@@ -348,7 +354,7 @@ describe('JiraTriageFixAttempter', () => {
         repository,
         signal: controller.signal,
         sourceControlConnection,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toBe(interrupted)
@@ -368,7 +374,7 @@ describe('JiraTriageFixAttempter', () => {
         repository,
         signal: controller.signal,
         sourceControlConnection,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toBeDefined()
@@ -390,7 +396,7 @@ describe('JiraTriageFixAttempter', () => {
       repository,
       signal: new AbortController().signal,
       sourceControlConnection,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -424,7 +430,7 @@ describe('JiraTriageFixAttempter', () => {
       repository,
       signal: new AbortController().signal,
       sourceControlConnection,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -434,7 +440,7 @@ describe('JiraTriageFixAttempter', () => {
       repository,
       signal: new AbortController().signal,
       sourceControlConnection,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -481,7 +487,7 @@ describe('JiraTriageFixAttempter', () => {
       repository,
       signal: new AbortController().signal,
       sourceControlConnection,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 

@@ -1,11 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type {
-  JiraProjectRepoArea,
-  JiraProjectRepoLead,
-  JiraProjectRepoSuite,
-} from '../../../connection'
+import type { CommandConfiguration, JiraProjectRepoArea, JiraProjectRepoLead, JiraProjectRepoSuite } from '../../../connection'
 
 /**
  * Resolved clone target for a triage job.
@@ -62,14 +58,9 @@ export interface ResolvedJiraRepository {
    * Named allowlisted suites from the project map, when configured.
    */
   readonly suites?: Readonly<Record<string, JiraProjectRepoSuite>>
-
-  /**
-   * Allowlisted UI test command (for example Playwright).
-   */
-  readonly uiTestCommand?: string
-
-  /**
-   * Allowlisted unit test command.
-   */
-  readonly unitTestCommand?: string
 }
+
+/**
+ * Re-export for triage callers that format suite commands.
+ */
+export type { CommandConfiguration }

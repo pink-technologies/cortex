@@ -7,7 +7,7 @@ import type { JiraTriageFix } from '@cortex/protocol'
 import { GitHubClient, GitHubPullResource } from '@cortex/integrations/github'
 import type { JiraIssue } from '@cortex/integrations/jira'
 import { AgentProcessResolver } from '../../../agent/agent-process-resolver'
-import type { SourceControlConnection } from '../../../connection'
+import type { CommandConfiguration, SourceControlConnection } from '../../../connection'
 import { EXECUTION_ENGINE, type ExecutionEngine } from '../../../execution-engine'
 import type { PreparedWorkspace } from '../../../workspace'
 import { GitWorkspaceManager } from '../../../workspace'
@@ -33,7 +33,7 @@ export type JiraTriageFixAttemptRequest = {
   readonly repository: ResolvedJiraRepository
   readonly signal: AbortSignal
   readonly sourceControlConnection: SourceControlConnection
-  readonly suites: Readonly<Record<string, string>>
+  readonly suites: Readonly<Record<string, CommandConfiguration>>
   readonly workspace: PreparedWorkspace
 }
 

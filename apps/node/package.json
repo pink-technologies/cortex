@@ -15,6 +15,7 @@
     "@cortex/networking": "workspace:*",
     "@cortex/protocol": "workspace:*",
     "@cursor/sdk": "^1.0.26",
+    "@iarna/toml": "^2.2.5",
     "@nestjs/common": "^11.1.14",
     "@nestjs/core": "^11.0.1",
     "execa": "^10.0.0",

@@ -40,7 +40,7 @@ export class CortexClient {
     @Inject(NODE_CONFIGURATION)
     configuration: NodeConfiguration,
   ) {
-    this.baseUrl = configuration.apiURL.replace(/\/+$/, '')
+    this.baseUrl = configuration.apiBaseURL.replace(/\/+$/, '')
   }
 
   // MARK: - Instance methods

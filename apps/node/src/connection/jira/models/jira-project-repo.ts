@@ -1,15 +1,12 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type { CommandConfiguration } from './command-configuration'
+
 /**
  * One allowlisted reproduction suite for a Jira project→repo mapping.
  */
-export interface JiraProjectRepoSuite {
-  /**
-   * Shell command executed by {@link TestRunner} at the clone root.
-   */
-  readonly command: string
-}
+export type JiraProjectRepoSuite = CommandConfiguration
 
 /**
  * Human-facing product area that maps to one or more allowlisted suites.
@@ -42,7 +39,7 @@ export interface JiraProjectRepoLead {
 }
 
 /**
- * Maps a Jira project key to a GitHub repository and allowlisted test commands.
+ * Maps a Jira project key to a GitHub repository and allowlisted suites.
  */
 export interface JiraProjectRepoMapping {
   /**
@@ -97,19 +94,6 @@ export interface JiraProjectRepoMapping {
 
   /**
    * Named allowlisted suites keyed by suite id (scheme, package, etc.).
-   *
-   * When present and non-empty, triage runs these instead of the legacy
-   * {@link unitTestCommand} / {@link uiTestCommand} fields.
    */
   readonly suites?: Readonly<Record<string, JiraProjectRepoSuite>>
-
-  /**
-   * Allowlisted UI test command (for example Playwright).
-   */
-  readonly uiTestCommand?: string
-
-  /**
-   * Allowlisted unit test command.
-   */
-  readonly unitTestCommand?: string
 }
