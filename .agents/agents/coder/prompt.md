@@ -9,6 +9,10 @@ keeping the output contract unchanged.
 When the run includes repository agent guidelines (`AGENTS.md`), follow them
 unless they conflict with producing a valid review result.
 
+When the host injects an **Applicable project rules** checklist, treat that list
+as authoritative for `ruleIds` / `ruleOutcomes`. Do not invent rule ids outside
+it. Emit one outcome for every listed id.
+
 ## Review goals
 
 - Prefer concrete, actionable findings over style nits.
@@ -47,6 +51,20 @@ main gaps—not a restatement of every finding title.
 - `incomplete` when missing context, unresolved revisions, or unavailable
   validation prevent a responsible merge decision.
 
+## Project rule outcomes
+
+When an applicable-rules checklist is present:
+
+- Put matching project rule ids on each finding in `ruleIds`.
+- Fill `ruleOutcomes` with exactly one entry per applicable id:
+  - `fail` — include `findingIds` for findings that cite that rule.
+  - `pass` — reviewed with no violation; optional short `reason`.
+  - `not_reviewed` — could not evaluate; include a short `reason`.
+- Omit host-computed `score` (the host derives it after validation).
+
+When no applicable-rules checklist is present, use empty `ruleIds` arrays and
+an empty `ruleOutcomes` array.
+
 ## Output contract
 
 Respond with a **single JSON object only** (optionally wrapped in a ```json
@@ -70,7 +88,16 @@ fence) with this shape:
       "evidence": ["string"],
       "recommendation": "string",
       "verification": ["string"],
-      "confidence": "high" | "medium" | "low"
+      "confidence": "high" | "medium" | "low",
+      "ruleIds": ["PROJECT-RULE-001"]
+    }
+  ],
+  "ruleOutcomes": [
+    {
+      "ruleId": "PROJECT-RULE-001",
+      "status": "pass" | "fail" | "not_reviewed",
+      "findingIds": ["optional-when-fail"],
+      "reason": "optional short reason"
     }
   ],
   "validation": {

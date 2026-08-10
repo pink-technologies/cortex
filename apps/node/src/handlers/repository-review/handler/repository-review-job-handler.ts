@@ -20,9 +20,10 @@ import {
 import {
   buildRepositoryReviewUserContext,
   composeRepositoryReviewPrompt,
-  readRepositoryReviewGuidelinesPrompt,
+  loadRepositoryReviewPromptContext,
   RepositoryReviewDiffSkillId,
 } from '../composer/repository-review-prompt-composer'
+import { validateAndScoreRepositoryReviewRules } from '../rules/validate-and-score-repository-review-rules'
 
 /**
  * Executes claimed jobs with kind {@link RepositoryReviewJobKind}.
@@ -95,7 +96,11 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
           )
         : undefined
 
-      const guidelinesPrompt = await readRepositoryReviewGuidelinesPrompt(workspace.path)
+      const promptContext = await loadRepositoryReviewPromptContext(
+        workspace.path,
+        workspace.mergeBaseSha,
+        context.signal,
+      )
       const userContext = buildRepositoryReviewUserContext({
         baseRef: jobPayload.change.baseRef,
         headRef: jobPayload.change.headRef,
@@ -108,7 +113,8 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
       const skillPrompts = this.resolveSkillPrompts(agent, userContext)
 
       const prompt = composeRepositoryReviewPrompt({
-        guidelinesPrompt,
+        applicableRulesPrompt: promptContext.applicableRulesPrompt,
+        guidelinesPrompt: promptContext.guidelinesPrompt,
         skillPrompts,
         systemPrompt: agent.descriptor.systemPrompt,
         userContext,
@@ -121,7 +127,10 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
         signal: context.signal,
       })
 
-      const result = mapRepositoryReviewResult(engineResult.output)
+      const result = validateAndScoreRepositoryReviewRules(
+        mapRepositoryReviewResult(engineResult.output),
+        promptContext.applicableRules,
+      )
 
       if (jobPayload.change.pullRequestNumber) {
         await comments.create(

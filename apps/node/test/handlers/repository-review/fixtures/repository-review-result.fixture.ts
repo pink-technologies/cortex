@@ -15,6 +15,7 @@ export function repositoryReviewResult(
     decision: 'approve',
     findings: [],
     limitations: [],
+    ruleOutcomes: [],
     strengths: [],
     summary: 'Looks good.',
     validation: {

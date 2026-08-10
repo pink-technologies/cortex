@@ -114,6 +114,11 @@ export type RepositoryReviewFindingLocation = z.infer<typeof RepositoryReviewFin
 export const RepositoryReviewFindingSchema = z
   .object({
     /**
+     * Stable finding identifier within the review result.
+     */
+    id: z.string().trim().min(1),
+
+    /**
      * Technical category of the finding.
      */
     category: RepositoryReviewCategorySchema,
@@ -134,11 +139,6 @@ export const RepositoryReviewFindingSchema = z
     evidence: z.array(z.string().trim().min(1)),
 
     /**
-     * Stable finding identifier within the review result.
-     */
-    id: z.string().trim().min(1),
-
-    /**
      * User, caller, system, or maintenance impact.
      */
     impact: z.string().trim().min(1),
@@ -157,6 +157,14 @@ export const RepositoryReviewFindingSchema = z
      * Direction for resolving the issue.
      */
     recommendation: z.string().trim().min(1),
+
+    /**
+     * Project rule identifiers this finding cites (for example `TV-TEST-051`).
+     *
+     * Empty when the reviewed repository has no parseable project rule catalog,
+     * or when the finding is not tied to a specific rule id.
+     */
+    ruleIds: z.array(z.string().trim().min(1)).default([]),
 
     /**
      * Severity assigned to the finding.
@@ -203,6 +211,70 @@ export const RepositoryReviewValidationSchema = z
 export type RepositoryReviewValidation = z.infer<typeof RepositoryReviewValidationSchema>
 
 /**
+ * Validates the LLM/host outcome for one applicable project review rule.
+ */
+export const RepositoryReviewRuleOutcomeStatusSchema = z.enum(['pass', 'fail', 'not_reviewed'])
+
+/**
+ * Validated rule-outcome status exchanged through the shared protocol.
+ */
+export type RepositoryReviewRuleOutcomeStatus = z.infer<typeof RepositoryReviewRuleOutcomeStatusSchema>
+
+/**
+ * Validates one project-rule outcome produced during a repository review.
+ */
+export const RepositoryReviewRuleOutcomeSchema = z
+  .object({
+    /**
+     * Finding ids that evidence a `fail` outcome for this rule.
+     */
+    findingIds: z.array(z.string().trim().min(1)).default([]),
+
+    /**
+     * Optional short reason (especially for `pass` / `not_reviewed`).
+     */
+    reason: z.string().trim().min(1).optional(),
+
+    /**
+     * Project rule identifier (for example `TV-TEST-051`).
+     */
+    ruleId: z.string().trim().min(1),
+
+    /**
+     * Whether the rule passed, failed, or was not reviewed.
+     */
+    status: RepositoryReviewRuleOutcomeStatusSchema,
+  })
+  .strict()
+
+/**
+ * Validated project-rule outcome exchanged through the shared protocol.
+ */
+export type RepositoryReviewRuleOutcome = z.infer<typeof RepositoryReviewRuleOutcomeSchema>
+
+/**
+ * Validates a host-computed score over applicable project review rules.
+ */
+export const RepositoryReviewScoreSchema = z
+  .object({
+    /**
+     * Short explanation of how the score was derived.
+     */
+    summary: z.string().trim().min(1),
+
+    /**
+     * Score in `[0, 1]` where `1` means every applicable rule passed.
+     */
+    value: z.number().min(0).max(1),
+  })
+  .strict()
+
+/**
+ * Validated project-rule score exchanged through the shared protocol.
+ */
+export type RepositoryReviewScore = z.infer<typeof RepositoryReviewScoreSchema>
+
+/**
  * Validates the handler result for a completed `repository.review` job.
  *
  * Produced by a Node after running the review engine against the prepared
@@ -237,6 +309,20 @@ export const RepositoryReviewJobResultSchema = z
      * Missing context, unresolved revisions, or other review limitations.
      */
     limitations: z.array(z.string().trim().min(1)),
+
+    /**
+     * Per-rule outcomes for project rules applicable to the change set.
+     *
+     * Empty when the repository has no parseable rule catalog, or when no
+     * rules applied to the diff. Hosts may normalize this after the engine
+     * returns.
+     */
+    ruleOutcomes: z.array(RepositoryReviewRuleOutcomeSchema).default([]),
+
+    /**
+     * Host-computed score over {@link ruleOutcomes}, when scoring ran.
+     */
+    score: RepositoryReviewScoreSchema.optional(),
 
     /**
      * Positive observations worth preserving in the published review.

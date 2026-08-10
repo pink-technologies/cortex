@@ -36,6 +36,7 @@ describe('formatRepositoryReviewComment', () => {
               '',
               'Resolve once into a non-optional internal `UIImage`.',
             ].join('\n'),
+            ruleIds: [],
             severity: 'high',
             title: 'Replace IconImage with declarative CameraAppearance.Icon',
             verification: ['Invalid SF Symbol retains SDK default.'],
@@ -53,6 +54,55 @@ describe('formatRepositoryReviewComment', () => {
     expect(comment).toContain('public struct Icon: Sendable')
     expect(comment).toContain('### Applied skills')
     expect(comment).toContain('code-review-diff')
+  })
+
+  it('renders project rule score, outcomes, and finding rule ids', () => {
+    const comment = formatRepositoryReviewComment(
+      repositoryReviewResult({
+        decision: 'request_changes',
+        findings: [
+          {
+            category: 'test_coverage',
+            confidence: 'high',
+            disposition: 'required_before_merge',
+            evidence: ['UITests/PermissionsScreen.swift'],
+            id: 'a11y-type',
+            impact: 'UITest waits on the wrong element type.',
+            problem: 'Exit confirmation uses a button query for a static text.',
+            recommendation: 'Match the production a11y element type.',
+            ruleIds: ['TV-TEST-051'],
+            severity: 'high',
+            title: 'Wrong a11y element type',
+            verification: ['UITest asserts .staticText'],
+          },
+        ],
+        ruleOutcomes: [
+          {
+            findingIds: ['a11y-type'],
+            ruleId: 'TV-TEST-051',
+            status: 'fail',
+          },
+          {
+            findingIds: [],
+            reason: 'No violation in changed screens.',
+            ruleId: 'TV-TEST-050',
+            status: 'pass',
+          },
+        ],
+        score: {
+          summary: 'Project-rule score over 2 applicable rule(s): 1 pass, 1 fail, 0 not_reviewed.',
+          value: 0.45,
+        },
+        summary: 'UITest contracts need fixes.',
+      }),
+    )
+
+    expect(comment).toContain('### Project rule score')
+    expect(comment).toContain('**45.0%**')
+    expect(comment).toContain('### Project rule outcomes')
+    expect(comment).toContain('`TV-TEST-051`: **fail**')
+    expect(comment).toContain('`TV-TEST-050`: **pass**')
+    expect(comment).toContain('- **rules:** `TV-TEST-051`')
   })
 
   it('renders an empty findings list', () => {
@@ -82,6 +132,7 @@ describe('formatRepositoryReviewComment', () => {
             impact: 'Regressions may land unnoticed.',
             problem: 'No coverage for the new resolver.',
             recommendation: 'Add unit tests for fallback behavior.',
+            ruleIds: [],
             severity: 'medium',
             title: 'Add resolver regression tests',
             verification: [],
