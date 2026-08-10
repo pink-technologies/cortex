@@ -15,6 +15,10 @@ import {
   type ProjectReviewRule,
 } from '../rules/repository-review-rule-catalog'
 import { selectApplicableRepositoryReviewRules } from '../rules/select-applicable-repository-review-rules'
+import {
+  loadRepositoryReviewScoringConfig,
+  type RepositoryReviewScoringConfig,
+} from '../rules/repository-review-scoring-config'
 
 /**
  * Skill always injected for `repository.review` runs.
@@ -86,12 +90,14 @@ export async function loadRepositoryReviewPromptContext(
   readonly applicableRulesPrompt: string | undefined
   readonly guidelines: RepositoryReviewGuidelines
   readonly guidelinesPrompt: string | undefined
+  readonly scoringConfig: RepositoryReviewScoringConfig
 }> {
   const guidelines = await loadRepositoryReviewGuidelines(workspacePath)
   const guidelinesPrompt = formatRepositoryReviewGuidelines(guidelines)
+  const scoringConfig = await loadRepositoryReviewScoringConfig(workspacePath)
   const catalog = parseProjectReviewRuleCatalog(flattenGuidelineDocuments(guidelines))
   const changedPaths = await listRepositoryReviewChangedPaths(workspacePath, mergeBaseSha, signal)
-  const applicableRules = selectApplicableRepositoryReviewRules(catalog, changedPaths)
+  const applicableRules = selectApplicableRepositoryReviewRules(catalog, changedPaths, scoringConfig)
   const applicableRulesPrompt = formatRepositoryReviewApplicableRules(applicableRules)
 
   return {
@@ -99,6 +105,7 @@ export async function loadRepositoryReviewPromptContext(
     applicableRulesPrompt,
     guidelines,
     guidelinesPrompt,
+    scoringConfig,
   }
 }
 
@@ -160,4 +167,4 @@ export function composeRepositoryReviewPrompt(input: {
   return sections.join('\n\n')
 }
 
-export type { ProjectReviewRule, RepositoryReviewGuidelines }
+export type { ProjectReviewRule, RepositoryReviewGuidelines, RepositoryReviewScoringConfig }

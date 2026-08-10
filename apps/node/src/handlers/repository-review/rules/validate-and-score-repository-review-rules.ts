@@ -1,13 +1,16 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import type { RepositoryReviewJobResult, RepositoryReviewRuleOutcome, RepositoryReviewScore } from '@cortex/protocol'
+import type {
+  RepositoryReviewJobResult,
+  RepositoryReviewRuleOutcome,
+  RepositoryReviewScore,
+} from '@cortex/protocol'
 import type { ProjectReviewRule } from './repository-review-rule-catalog'
-
-/**
- * Extra score penalty applied per elevated-severity `fail` outcome.
- */
-const ELEVATED_FAIL_PENALTY = 0.05
+import {
+  defaultRepositoryReviewScoringConfig,
+  type RepositoryReviewScoringConfig,
+} from './repository-review-scoring-config'
 
 /**
  * Normalizes engine `ruleOutcomes` against the host applicable set and attaches
@@ -19,14 +22,23 @@ const ELEVATED_FAIL_PENALTY = 0.05
  * - upgrades to `fail` when findings cite the rule
  * - downgrades dishonest `fail` outcomes that lack citing findings
  * - drops outcomes for unknown (non-applicable) rule ids
- * - computes `score` from severity-weighted pass rate
+ * - computes `score` from severity-weighted pass rate using
+ *   {@link RepositoryReviewScoringConfig}
  *
  * @param result - Schema-validated engine result.
  * @param applicableRules - Host-selected applicable project rules.
+ * @param scoringConfig - Project scoring policy (defaults when omitted).
  */
 export function validateAndScoreRepositoryReviewRules(
   result: RepositoryReviewJobResult,
   applicableRules: readonly ProjectReviewRule[],
+  scoringConfig: RepositoryReviewScoringConfig = {
+    elevatedFailPenalty: defaultRepositoryReviewScoringConfig.elevatedFailPenalty,
+    elevatedSeverities: [...defaultRepositoryReviewScoringConfig.elevatedSeverities],
+    maxApplicableRules: defaultRepositoryReviewScoringConfig.maxApplicableRules,
+    schemaVersion: defaultRepositoryReviewScoringConfig.schemaVersion,
+    weights: { ...defaultRepositoryReviewScoringConfig.weights },
+  },
 ): RepositoryReviewJobResult {
   if (applicableRules.length === 0) {
     return {
@@ -42,6 +54,7 @@ export function validateAndScoreRepositoryReviewRules(
       .filter((outcome) => applicableById.has(outcome.ruleId))
       .map((outcome) => [outcome.ruleId, outcome] as const),
   )
+  const elevated = new Set(scoringConfig.elevatedSeverities)
 
   const normalized: RepositoryReviewRuleOutcome[] = []
 
@@ -78,7 +91,8 @@ export function validateAndScoreRepositoryReviewRules(
       if (validFindingIds.length === 0) {
         normalized.push({
           findingIds: [],
-          reason: engineOutcome.reason ?? 'Engine marked fail without findings that cite this rule id.',
+          reason:
+            engineOutcome.reason ?? 'Engine marked fail without findings that cite this rule id.',
           ruleId: rule.id,
           status: 'not_reviewed',
         })
@@ -105,13 +119,15 @@ export function validateAndScoreRepositoryReviewRules(
   return {
     ...result,
     ruleOutcomes: normalized,
-    score: computeScore(normalized, applicableById),
+    score: computeScore(normalized, applicableById, scoringConfig, elevated),
   }
 }
 
 function computeScore(
   outcomes: readonly RepositoryReviewRuleOutcome[],
   applicableById: ReadonlyMap<string, ProjectReviewRule>,
+  scoringConfig: RepositoryReviewScoringConfig,
+  elevated: ReadonlySet<string>,
 ): RepositoryReviewScore {
   let totalWeight = 0
   let passWeight = 0
@@ -119,10 +135,11 @@ function computeScore(
   let failCount = 0
   let notReviewedCount = 0
   let elevatedFailCount = 0
+  const penalty = scoringConfig.elevatedFailPenalty
 
   for (const outcome of outcomes) {
     const rule = applicableById.get(outcome.ruleId)
-    const weight = severityWeight(rule?.severity ?? 'unknown')
+    const weight = scoringConfig.weights[rule?.severity ?? 'unknown']
     totalWeight += weight
 
     switch (outcome.status) {
@@ -132,7 +149,7 @@ function computeScore(
         break
       case 'fail':
         failCount += 1
-        if (rule && (rule.severity === 'blocker' || rule.severity === 'high')) {
+        if (rule && elevated.has(rule.severity)) {
           elevatedFailCount += 1
         }
         break
@@ -143,33 +160,18 @@ function computeScore(
   }
 
   const raw = totalWeight === 0 ? 0 : passWeight / totalWeight
-  const value = clamp01(raw - elevatedFailCount * ELEVATED_FAIL_PENALTY)
+  const value = clamp01(raw - elevatedFailCount * penalty)
   const summary = [
     `Project-rule score over ${outcomes.length} applicable rule(s):`,
     `${passCount} pass, ${failCount} fail, ${notReviewedCount} not_reviewed`,
     `(weighted pass rate ${formatRatio(raw)}${
-      elevatedFailCount > 0 ? `; −${formatRatio(elevatedFailCount * ELEVATED_FAIL_PENALTY)} elevated-fail penalty` : ''
+      elevatedFailCount > 0 ? `; −${formatRatio(elevatedFailCount * penalty)} elevated-fail penalty` : ''
     }).`,
   ].join(' ')
 
   return {
     summary,
     value: Number(value.toFixed(4)),
-  }
-}
-
-function severityWeight(severity: ProjectReviewRule['severity']): number {
-  switch (severity) {
-    case 'blocker':
-      return 4
-    case 'high':
-      return 3
-    case 'medium':
-      return 2
-    case 'low':
-      return 1
-    default:
-      return 2
   }
 }
 

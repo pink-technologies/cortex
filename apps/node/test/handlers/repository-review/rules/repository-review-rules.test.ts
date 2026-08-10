@@ -8,7 +8,15 @@ import {
 import { selectApplicableRepositoryReviewRules } from '../../../../src/handlers/repository-review/rules/select-applicable-repository-review-rules'
 import { validateAndScoreRepositoryReviewRules } from '../../../../src/handlers/repository-review/rules/validate-and-score-repository-review-rules'
 import { formatRepositoryReviewApplicableRules } from '../../../../src/handlers/repository-review/rules/format-repository-review-applicable-rules'
+import {
+  defaultRepositoryReviewScoringConfig,
+  loadRepositoryReviewScoringConfig,
+  RepositoryReviewScoringConfigSchema,
+} from '../../../../src/handlers/repository-review/rules/repository-review-scoring-config'
 import { repositoryReviewResult } from '../fixtures/repository-review-result.fixture'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 describe('parseProjectReviewRuleCatalog', () => {
   it('parses TruVideo-style rule headings and deduplicates by id', () => {
@@ -114,6 +122,96 @@ describe('selectApplicableRepositoryReviewRules', () => {
 
   it('returns empty when the catalog is empty', () => {
     expect(selectApplicableRepositoryReviewRules([], ['UITests/A.swift'])).toEqual([])
+  })
+  it('respects maxApplicableRules from scoring config', () => {
+    const applicable = selectApplicableRepositoryReviewRules(
+      catalog,
+      ['UITests/PermissionsScreen.swift'],
+      {
+        elevatedFailPenalty: 0.05,
+        elevatedSeverities: ['blocker', 'high'],
+        maxApplicableRules: 1,
+        schemaVersion: 1,
+        weights: { ...defaultRepositoryReviewScoringConfig.weights },
+      },
+    )
+
+    expect(applicable).toHaveLength(1)
+  })
+})
+
+describe('loadRepositoryReviewScoringConfig', () => {
+  let workspacePath: string
+
+  beforeEach(async () => {
+    workspacePath = await mkdtemp(join(tmpdir(), 'cortex-review-scoring-'))
+  })
+
+  afterEach(async () => {
+    await rm(workspacePath, { force: true, recursive: true })
+  })
+
+  it('returns defaults when the project file is missing', async () => {
+    const config = await loadRepositoryReviewScoringConfig(workspacePath)
+
+    expect(config.elevatedFailPenalty).toBe(defaultRepositoryReviewScoringConfig.elevatedFailPenalty)
+    expect(config.maxApplicableRules).toBe(defaultRepositoryReviewScoringConfig.maxApplicableRules)
+    expect(config.weights).toEqual(defaultRepositoryReviewScoringConfig.weights)
+  })
+
+  it('loads and merges a project scoring file', async () => {
+    await mkdir(join(workspacePath, '.cortex'), { recursive: true })
+    await writeFile(
+      join(workspacePath, '.cortex', 'review-scoring.toml'),
+      [
+        'schemaVersion = 1',
+        'elevatedFailPenalty = 0.1',
+        'maxApplicableRules = 12',
+        'elevatedSeverities = ["blocker"]',
+        '',
+        '[weights]',
+        'blocker = 10',
+        'high = 5',
+        'medium = 2',
+        'low = 1',
+        'unknown = 2',
+        '',
+      ].join('\n'),
+      'utf8',
+    )
+
+    const config = await loadRepositoryReviewScoringConfig(workspacePath)
+
+    expect(config).toEqual({
+      elevatedFailPenalty: 0.1,
+      elevatedSeverities: ['blocker'],
+      maxApplicableRules: 12,
+      schemaVersion: 1,
+      weights: {
+        blocker: 10,
+        high: 5,
+        low: 1,
+        medium: 2,
+        unknown: 2,
+      },
+    })
+  })
+
+  it('fails closed when the project scoring file is invalid', async () => {
+    await mkdir(join(workspacePath, '.cortex'), { recursive: true })
+    await writeFile(join(workspacePath, '.cortex', 'review-scoring.toml'), 'elevatedFailPenalty = "nope"\n', 'utf8')
+
+    await expect(loadRepositoryReviewScoringConfig(workspacePath)).rejects.toThrow()
+  })
+
+  it('fills omitted fields from schema defaults', () => {
+    expect(RepositoryReviewScoringConfigSchema.parse({ schemaVersion: 1 })).toEqual({
+      elevatedFailPenalty: defaultRepositoryReviewScoringConfig.elevatedFailPenalty,
+      elevatedSeverities: [...defaultRepositoryReviewScoringConfig.elevatedSeverities],
+      maxApplicableRules: defaultRepositoryReviewScoringConfig.maxApplicableRules,
+      schemaVersion: 1,
+      weights: { ...defaultRepositoryReviewScoringConfig.weights },
+    })
   })
 })
 
@@ -241,6 +339,52 @@ describe('validateAndScoreRepositoryReviewRules', () => {
       ruleId: 'TV-TEST-050',
       status: 'not_reviewed',
     })
+  })
+
+  it('applies project scoring weights and elevated-fail penalty', () => {
+    const result = validateAndScoreRepositoryReviewRules(
+      repositoryReviewResult({
+        findings: [
+          {
+            category: 'test_coverage',
+            confidence: 'high',
+            disposition: 'required_before_merge',
+            evidence: [],
+            id: 'f1',
+            impact: 'x',
+            problem: 'x',
+            recommendation: 'x',
+            ruleIds: ['TV-TEST-051'],
+            severity: 'high',
+            title: 'Fail',
+            verification: [],
+          },
+        ],
+        ruleOutcomes: [
+          { findingIds: [], reason: 'ok', ruleId: 'TV-TEST-050', status: 'pass' },
+          { findingIds: ['f1'], ruleId: 'TV-TEST-051', status: 'fail' },
+          { findingIds: [], reason: 'skip', ruleId: 'TV-TEST-055', status: 'not_reviewed' },
+        ],
+      }),
+      applicable,
+      {
+        elevatedFailPenalty: 0.1,
+        elevatedSeverities: ['high'],
+        maxApplicableRules: 40,
+        schemaVersion: 1,
+        weights: {
+          blocker: 4,
+          high: 10,
+          low: 1,
+          medium: 1,
+          unknown: 1,
+        },
+      },
+    )
+
+    // passWeight=10, totalWeight=10+10+1=21 → raw≈0.4762, elevated fail penalty 0.1 → ≈0.3762
+    expect(result.score?.value).toBeCloseTo(10 / 21 - 0.1, 4)
+    expect(result.score?.summary).toContain('elevated-fail penalty')
   })
 })
 

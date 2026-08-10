@@ -130,6 +130,7 @@ export class RepositoryReviewJobHandler implements ExecutionJobHandler<Repositor
       const result = validateAndScoreRepositoryReviewRules(
         mapRepositoryReviewResult(engineResult.output),
         promptContext.applicableRules,
+        promptContext.scoringConfig,
       )
 
       if (jobPayload.change.pullRequestNumber) {
