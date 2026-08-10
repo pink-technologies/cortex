@@ -13,12 +13,12 @@ const claimToken = '22222222-2222-4222-8222-222222222222'
 const nodeId = '11111111-1111-4111-8111-111111111111'
 
 const configuration = {
-  apiURL: 'https://api.cortex.example',
+  apiBaseURL: 'https://api.cortex.example',
   nodeId: 'node-1',
   nodeName: 'worker',
   pollingIntervalMilliseconds: 2_000,
   version: '1.0.0',
-} as NodeConfiguration
+} as unknown as NodeConfiguration
 
 const agentResult: AgentExecuteJobResult = {
   executionId: 'exec-1',

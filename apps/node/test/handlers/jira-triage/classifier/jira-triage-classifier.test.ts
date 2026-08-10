@@ -58,8 +58,8 @@ describe('JiraTriageClassifier', () => {
         owner: 'acme',
         projectKey: 'JC',
         suites: {
-          TruVideoSdkCamera: { command: 'xcodebuild test -scheme TruVideoSdkCamera' },
-          TruVideoSdkCore: { command: 'xcodebuild test -scheme TruVideoSdkCore' },
+          TruVideoSdkCamera: { arguments: ['test', '-scheme', 'TruVideoSdkCamera'], executable: 'xcodebuild', workingDirectory: '.' },
+          TruVideoSdkCore: { arguments: ['test', '-scheme', 'TruVideoSdkCore'], executable: 'xcodebuild', workingDirectory: '.' },
         },
       },
     ],

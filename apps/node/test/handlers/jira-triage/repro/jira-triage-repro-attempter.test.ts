@@ -88,7 +88,7 @@ describe('JiraTriageReproAttempter', () => {
     const result = await attempter.attempt({
       issue,
       signal: new AbortController().signal,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -118,7 +118,7 @@ describe('JiraTriageReproAttempter', () => {
     const result = await attempter.attempt({
       issue,
       signal: new AbortController().signal,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -137,7 +137,7 @@ describe('JiraTriageReproAttempter', () => {
       attempter.attempt({
         issue,
         signal: new AbortController().signal,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toBeInstanceOf(JiraTriageReproError)
@@ -152,7 +152,7 @@ describe('JiraTriageReproAttempter', () => {
       attempter.attempt({
         issue,
         signal: new AbortController().signal,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toBeInstanceOf(JiraTriageReproError)
@@ -170,7 +170,7 @@ describe('JiraTriageReproAttempter', () => {
       attempter.attempt({
         issue,
         signal: new AbortController().signal,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toBe(abortError)
@@ -185,7 +185,7 @@ describe('JiraTriageReproAttempter', () => {
       attempter.attempt({
         issue,
         signal: controller.signal,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toThrow()
@@ -201,7 +201,7 @@ describe('JiraTriageReproAttempter', () => {
     await attempter.attempt({
       issue,
       signal: new AbortController().signal,
-      suites: { unit: 'npm test', ui: 'npx playwright test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' }, ui: { arguments: ['playwright', 'test'], executable: 'npx', workingDirectory: '.' } },
       workspace,
     })
 
@@ -217,7 +217,7 @@ describe('JiraTriageReproAttempter', () => {
     const result = await attempter.attempt({
       issue,
       signal: new AbortController().signal,
-      suites: { unit: 'npm test' },
+      suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       workspace,
     })
 
@@ -237,7 +237,7 @@ describe('JiraTriageReproAttempter', () => {
       attempter.attempt({
         issue,
         signal: controller.signal,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
         workspace,
       }),
     ).rejects.toThrow('engine interrupted')

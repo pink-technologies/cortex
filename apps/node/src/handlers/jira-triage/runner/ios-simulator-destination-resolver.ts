@@ -3,6 +3,7 @@
 
 import { Injectable } from '@nestjs/common'
 import { execFile } from 'node:child_process'
+import type { CommandConfiguration } from '../../../connection'
 import { NodeApplicationError } from '../../../error/error'
 
 /**
@@ -193,23 +194,24 @@ export function selectIosSimulatorDevice(
  * Returns whether a suite command should receive a resolved iOS Simulator
  * destination.
  *
- * True when the command runs `xcodebuild test`, or already has an
- * `-destination` targeting an iOS Simulator (so a hard-coded device name can
- * be replaced).
+ * True when the command runs `xcodebuild` with a `test` argument, or already
+ * has a `-destination` targeting an iOS Simulator (so a hard-coded device name
+ * can be replaced).
  *
  * Exported for unit tests and {@link TestRunner}.
  */
-export function commandNeedsIosSimulatorDestination(command: string): boolean {
-  if (!/\bxcodebuild\b/i.test(command)) {
+export function commandNeedsIosSimulatorDestination(
+  command: CommandConfiguration,
+): boolean {
+  if (!isXcodebuildExecutable(command.executable)) {
     return false
   }
 
-  // `test` as its own CLI argument (not a substring of another token).
-  if (/(?:^|[\s;|&])test(?:[\s;|&]|$)/i.test(command)) {
+  if (command.arguments.some((argument) => argument === 'test')) {
     return true
   }
 
-  const destination = extractDestinationValue(command)
+  const destination = extractDestinationValue(command.arguments)
   if (!destination || !/iOS\s+Simulator/i.test(destination)) {
     return false
   }
@@ -219,44 +221,53 @@ export function commandNeedsIosSimulatorDestination(command: string): boolean {
 }
 
 /**
- * Applies a resolved iOS Simulator destination to a suite command.
+ * Applies a resolved iOS Simulator destination to a structured suite command.
  *
  * Replaces an existing `-destination` argument when present; otherwise appends
  * one so suite config does not need a hard-coded device name.
  *
  * Exported for unit tests and {@link TestRunner}.
  *
- * @param command - Allowlisted suite shell command.
+ * @param command - Allowlisted structured suite command.
  * @param destination - Resolved `platform=iOS Simulator,id=…` value.
  * @returns Command with the destination applied.
  */
 export function rewriteIosSimulatorDestination(
-  command: string,
+  command: CommandConfiguration,
   destination: string,
-): string {
-  const match = command.match(DESTINATION_ARGUMENT_PATTERN)
-  if (!match || match.index === undefined) {
-    return `${command} -destination "${destination}"`
+): CommandConfiguration {
+  const argumentsCopy = [...command.arguments]
+  const destinationIndex = argumentsCopy.findIndex(
+    (argument) => argument.toLowerCase() === '-destination',
+  )
+
+  if (destinationIndex >= 0 && destinationIndex + 1 < argumentsCopy.length) {
+    argumentsCopy[destinationIndex + 1] = destination
+  } else {
+    argumentsCopy.push('-destination', destination)
   }
 
-  const quote = match[2] !== undefined ? "'" : '"'
-  const replacement = `-destination ${quote}${destination}${quote}`
-
-  return (
-    command.slice(0, match.index) +
-    replacement +
-    command.slice(match.index + match[0].length)
-  )
+  return {
+    ...command,
+    arguments: argumentsCopy,
+  }
 }
 
-const DESTINATION_ARGUMENT_PATTERN =
-  /-destination\s+(?:"([^"]+)"|'([^']+)'|(\S+))/i
+function isXcodebuildExecutable(executable: string): boolean {
+  const baseName = executable.split(/[/\\]/).pop() ?? executable
+  return baseName.toLowerCase() === 'xcodebuild'
+}
 
-function extractDestinationValue(command: string): string | undefined {
-  const match = command.match(DESTINATION_ARGUMENT_PATTERN)
-  if (!match) {
+function extractDestinationValue(
+  argumentsList: readonly string[],
+): string | undefined {
+  const destinationIndex = argumentsList.findIndex(
+    (argument) => argument.toLowerCase() === '-destination',
+  )
+
+  if (destinationIndex < 0 || destinationIndex + 1 >= argumentsList.length) {
     return undefined
   }
 
-  return match[1] ?? match[2] ?? match[3]
+  return argumentsList[destinationIndex + 1]
 }

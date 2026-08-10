@@ -5,6 +5,10 @@ import { Inject, Injectable } from '@nestjs/common'
 import { SkillRegistry, SkillSelector, type AgentDefinition } from '@cortex/agent-runtime'
 import type { JiraIssue } from '@cortex/integrations/jira'
 import { AgentProcessResolver } from '../../../agent/agent-process-resolver'
+import {
+  formatCommandConfiguration,
+  type CommandConfiguration,
+} from '../../../connection'
 import { EXECUTION_ENGINE, type ExecutionEngine } from '../../../execution-engine'
 import type { PreparedWorkspace } from '../../../workspace'
 import { GitWorkspaceManager } from '../../../workspace'
@@ -28,7 +32,7 @@ export type JiraTriageReproAuthoringResult = {
 export type JiraTriageReproAttemptRequest = {
   readonly issue: JiraIssue
   readonly signal: AbortSignal
-  readonly suites: Readonly<Record<string, string>>
+  readonly suites: Readonly<Record<string, CommandConfiguration>>
   readonly workspace: PreparedWorkspace
 }
 
@@ -87,7 +91,7 @@ export class JiraTriageReproAttempter {
     }
 
     const suiteCommands = Object.entries(input.suites).map(([suiteId, command]) => ({
-      command: command!,
+      command: formatCommandConfiguration(command),
       suiteId,
     }))
 

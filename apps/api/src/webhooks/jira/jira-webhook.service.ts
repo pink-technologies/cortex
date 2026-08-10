@@ -1,20 +1,11 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import {
-  Inject,
-  Injectable,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { Inject, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
 import { API_CONFIGURATION, type ApiConfiguration } from '@/configuration'
 import { ExecutionJobSourceType } from '@/execution/models'
 import { WorkflowOrchestrator } from '@/workflow/orchestrator'
-import {
-  JiraWebhookDecisionKind,
-  JiraWebhookHandleAction,
-  type JiraWebhookHandleResult,
-} from './models'
+import { JiraWebhookDecisionKind, JiraWebhookHandleAction, type JiraWebhookHandleResult } from './models'
 import { type JiraWebhookHandleParameters } from './parameters'
 import { dispatchJiraWebhook } from './routes'
 import { verifyJiraWebhookSignature } from './signature'
@@ -28,7 +19,7 @@ import { verifyJiraWebhookSignature } from './signature'
  *
  * Configuration (from env via {@link ApiConfiguration}):
  * - `JIRA_WEBHOOK_SECRET` — shared HMAC secret
- * - `JIRA_DEFAULT_CONNECTION_ID` — Node `CORTEX_JIRA_CONNECTIONS` id
+ * - `JIRA_DEFAULT_CONNECTION_ID` — Node `connections.toml` Jira connection id
  * - `JIRA_AUTOMATION_ASSIGNEE_ACCOUNT_ID` — optional assignee gate at ingress
  */
 @Injectable()
@@ -58,13 +49,7 @@ export class JiraWebhookService {
   async handle(parameters: JiraWebhookHandleParameters): Promise<JiraWebhookHandleResult> {
     const configuration = this.requireConfiguration()
 
-    if (
-      !verifyJiraWebhookSignature(
-        parameters.rawBody,
-        parameters.signatureHeader,
-        configuration.secret,
-      )
-    ) {
+    if (!verifyJiraWebhookSignature(parameters.rawBody, parameters.signatureHeader, configuration.secret)) {
       throw new UnauthorizedException('Invalid Jira webhook signature.')
     }
 
@@ -85,7 +70,7 @@ export class JiraWebhookService {
       }
     }
 
-    const { created, job, run } = await this.orchestrator.start({
+    const result = await this.orchestrator.start({
       activeKey: decision.activeKey,
       definitionKey: decision.definitionKey,
       input: decision.payload,
@@ -96,7 +81,7 @@ export class JiraWebhookService {
       triggerIdentifier: decision.triggerIdentifier,
     })
 
-    if (!created) {
+    if (!result.created) {
       return {
         action: JiraWebhookHandleAction.ALREADY_ENQUEUED,
         ok: true,
@@ -106,9 +91,9 @@ export class JiraWebhookService {
 
     return {
       action: JiraWebhookHandleAction.ENQUEUED,
-      jobId: job.id,
+      jobId: result.job.id,
       ok: true,
-      runId: run.id,
+      runId: result.run.id,
     }
   }
 

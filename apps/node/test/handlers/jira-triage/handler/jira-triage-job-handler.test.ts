@@ -150,7 +150,13 @@ describe('JiraTriageJobHandler', () => {
             owner: 'acme',
             projectKey: 'JC',
             projectLead: overrides?.projectLead,
-            unitTestCommand: 'npm test',
+            suites: {
+              unit: {
+                arguments: ['test'],
+                executable: 'npm',
+                workingDirectory: '.',
+              },
+            },
           },
         ],
         jiraRepoCustomFieldId: undefined,
@@ -532,7 +538,7 @@ describe('JiraTriageJobHandler', () => {
           command: 'npm test',
           exitCode: 1,
           suiteId: 'unit',
-          summary: '1 failing',
+          summary: 'FAIL unit.test.ts\nExpected: 1\nReceived: 2',
         },
       ]),
     })
@@ -830,7 +836,7 @@ describe('JiraTriageJobHandler', () => {
           command: 'npm test',
           exitCode: 1,
           suiteId: 'unit',
-          summary: 'new regression failing',
+          summary: 'FAIL unit.test.ts\nExpected: green\nReceived: red',
         },
       ])
 
@@ -867,13 +873,13 @@ describe('JiraTriageJobHandler', () => {
     expect(attemptRepro).toHaveBeenCalledWith(
       expect.objectContaining({
         workspace,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       }),
     )
     expect(runSuites).toHaveBeenCalledTimes(2)
     expect(attemptFix).toHaveBeenCalledWith(
       expect.objectContaining({
-        failingSummary: 'new regression failing',
+        failingSummary: 'FAIL unit.test.ts\nExpected: green\nReceived: red',
         workspace,
       }),
     )
@@ -975,7 +981,7 @@ describe('JiraTriageJobHandler', () => {
           command: 'npm test',
           exitCode: 1,
           suiteId: 'unit',
-          summary: '1 failing',
+          summary: 'FAIL unit.test.ts\nExpected: 1\nReceived: 2',
         },
       ]),
       attemptFix: jest.fn().mockResolvedValue({
@@ -1002,9 +1008,9 @@ describe('JiraTriageJobHandler', () => {
     expect(attemptRepro).not.toHaveBeenCalled()
     expect(attemptFix).toHaveBeenCalledWith(
       expect.objectContaining({
-        failingSummary: '1 failing',
+        failingSummary: 'FAIL unit.test.ts\nExpected: 1\nReceived: 2',
         workspace,
-        suites: { unit: 'npm test' },
+        suites: { unit: { arguments: ['test'], executable: 'npm', workingDirectory: '.' } },
       }),
     )
     expect(createComment).toHaveBeenCalledWith(
@@ -1031,7 +1037,7 @@ describe('JiraTriageJobHandler', () => {
           command: 'npm test',
           exitCode: 1,
           suiteId: 'unit',
-          summary: '1 failing',
+          summary: 'FAIL unit.test.ts\nExpected: 1\nReceived: 2',
         },
       ]),
       attemptFix: jest.fn().mockResolvedValue({
@@ -1081,7 +1087,7 @@ describe('JiraTriageJobHandler', () => {
           command: 'npm test',
           exitCode: 1,
           suiteId: 'unit',
-          summary: '1 failing',
+          summary: 'FAIL unit.test.ts\nExpected: 1\nReceived: 2',
         },
       ]),
     })
@@ -1129,7 +1135,7 @@ describe('JiraTriageJobHandler', () => {
           command: 'npm test',
           exitCode: 1,
           suiteId: 'unit',
-          summary: '1 failing',
+          summary: 'FAIL unit.test.ts\nExpected: 1\nReceived: 2',
         },
       ]),
     })
@@ -1174,7 +1180,7 @@ describe('JiraTriageJobHandler', () => {
           command: 'npm test',
           exitCode: 1,
           suiteId: 'unit',
-          summary: '1 failing',
+          summary: 'FAIL unit.test.ts\nExpected: 1\nReceived: 2',
         },
       ]),
     })

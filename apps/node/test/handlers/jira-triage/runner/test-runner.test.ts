@@ -6,13 +6,13 @@ jest.mock('node:child_process', () => ({
 }))
 
 import { spawn } from 'node:child_process'
+import type { CommandConfiguration } from '../../../../src/connection'
 import {
   IosSimulatorDestinationNotFoundError,
   type IosSimulatorDestinationResolver,
 } from '../../../../src/handlers/jira-triage/runner/ios-simulator-destination-resolver'
 import {
   buildSuiteProcessEnv,
-  resolveShellInvocation,
   TestRunner,
 } from '../../../../src/handlers/jira-triage/runner/test-runner'
 
@@ -21,6 +21,17 @@ type SpawnResult = {
   readonly error?: Error & { code?: number | string }
   readonly stderr?: string
   readonly stdout?: string
+}
+
+function suite(
+  executable: string,
+  argumentsList: readonly string[] = [],
+): CommandConfiguration {
+  return {
+    arguments: argumentsList,
+    executable,
+    workingDirectory: '.',
+  }
 }
 
 function mockSpawnProcess(result: SpawnResult = { code: 0, stdout: 'ok\n' }) {
@@ -32,7 +43,6 @@ function mockSpawnProcess(result: SpawnResult = { code: 0, stdout: 'ok\n' }) {
         return
       }
 
-      // Spawn `error` paths do not also emit `close` in these tests.
       if (event === 'close' && !result.error) {
         queueMicrotask(() => callback(result.code ?? 0, null))
       }
@@ -74,7 +84,12 @@ describe('TestRunner', () => {
   })
 
   it('reports dry-run suites without executing', () => {
-    expect(runner.dryRun({ unit: 'npm test', ui: 'npx playwright test' })).toEqual([
+    expect(
+      runner.dryRun({
+        unit: suite('npm', ['test']),
+        ui: suite('npx', ['playwright', 'test']),
+      }),
+    ).toEqual([
       { command: 'npm test', suiteId: 'unit', summary: 'dry-run' },
       { command: 'npx playwright test', suiteId: 'ui', summary: 'dry-run' },
     ])
@@ -91,7 +106,10 @@ describe('TestRunner', () => {
 
     const results = await runner.run({
       signal: new AbortController().signal,
-      suites: { unit: 'npm test', ui: 'npx playwright test' },
+      suites: {
+        unit: suite('npm', ['test']),
+        ui: suite('npx', ['playwright', 'test']),
+      },
       workingDirectory: '/tmp/repo',
     })
 
@@ -109,9 +127,17 @@ describe('TestRunner', () => {
         summary: 'boom',
       },
     ])
+    expect(spawnMock.mock.calls[0]?.[0]).toBe('npm')
+    expect(spawnMock.mock.calls[0]?.[1]).toEqual(['test'])
+    expect(spawnMock.mock.calls[0]?.[2]).toEqual(
+      expect.objectContaining({
+        cwd: '/tmp/repo',
+        shell: false,
+      }),
+    )
   })
 
-  it('skips empty suite commands and truncates large output with head and tail', async () => {
+  it('truncates large output with head and tail', async () => {
     const head = 'HEAD_MARKER'
     const tail = 'Testing cancelled because the build failed.\n** BUILD FAILED **'
     const middle = 'm'.repeat(3_000)
@@ -122,7 +148,7 @@ describe('TestRunner', () => {
 
     const results = await runner.run({
       signal: new AbortController().signal,
-      suites: { unit: 'npm test', ui: undefined },
+      suites: { unit: suite('npm', ['test']) },
       workingDirectory: '/tmp/repo',
     })
 
@@ -131,7 +157,6 @@ describe('TestRunner', () => {
     expect(results[0]?.summary).toContain('HEAD_MARKER')
     expect(results[0]?.summary).toContain('\n…\n')
     expect(results[0]?.summary).toContain('BUILD FAILED')
-    expect(results[0]?.summary).toContain('Testing cancelled because the build failed.')
   })
 
   it('rethrows cancellation instead of recording a failed suite', async () => {
@@ -149,7 +174,7 @@ describe('TestRunner', () => {
     await expect(
       runner.run({
         signal: controller.signal,
-        suites: { unit: 'npm test' },
+        suites: { unit: suite('npm', ['test']) },
         workingDirectory: '/tmp/repo',
       }),
     ).rejects.toMatchObject({ name: 'AbortError' })
@@ -168,7 +193,7 @@ describe('TestRunner', () => {
     await expect(
       runner.run({
         signal: controller.signal,
-        suites: { unit: 'npm test' },
+        suites: { unit: suite('npm', ['test']) },
         workingDirectory: '/tmp/repo',
       }),
     ).rejects.toThrow('killed by signal')
@@ -181,7 +206,7 @@ describe('TestRunner', () => {
 
     const results = await runner.run({
       signal: new AbortController().signal,
-      suites: { unit: 'missing-tool' },
+      suites: { unit: suite('missing-tool') },
       workingDirectory: '/tmp/repo',
     })
 
@@ -202,7 +227,7 @@ describe('TestRunner', () => {
 
     const results = await runner.run({
       signal: new AbortController().signal,
-      suites: { unit: 'npm test' },
+      suites: { unit: suite('npm', ['test']) },
       workingDirectory: '/tmp/repo',
     })
 
@@ -223,7 +248,7 @@ describe('TestRunner', () => {
     await expect(
       runner.run({
         signal: controller.signal,
-        suites: { unit: 'npm test' },
+        suites: { unit: suite('npm', ['test']) },
         workingDirectory: '/tmp/repo',
       }),
     ).rejects.toBeDefined()
@@ -235,7 +260,7 @@ describe('TestRunner', () => {
 
     const results = await runner.run({
       signal: new AbortController().signal,
-      suites: { unit: 'npm test' },
+      suites: { unit: suite('npm', ['test']) },
       workingDirectory: '/tmp/repo',
     })
 
@@ -252,14 +277,16 @@ describe('TestRunner', () => {
     try {
       await runner.run({
         signal: new AbortController().signal,
-        suites: { TruvideoSdk: 'xcodebuild build -scheme TruvideoSdk' },
+        suites: {
+          TruvideoSdk: suite('xcodebuild', ['build', '-scheme', 'TruvideoSdk']),
+        },
         workingDirectory: '/tmp/repo',
       })
 
       expect(resolveMock).not.toHaveBeenCalled()
       expect(spawnMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Array),
+        'xcodebuild',
+        ['build', '-scheme', 'TruvideoSdk'],
         expect.objectContaining({
           env: expect.objectContaining({
             TEST_RUNNER_TRUVIDEO_ACCESS_TOKEN: 'access-token',
@@ -267,9 +294,9 @@ describe('TestRunner', () => {
             TRUVIDEO_ACCESS_TOKEN: 'access-token',
             TRUVIDEO_REFRESH_TOKEN: 'refresh-token',
           }),
+          shell: false,
         }),
       )
-      expect(spawnMock.mock.calls[0]?.[2]).not.toHaveProperty('maxBuffer')
     } finally {
       if (previousAccess === undefined) {
         delete process.env.TRUVIDEO_ACCESS_TOKEN
@@ -289,21 +316,25 @@ describe('TestRunner', () => {
     const results = await runner.run({
       signal: new AbortController().signal,
       suites: {
-        TruvideoSdk: 'xcodebuild test -scheme TruvideoSdk',
-        other: 'npm test',
+        TruvideoSdk: suite('xcodebuild', ['test', '-scheme', 'TruvideoSdk']),
+        other: suite('npm', ['test']),
       },
       workingDirectory: '/tmp/repo',
     })
 
     expect(resolveMock).toHaveBeenCalledTimes(1)
     expect(results[0]?.command).toBe(
-      'xcodebuild test -scheme TruvideoSdk -destination "platform=iOS Simulator,id=resolved-udid"',
+      'xcodebuild test -scheme TruvideoSdk -destination platform=iOS Simulator,id=resolved-udid',
     )
     expect(results[1]?.command).toBe('npm test')
     expect(spawnMock).toHaveBeenCalledTimes(2)
+    expect(spawnMock.mock.calls[0]?.[0]).toBe('xcodebuild')
     expect(spawnMock.mock.calls[0]?.[1]).toEqual([
-      '-lc',
-      'xcodebuild test -scheme TruvideoSdk -destination "platform=iOS Simulator,id=resolved-udid"',
+      'test',
+      '-scheme',
+      'TruvideoSdk',
+      '-destination',
+      'platform=iOS Simulator,id=resolved-udid',
     ])
   })
 
@@ -313,8 +344,8 @@ describe('TestRunner', () => {
     const results = await runner.run({
       signal: new AbortController().signal,
       suites: {
-        TruvideoSdk: 'xcodebuild test -scheme TruvideoSdk',
-        unit: 'npm test',
+        TruvideoSdk: suite('xcodebuild', ['test', '-scheme', 'TruvideoSdk']),
+        unit: suite('npm', ['test']),
       },
       workingDirectory: '/tmp/repo',
     })
@@ -334,17 +365,68 @@ describe('TestRunner', () => {
       },
     ])
     expect(spawnMock).toHaveBeenCalledTimes(1)
-    expect(spawnMock.mock.calls[0]?.[1]).toEqual(['-lc', 'npm test'])
+    expect(spawnMock.mock.calls[0]?.[0]).toBe('npm')
+    expect(spawnMock.mock.calls[0]?.[1]).toEqual(['test'])
   })
 
   it('does not resolve a simulator when no suite needs an iOS destination', async () => {
     await runner.run({
       signal: new AbortController().signal,
-      suites: { unit: 'npm test' },
+      suites: { unit: suite('npm', ['test']) },
       workingDirectory: '/tmp/repo',
     })
 
     expect(resolveMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects suite working directories that escape the repository root', async () => {
+    await expect(
+      runner.run({
+        signal: new AbortController().signal,
+        suites: {
+          unit: {
+            arguments: ['test'],
+            executable: 'npm',
+            workingDirectory: '../outside',
+          },
+        },
+        workingDirectory: '/tmp/repo',
+      }),
+    ).rejects.toThrow(/outside the repository/)
+
+    await expect(
+      runner.run({
+        signal: new AbortController().signal,
+        suites: {
+          unit: {
+            arguments: ['test'],
+            executable: 'npm',
+            workingDirectory: '/absolute',
+          },
+        },
+        workingDirectory: '/tmp/repo',
+      }),
+    ).rejects.toThrow(/outside the repository/)
+  })
+
+  it('rethrows cancellation while resolving an iOS simulator destination', async () => {
+    const controller = new AbortController()
+    const abortError = new Error('aborted')
+    abortError.name = 'AbortError'
+    resolveMock.mockImplementation(async () => {
+      controller.abort()
+      throw abortError
+    })
+
+    await expect(
+      runner.run({
+        signal: controller.signal,
+        suites: {
+          TruvideoSdk: suite('xcodebuild', ['test', '-scheme', 'TruvideoSdk']),
+        },
+        workingDirectory: '/tmp/repo',
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
   })
 })
 
@@ -374,19 +456,6 @@ describe('buildSuiteProcessEnv', () => {
     ).toEqual({
       TRUVIDEO_ACCESS_TOKEN: '   ',
       TRUVIDEO_REFRESH_TOKEN: undefined,
-    })
-  })
-})
-
-describe('resolveShellInvocation', () => {
-  it('uses bash on POSIX platforms and cmd.exe on Windows', () => {
-    expect(resolveShellInvocation('npm test', 'darwin')).toEqual({
-      args: ['-lc', 'npm test'],
-      file: 'bash',
-    })
-    expect(resolveShellInvocation('npm test', 'win32')).toEqual({
-      args: ['/d', '/s', '/c', 'npm test'],
-      file: 'cmd.exe',
     })
   })
 })

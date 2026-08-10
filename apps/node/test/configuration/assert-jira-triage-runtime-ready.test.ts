@@ -2,12 +2,12 @@
 // https://pink-tech.io/
 
 import { JiraTriageJobKind } from '@cortex/protocol'
-import { assertJiraTriageRuntimeReady } from '../../src/configuration/assert-jira-triage-runtime-ready'
-import type { NodeConfiguration } from '../../src/configuration'
+import { assertJiraTriageRuntimeReady } from '../../src/configuration/validators/assert-jira-triage-runtime-ready'
+import type { NodeConfiguration } from '../../src/configuration/node-configuration'
 
 function configuration(partial: Partial<NodeConfiguration> = {}): NodeConfiguration {
   return {
-    apiURL: 'https://api.example',
+    apiBaseURL: 'https://api.example',
     jiraConnections: [],
     jiraProjectRepos: [],
     llm: {},
@@ -16,7 +16,7 @@ function configuration(partial: Partial<NodeConfiguration> = {}): NodeConfigurat
     sourceControlConnections: [],
     version: '1',
     ...partial,
-  } as NodeConfiguration
+  }
 }
 
 describe('assertJiraTriageRuntimeReady', () => {
@@ -27,7 +27,7 @@ describe('assertJiraTriageRuntimeReady', () => {
   it('requires Jira + GitHub connections and Cursor key', () => {
     expect(() =>
       assertJiraTriageRuntimeReady(configuration(), [JiraTriageJobKind]),
-    ).toThrow(/CORTEX_JIRA_CONNECTIONS/)
+    ).toThrow(/connections\.toml.*Jira/)
 
     expect(() =>
       assertJiraTriageRuntimeReady(
@@ -44,7 +44,7 @@ describe('assertJiraTriageRuntimeReady', () => {
         }),
         [JiraTriageJobKind],
       ),
-    ).toThrow(/CORTEX_SC_CONNECTIONS/)
+    ).toThrow(/connections\.toml.*GitHub/)
 
     expect(() =>
       assertJiraTriageRuntimeReady(

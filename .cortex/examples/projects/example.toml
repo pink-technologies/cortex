@@ -1,0 +1,36 @@
+schemaVersion = 1
+projectKey = "CORTEX"
+
+[repository]
+owner = "PinkTech"
+name = "cortex"
+cloneUrl = "https://github.com/PinkTech/cortex.git"
+defaultBranch = "main"
+sourceControlConnectionId = "github-primary"
+
+[jira]
+escalateAccountId = "jira-escalation-account"
+
+[projectLead]
+displayName = "Cortex Team"
+email = "cortex@example.com"
+
+[suites.unit]
+executable = "pnpm"
+arguments = ["test", "--filter", "cortex"]
+workingDirectory = "."
+timeoutMilliseconds = 600000
+
+[suites.ui]
+executable = "pnpm"
+arguments = ["test:ui"]
+workingDirectory = "."
+timeoutMilliseconds = 900000
+
+[areas.api]
+aliases = ["backend", "server", "nestjs"]
+suiteKeys = ["unit"]
+
+[areas.ui]
+aliases = ["frontend", "web"]
+suiteKeys = ["ui"]

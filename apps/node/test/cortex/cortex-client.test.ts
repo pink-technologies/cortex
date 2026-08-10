@@ -7,8 +7,8 @@ import { CortexClient, CortexRequest } from '../../src/cortex'
 
 describe('CortexClient', () => {
   const configuration = {
-    apiURL: 'https://api.cortex.example/',
-  } as NodeConfiguration
+    apiBaseURL: 'https://api.cortex.example/',
+  } as unknown as NodeConfiguration
 
   afterEach(() => {
     jest.restoreAllMocks()

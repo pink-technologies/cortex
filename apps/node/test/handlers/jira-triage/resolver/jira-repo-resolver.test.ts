@@ -73,11 +73,11 @@ describe('resolveJiraRepository', () => {
           projectKey: 'JC',
           suites: {
             TruVideoSdkCore: {
-              command: 'xcodebuild test -scheme TruVideoSdkCore',
+              arguments: ['test', '-scheme', 'TruVideoSdkCore'],
+              executable: 'xcodebuild',
+              workingDirectory: '.',
             },
           },
-          unitTestCommand: 'npm test',
-          uiTestCommand: 'npx playwright test',
         },
       ],
     })
@@ -90,11 +90,11 @@ describe('resolveJiraRepository', () => {
         name: 'app',
         suites: {
           TruVideoSdkCore: {
-            command: 'xcodebuild test -scheme TruVideoSdkCore',
+            arguments: ['test', '-scheme', 'TruVideoSdkCore'],
+            executable: 'xcodebuild',
+            workingDirectory: '.',
           },
         },
-        unitTestCommand: 'npm test',
-        uiTestCommand: 'npx playwright test',
       },
     })
   })
@@ -111,13 +111,16 @@ describe('resolveJiraRepository', () => {
           projectKey: 'JC',
           suites: {
             TruVideoSdkCore: {
-              command: 'xcodebuild test -scheme TruVideoSdkCore',
+              arguments: ['test', '-scheme', 'TruVideoSdkCore'],
+              executable: 'xcodebuild',
+              workingDirectory: '.',
             },
             TruVideoSdkCamera: {
-              command: 'xcodebuild test -scheme TruVideoSdkCamera',
+              arguments: ['test', '-scheme', 'TruVideoSdkCamera'],
+              executable: 'xcodebuild',
+              workingDirectory: '.',
             },
           },
-          unitTestCommand: 'npm test',
         },
       ],
     })
@@ -125,13 +128,16 @@ describe('resolveJiraRepository', () => {
     expect(resolved.kind).toBe('resolved')
     if (resolved.kind === 'resolved') {
       expect(resolved.repository.source).toBe('project_map')
-      expect(resolved.repository.unitTestCommand).toBe('npm test')
       expect(resolved.repository.suites).toEqual({
         TruVideoSdkCamera: {
-          command: 'xcodebuild test -scheme TruVideoSdkCamera',
+          arguments: ['test', '-scheme', 'TruVideoSdkCamera'],
+          executable: 'xcodebuild',
+          workingDirectory: '.',
         },
         TruVideoSdkCore: {
-          command: 'xcodebuild test -scheme TruVideoSdkCore',
+          arguments: ['test', '-scheme', 'TruVideoSdkCore'],
+          executable: 'xcodebuild',
+          workingDirectory: '.',
         },
       })
     }
@@ -168,13 +174,28 @@ describe('resolveJiraRepository', () => {
             name: 'app',
             owner: 'acme',
             projectKey: 'JC',
-            unitTestCommand: 'npm test',
+            suites: {
+              unit: {
+                arguments: ['test'],
+                executable: 'npm',
+                workingDirectory: '.',
+              },
+            },
           },
         ],
       }),
     ).toMatchObject({
       kind: 'resolved',
-      repository: { source: 'jira_links', unitTestCommand: 'npm test' },
+      repository: {
+        source: 'jira_links',
+        suites: {
+          unit: {
+            arguments: ['test'],
+            executable: 'npm',
+            workingDirectory: '.',
+          },
+        },
+      },
     })
   })
 
@@ -205,13 +226,28 @@ describe('resolveJiraRepository', () => {
             name: 'app',
             owner: 'acme',
             projectKey: 'JC',
-            unitTestCommand: 'npm test',
+            suites: {
+              unit: {
+                arguments: ['test'],
+                executable: 'npm',
+                workingDirectory: '.',
+              },
+            },
           },
         ],
       }),
     ).toMatchObject({
       kind: 'resolved',
-      repository: { source: 'project_map', unitTestCommand: 'npm test' },
+      repository: {
+        source: 'project_map',
+        suites: {
+          unit: {
+            arguments: ['test'],
+            executable: 'npm',
+            workingDirectory: '.',
+          },
+        },
+      },
     })
 
     expect(

@@ -1,8 +1,20 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import type { CommandConfiguration } from '../../../../src/connection'
 import { resolveAllowlistedSuites } from '../../../../src/handlers/jira-triage/resolver/resolve-allowlisted-suites'
 import type { ResolvedJiraRepository } from '../../../../src/handlers/jira-triage/models'
+
+function suite(
+  executable: string,
+  argumentsList: readonly string[] = [],
+): CommandConfiguration {
+  return {
+    arguments: argumentsList,
+    executable,
+    workingDirectory: '.',
+  }
+}
 
 function repository(
   overrides: Partial<ResolvedJiraRepository> = {},
@@ -29,31 +41,23 @@ const truvideoRepository = repository({
     },
   },
   suites: {
-    TruVideoSdkCamera: {
-      command: 'xcodebuild test -scheme TruVideoSdkCamera',
-    },
-    TruVideoSdkCore: {
-      command: 'xcodebuild test -scheme TruVideoSdkCore',
-    },
+    TruVideoSdkCamera: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCamera']),
+    TruVideoSdkCore: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCore']),
   },
 })
 
 describe('resolveAllowlistedSuites', () => {
-  it('prefers named suites over legacy unit/ui commands', () => {
+  it('returns named suite commands', () => {
     expect(
       resolveAllowlistedSuites(
         repository({
           suites: {
-            TruVideoSdkCore: {
-              command: 'xcodebuild test -scheme TruVideoSdkCore',
-            },
+            TruVideoSdkCore: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCore']),
           },
-          unitTestCommand: 'npm test',
-          uiTestCommand: 'npx playwright test',
         }),
       ),
     ).toEqual({
-      TruVideoSdkCore: 'xcodebuild test -scheme TruVideoSdkCore',
+      TruVideoSdkCore: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCore']),
     })
   })
 
@@ -63,7 +67,7 @@ describe('resolveAllowlistedSuites', () => {
         selectedAreas: ['App'],
       }),
     ).toEqual({
-      TruVideoSdkCore: 'xcodebuild test -scheme TruVideoSdkCore',
+      TruVideoSdkCore: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCore']),
     })
   })
 
@@ -75,7 +79,7 @@ describe('resolveAllowlistedSuites', () => {
         selectedAreas: [],
       }),
     ).toEqual({
-      TruVideoSdkCore: 'xcodebuild test -scheme TruVideoSdkCore',
+      TruVideoSdkCore: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCore']),
     })
   })
 
@@ -86,27 +90,63 @@ describe('resolveAllowlistedSuites', () => {
         selectedAreas: [],
       }),
     ).toEqual({
-      TruVideoSdkCamera: 'xcodebuild test -scheme TruVideoSdkCamera',
-      TruVideoSdkCore: 'xcodebuild test -scheme TruVideoSdkCore',
-    })
-  })
-
-  it('falls back to legacy unit/ui commands when suites are absent', () => {
-    expect(
-      resolveAllowlistedSuites(
-        repository({
-          unitTestCommand: 'npm test',
-          uiTestCommand: 'npx playwright test',
-        }),
-      ),
-    ).toEqual({
-      unit: 'npm test',
-      ui: 'npx playwright test',
+      TruVideoSdkCamera: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCamera']),
+      TruVideoSdkCore: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCore']),
     })
   })
 
   it('returns an empty map when nothing is configured', () => {
     expect(resolveAllowlistedSuites(repository())).toEqual({})
+  })
+
+  it('ignores blank selected areas and blank alias needles', () => {
+    expect(
+      resolveAllowlistedSuites(truvideoRepository, {
+        selectedAreas: [' ', ''],
+      }),
+    ).toEqual({
+      TruVideoSdkCamera: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCamera']),
+      TruVideoSdkCore: suite('xcodebuild', ['test', '-scheme', 'TruVideoSdkCore']),
+    })
+
+    expect(
+      resolveAllowlistedSuites(
+        repository({
+          areas: {
+            App: {
+              aliases: ['', '  ', 'SDK'],
+              suiteKeys: ['unit'],
+            },
+          },
+          suites: {
+            unit: suite('pnpm', ['test']),
+          },
+        }),
+        { issueText: 'needs SDK coverage' },
+      ),
+    ).toEqual({
+      unit: suite('pnpm', ['test']),
+    })
+  })
+
+  it('matches short area ids with word boundaries', () => {
+    expect(
+      resolveAllowlistedSuites(
+        repository({
+          areas: {
+            UI: {
+              suiteKeys: ['ui'],
+            },
+          },
+          suites: {
+            ui: suite('pnpm', ['test:ui']),
+          },
+        }),
+        { issueText: 'Broken UI button' },
+      ),
+    ).toEqual({
+      ui: suite('pnpm', ['test:ui']),
+    })
   })
 
   it('falls back to the full catalog when an area maps only to missing suites', () => {
@@ -119,51 +159,13 @@ describe('resolveAllowlistedSuites', () => {
             },
           },
           suites: {
-            TruVideoSdkCore: {
-              command: 'xcodebuild test -scheme TruVideoSdkCore',
-            },
+            unit: suite('pnpm', ['test']),
           },
         }),
         { selectedAreas: ['App'] },
       ),
     ).toEqual({
-      TruVideoSdkCore: 'xcodebuild test -scheme TruVideoSdkCore',
-    })
-  })
-
-  it('matches short aliases with word boundaries and ignores blank selectors', () => {
-    expect(
-      resolveAllowlistedSuites(
-        repository({
-          areas: {
-            App: {
-              aliases: ['UI', ''],
-              suiteKeys: ['TruVideoSdkCore'],
-            },
-          },
-          suites: {
-            TruVideoSdkCore: {
-              command: 'xcodebuild test -scheme TruVideoSdkCore',
-            },
-          },
-        }),
-        {
-          issueText: 'Crash in UI when opening settings',
-          selectedAreas: ['', '  '],
-        },
-      ),
-    ).toEqual({
-      TruVideoSdkCore: 'xcodebuild test -scheme TruVideoSdkCore',
-    })
-  })
-
-  it('dedupes classification areas that resolve to the same canonical id', () => {
-    expect(
-      resolveAllowlistedSuites(truvideoRepository, {
-        selectedAreas: ['App', 'TruVideoApp', 'Core'],
-      }),
-    ).toEqual({
-      TruVideoSdkCore: 'xcodebuild test -scheme TruVideoSdkCore',
+      unit: suite('pnpm', ['test']),
     })
   })
 })

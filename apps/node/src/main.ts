@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import { NestFactory } from '@nestjs/core'
-import { loadNodeEnvFiles } from './configuration/load-node-env-files'
+import { loadNodeEnvFiles } from './configuration/loaders/load-node-env-files'
 import { NodeModule } from './node.module'
 
 loadNodeEnvFiles()

@@ -3,7 +3,12 @@
 
 import { Injectable } from '@nestjs/common'
 import { spawn } from 'node:child_process'
+import path from 'node:path'
 import type { JiraTriageTestSuiteResult } from '@cortex/protocol'
+import {
+  formatCommandConfiguration,
+  type CommandConfiguration,
+} from '../../../connection'
 import {
   commandNeedsIosSimulatorDestination,
   IosSimulatorDestinationNotFoundError,
@@ -13,11 +18,13 @@ import {
 
 /**
  * Allowlisted suite identifier from the project→repo map.
- *
- * Legacy mappings use `unit` / `ui`. Named catalogs use configured keys such as
- * scheme or package names.
  */
 export type TriageTestSuiteId = string
+
+/**
+ * Default suite timeout when a suite omits `timeoutMilliseconds`.
+ */
+const DEFAULT_SUITE_TIMEOUT_MILLISECONDS = 15 * 60 * 1000
 
 /**
  * Env keys mirrored into XCTest via Xcode's `TEST_RUNNER_` forwarding.
@@ -32,16 +39,12 @@ const XCTEST_FORWARDED_ENV_KEYS = [
 ] as const
 
 /**
- * Runs allowlisted test suite commands inside a prepared workspace.
+ * Runs allowlisted structured suite commands inside a prepared workspace.
  *
- * Commands come from the project→repo map (or dry-run reporting), never from
- * unconstrained model output. Suite subprocesses inherit the node process
- * environment (local/dev secrets via `apps/node/.env`) and, for known iOS suite
- * secrets, also receive `TEST_RUNNER_*` copies so XCTest can read them.
- * Production should use suite secret bundles + `secretIds` — see
- * `../ROADMAP.md`.
+ * Commands come from TOML project configuration, never from unconstrained model
+ * output. Subprocesses spawn without a shell (`shell: false`).
  *
- * When any suite uses an iOS Simulator `-destination`, this runner resolves one
+ * When any suite uses an iOS Simulator destination, this runner resolves one
  * available iPhone simulator on the Node first and rewrites those destinations
  * to a concrete `id=<udid>` so hard-coded device names do not break across hosts.
  */
@@ -64,29 +67,29 @@ export class TestRunner {
   /**
    * Returns the suites that would run without executing them.
    */
-  dryRun(suites: Readonly<Record<string, string>>): JiraTriageTestSuiteResult[] {
-    return Object.entries(suites)
-      .filter(([, command]) => Boolean(command))
-      .map(([suiteId, command]) => ({
-        command,
-        suiteId,
-        summary: 'dry-run',
-      }))
+  dryRun(
+    suites: Readonly<Record<string, CommandConfiguration>>,
+  ): JiraTriageTestSuiteResult[] {
+    return Object.entries(suites).map(([suiteId, command]) => ({
+      command: formatCommandConfiguration(command),
+      suiteId,
+      summary: 'dry-run',
+    }))
   }
 
   /**
-   * Executes configured suite commands in the workspace via the host shell.
+   * Executes configured suite commands in the workspace without a shell.
    *
    * Resolves an iOS Simulator destination once when needed, then rewrites each
    * matching suite command before execution.
    */
   async run(input: {
     readonly signal: AbortSignal
-    readonly suites: Readonly<Record<string, string>>
+    readonly suites: Readonly<Record<string, CommandConfiguration>>
     readonly workingDirectory: string
   }): Promise<JiraTriageTestSuiteResult[]> {
     const results: JiraTriageTestSuiteResult[] = []
-    const suiteEntries = Object.entries(input.suites).filter(([, command]) => Boolean(command))
+    const suiteEntries = Object.entries(input.suites)
 
     let iosDestination: string | undefined
     let iosResolveError: unknown
@@ -107,11 +110,12 @@ export class TestRunner {
     for (const [suiteId, command] of suiteEntries) {
       input.signal.throwIfAborted()
 
+      const displayCommand = formatCommandConfiguration(command)
       const needsIosDestination = commandNeedsIosSimulatorDestination(command)
 
       if (needsIosDestination && iosResolveError) {
         results.push({
-          command,
+          command: displayCommand,
           exitCode: 70,
           suiteId,
           summary: summarizeIosSimulatorResolveFailure(iosResolveError),
@@ -124,21 +128,26 @@ export class TestRunner {
           ? rewriteIosSimulatorDestination(command, iosDestination)
           : command
 
+      const effectiveDisplay = formatCommandConfiguration(effectiveCommand)
+      const suiteWorkingDirectory = resolveSuiteWorkingDirectory(
+        input.workingDirectory,
+        effectiveCommand.workingDirectory,
+      )
+
       try {
-        const { stdout, stderr } = await this.executeShell(
+        const { stdout, stderr } = await this.executeCommand(
           effectiveCommand,
-          input.workingDirectory,
+          suiteWorkingDirectory,
           input.signal,
         )
         const combined = `${stdout}\n${stderr}`.trim()
         results.push({
-          command: effectiveCommand,
+          command: effectiveDisplay,
           exitCode: 0,
           suiteId,
           summary: truncate(combined || 'exit 0', 2_000),
         })
       } catch (error) {
-        // Cancellation must fail the job, not look like a red suite.
         if (isCancellationError(error, input.signal)) {
           throw error
         }
@@ -153,7 +162,7 @@ export class TestRunner {
         const combined = `${executionError.stdout || ''}\n${executionError.stderr || ''}`.trim()
 
         results.push({
-          command: effectiveCommand,
+          command: effectiveDisplay,
           exitCode,
           suiteId,
           summary: truncate(combined || `exit ${exitCode}`, 2_000),
@@ -164,19 +173,21 @@ export class TestRunner {
     return results
   }
 
-  private executeShell(
-    command: string,
+  private executeCommand(
+    command: CommandConfiguration,
     workingDirectory: string,
     signal: AbortSignal,
   ): Promise<{ stderr: string; stdout: string }> {
-    const invocation = resolveShellInvocation(command)
+    const timeoutMilliseconds =
+      command.timeoutMilliseconds ?? DEFAULT_SUITE_TIMEOUT_MILLISECONDS
 
     return new Promise((resolve, reject) => {
       const stdoutChunks: Buffer[] = []
       const stderrChunks: Buffer[] = []
-      const child = spawn(invocation.file, [...invocation.args], {
+      const child = spawn(command.executable, [...command.arguments], {
         cwd: workingDirectory,
         env: buildSuiteProcessEnv(process.env),
+        shell: false,
         signal,
       })
 
@@ -189,7 +200,7 @@ export class TestRunner {
 
       const timeout = setTimeout(() => {
         child.kill('SIGTERM')
-      }, 15 * 60 * 1000)
+      }, timeoutMilliseconds)
 
       const finish = (handler: () => void) => {
         clearTimeout(timeout)
@@ -257,26 +268,27 @@ export function buildSuiteProcessEnv(source: NodeJS.ProcessEnv): NodeJS.ProcessE
 }
 
 /**
- * Resolves the host shell binary and args used to run an allowlisted suite command.
+ * Resolves a suite working directory under the repository root.
  *
- * Exported for unit tests so both Windows and POSIX invocations can be verified
- * without depending on the current process platform.
+ * @param repositoryRoot - Absolute prepared workspace path.
+ * @param relativeWorkingDirectory - Relative directory from suite configuration.
+ * @returns Absolute path that stays inside the repository.
  */
-export function resolveShellInvocation(
-  command: string,
-  platform: NodeJS.Platform = process.platform,
-): { readonly args: readonly string[]; readonly file: string } {
-  if (platform === 'win32') {
-    return {
-      args: ['/d', '/s', '/c', command],
-      file: 'cmd.exe',
-    }
+function resolveSuiteWorkingDirectory(
+  repositoryRoot: string,
+  relativeWorkingDirectory: string,
+): string {
+  const root = path.resolve(repositoryRoot)
+  const resolved = path.resolve(root, relativeWorkingDirectory)
+  const relative = path.relative(root, resolved)
+
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(
+      `Suite working directory '${relativeWorkingDirectory}' resolves outside the repository.`,
+    )
   }
 
-  return {
-    args: ['-lc', command],
-    file: 'bash',
-  }
+  return resolved
 }
 
 /**

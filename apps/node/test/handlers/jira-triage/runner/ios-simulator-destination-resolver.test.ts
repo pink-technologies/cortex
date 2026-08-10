@@ -109,46 +109,95 @@ describe('parseSimctlDevices', () => {
 describe('commandNeedsIosSimulatorDestination / rewriteIosSimulatorDestination', () => {
   it('detects xcodebuild test commands even without a destination', () => {
     expect(
-      commandNeedsIosSimulatorDestination(
-        'xcodebuild test -scheme TruvideoSdk -destination "platform=iOS Simulator,name=iPhone 16"',
-      ),
+      commandNeedsIosSimulatorDestination({
+        arguments: [
+          'test',
+          '-scheme',
+          'TruvideoSdk',
+          '-destination',
+          'platform=iOS Simulator,name=iPhone 16',
+        ],
+        executable: 'xcodebuild',
+        workingDirectory: '.',
+      }),
     ).toBe(true)
     expect(
-      commandNeedsIosSimulatorDestination('xcodebuild test -scheme TruvideoSdk'),
+      commandNeedsIosSimulatorDestination({
+        arguments: ['test', '-scheme', 'TruvideoSdk'],
+        executable: 'xcodebuild',
+        workingDirectory: '.',
+      }),
     ).toBe(true)
-    expect(commandNeedsIosSimulatorDestination('npm test')).toBe(false)
     expect(
-      commandNeedsIosSimulatorDestination(
-        'xcodebuild build -scheme DI -destination "generic/platform=iOS Simulator"',
-      ),
+      commandNeedsIosSimulatorDestination({
+        arguments: ['test'],
+        executable: 'npm',
+        workingDirectory: '.',
+      }),
+    ).toBe(false)
+    expect(
+      commandNeedsIosSimulatorDestination({
+        arguments: [
+          'build',
+          '-scheme',
+          'DI',
+          '-destination',
+          'generic/platform=iOS Simulator',
+        ],
+        executable: 'xcodebuild',
+        workingDirectory: '.',
+      }),
     ).toBe(false)
   })
 
-  it('rewrites quoted destinations and appends when missing', () => {
+  it('rewrites destinations and appends when missing', () => {
     expect(
       rewriteIosSimulatorDestination(
-        'xcodegen generate && xcodebuild test -scheme TruvideoSdk -destination "platform=iOS Simulator,name=iPhone 16" SWIFTSCOPE_PATHS=',
+        {
+          arguments: [
+            'test',
+            '-scheme',
+            'TruvideoSdk',
+            '-destination',
+            'platform=iOS Simulator,name=iPhone 16',
+          ],
+          executable: 'xcodebuild',
+          workingDirectory: '.',
+        },
         'platform=iOS Simulator,id=ABC',
       ),
-    ).toBe(
-      'xcodegen generate && xcodebuild test -scheme TruvideoSdk -destination "platform=iOS Simulator,id=ABC" SWIFTSCOPE_PATHS=',
-    )
+    ).toEqual({
+      arguments: [
+        'test',
+        '-scheme',
+        'TruvideoSdk',
+        '-destination',
+        'platform=iOS Simulator,id=ABC',
+      ],
+      executable: 'xcodebuild',
+      workingDirectory: '.',
+    })
 
     expect(
       rewriteIosSimulatorDestination(
-        "xcodebuild test -destination 'platform=iOS Simulator,name=iPhone 16'",
+        {
+          arguments: ['test', '-scheme', 'TruvideoSdk'],
+          executable: 'xcodebuild',
+          workingDirectory: '.',
+        },
         'platform=iOS Simulator,id=ABC',
       ),
-    ).toBe("xcodebuild test -destination 'platform=iOS Simulator,id=ABC'")
-
-    expect(
-      rewriteIosSimulatorDestination(
-        'xcodegen generate && xcodebuild test -scheme TruvideoSdk SWIFTSCOPE_PATHS=',
+    ).toEqual({
+      arguments: [
+        'test',
+        '-scheme',
+        'TruvideoSdk',
+        '-destination',
         'platform=iOS Simulator,id=ABC',
-      ),
-    ).toBe(
-      'xcodegen generate && xcodebuild test -scheme TruvideoSdk SWIFTSCOPE_PATHS= -destination "platform=iOS Simulator,id=ABC"',
-    )
+      ],
+      executable: 'xcodebuild',
+      workingDirectory: '.',
+    })
   })
 })
 

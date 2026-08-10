@@ -4,7 +4,7 @@
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { loadNodeEnvFiles } from '../../src/configuration/load-node-env-files'
+import { loadNodeEnvFiles } from '../../src/configuration/loaders/load-node-env-files'
 
 describe('loadNodeEnvFiles', () => {
   let workspace: string
@@ -21,29 +21,28 @@ describe('loadNodeEnvFiles', () => {
     await mkdir(join(workspace, 'apps', 'node'), { recursive: true })
     await writeFile(
       join(workspace, 'apps', 'node', '.env'),
-      'CORTEX_JIRA_PROJECT_REPOS=[{"projectKey":"SCRUM","suites":{"TruvideoSdk":{"command":"make genbuild && xcodebuild test"}}}]\n',
+      'GITHUB_TOKEN=from-node-env\n',
       'utf8',
     )
 
     const environment: NodeJS.ProcessEnv = {
-      CORTEX_JIRA_PROJECT_REPOS: '[{"projectKey":"SCRUM","suites":{"TruVideoSdkCore":{"command":"xcodebuild test"}}}]',
+      GITHUB_TOKEN: 'stale-shell-value',
     }
 
     loadNodeEnvFiles(workspace, environment)
 
-    expect(environment.CORTEX_JIRA_PROJECT_REPOS).toContain('make genbuild')
-    expect(environment.CORTEX_JIRA_PROJECT_REPOS).toContain('TruvideoSdk')
+    expect(environment.GITHUB_TOKEN).toBe('from-node-env')
   })
 
   it('lets apps/node/.env win over a repo-root .env', async () => {
     await mkdir(join(workspace, 'apps', 'node'), { recursive: true })
-    await writeFile(join(workspace, '.env'), 'CORTEX_NODE_NAME=from-root\n', 'utf8')
-    await writeFile(join(workspace, 'apps', 'node', '.env'), 'CORTEX_NODE_NAME=from-node\n', 'utf8')
+    await writeFile(join(workspace, '.env'), 'CURSOR_API_KEY=from-root\n', 'utf8')
+    await writeFile(join(workspace, 'apps', 'node', '.env'), 'CURSOR_API_KEY=from-node\n', 'utf8')
 
     const environment: NodeJS.ProcessEnv = {}
 
     loadNodeEnvFiles(workspace, environment)
 
-    expect(environment.CORTEX_NODE_NAME).toBe('from-node')
+    expect(environment.CURSOR_API_KEY).toBe('from-node')
   })
 })

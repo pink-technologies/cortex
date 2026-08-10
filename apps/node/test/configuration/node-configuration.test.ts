@@ -1,469 +1,500 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { createNodeConfiguration } from '../../src/configuration/node-configuration'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { NodeConfigurationLoader } from '../../src/configuration/loaders/node-configuration-loader'
+import { NodeConfigurationError } from '../../src/configuration/error/node-configuration-error'
 
-const validEnvironment = {
-  CORTEX_API_URL: 'https://api.cortex.example',
-  CORTEX_NODE_NAME: 'worker',
-  CORTEX_NODE_VERSION: '1.0.0',
-} satisfies NodeJS.ProcessEnv
+async function createConfigurationDirectory(): Promise<string> {
+  return mkdtemp(path.join(os.tmpdir(), 'cortex-node-config-'))
+}
 
-describe('createNodeConfiguration', () => {
-  describe('required Node values', () => {
-    it('creates a configuration from valid environment variables', () => {
-      const configuration = createNodeConfiguration(validEnvironment)
+async function writeToml(filePath: string, contents: string): Promise<void> {
+  await mkdir(path.dirname(filePath), { recursive: true })
+  await writeFile(filePath, contents, 'utf8')
+}
 
-      expect(configuration.apiURL).toBe('https://api.cortex.example')
-      expect(configuration.nodeName).toBe('worker')
-      expect(configuration.version).toBe('1.0.0')
+function secretEnvironment(): NodeJS.ProcessEnv {
+  return {
+    ANTHROPIC_API_KEY: 'anthropic-secret',
+    CURSOR_API_KEY: 'cursor-secret',
+    GITHUB_TOKEN: 'github-secret',
+    JIRA_API_TOKEN: 'jira-secret',
+    OPENAI_API_KEY: 'openai-secret',
+  }
+}
+
+const minimalNodeToml = `
+schemaVersion = 1
+
+[node]
+name = "cortex-local"
+version = "1.0.0"
+
+[api]
+baseUrl = "http://localhost:3000/api"
+`
+
+const minimalConnectionsToml = `
+schemaVersion = 1
+
+[[sourceControlConnections]]
+id = "github-primary"
+provider = "github"
+token = { source = "environment", name = "GITHUB_TOKEN" }
+`
+
+async function writeMinimalConfiguration(
+  directory: string,
+  options: { readonly withProjectsDirectory?: boolean } = {},
+): Promise<void> {
+  await writeToml(path.join(directory, 'node.toml'), minimalNodeToml)
+  await writeToml(path.join(directory, 'connections.toml'), minimalConnectionsToml)
+
+  if (options.withProjectsDirectory !== false) {
+    await mkdir(path.join(directory, 'projects'), { recursive: true })
+  }
+}
+
+describe('NodeConfigurationLoader', () => {
+  it('loads a valid configuration with every supported field', async () => {
+    const directory = await createConfigurationDirectory()
+    await writeToml(
+      path.join(directory, 'node.toml'),
+      `
+schemaVersion = 1
+
+[node]
+name = "cortex-local"
+version = "1.0.0"
+pollingIntervalMilliseconds = 2500
+
+[api]
+baseUrl = "https://api.cortex.example/api/"
+
+[jiraAutomation]
+assigneeAccountId = "jira-account-id"
+repoCustomFieldId = "customfield_10001"
+
+[engines.cursor]
+apiKey = { source = "environment", name = "CURSOR_API_KEY" }
+
+[llm.openAI]
+apiKey = { source = "environment", name = "OPENAI_API_KEY" }
+
+[llm.anthropic]
+apiKey = { source = "environment", name = "ANTHROPIC_API_KEY" }
+`,
+    )
+    await writeToml(
+      path.join(directory, 'connections.toml'),
+      `
+schemaVersion = 1
+
+[[sourceControlConnections]]
+id = "github-primary"
+provider = "github"
+apiBaseUrl = "https://api.github.com/"
+token = { source = "environment", name = "GITHUB_TOKEN" }
+
+[[jiraConnections]]
+id = "jira-primary"
+provider = "jira"
+baseUrl = "https://example.atlassian.net/"
+email = "automation@example.com"
+apiToken = { source = "environment", name = "JIRA_API_TOKEN" }
+`,
+    )
+    await writeToml(
+      path.join(directory, 'projects', 'cortex.toml'),
+      `
+schemaVersion = 1
+projectKey = "CORTEX"
+
+[repository]
+owner = "PinkTech"
+name = "cortex"
+cloneUrl = "https://github.com/PinkTech/cortex.git/"
+defaultBranch = "develop"
+sourceControlConnectionId = "github-primary"
+
+[jira]
+escalateAccountId = "jira-escalation-account"
+
+[projectLead]
+displayName = "Cortex Team"
+email = "cortex@example.com"
+
+[suites.unit]
+executable = "pnpm"
+arguments = ["test", "--filter", "cortex"]
+workingDirectory = "."
+timeoutMilliseconds = 600000
+
+[areas.api]
+aliases = ["backend"]
+suiteKeys = ["unit"]
+`,
+    )
+
+    const configuration = await new NodeConfigurationLoader(
+      secretEnvironment(),
+    ).loadFromRootDirectory(directory)
+
+    expect(configuration).toMatchObject({
+      apiBaseURL: 'https://api.cortex.example/api',
+      cursorApiKey: 'cursor-secret',
+      jiraAutomationAssigneeAccountId: 'jira-account-id',
+      jiraRepoCustomFieldId: 'customfield_10001',
+      nodeName: 'cortex-local',
+      pollingIntervalMilliseconds: 2500,
+      version: '1.0.0',
     })
-
-    it('reads from process.env when no environment argument is provided', () => {
-      const previous = {
-        CORTEX_API_URL: process.env.CORTEX_API_URL,
-        CORTEX_JIRA_CONNECTIONS: process.env.CORTEX_JIRA_CONNECTIONS,
-        CORTEX_JIRA_PROJECT_REPOS: process.env.CORTEX_JIRA_PROJECT_REPOS,
-        CORTEX_NODE_NAME: process.env.CORTEX_NODE_NAME,
-        CORTEX_NODE_VERSION: process.env.CORTEX_NODE_VERSION,
-        CORTEX_SC_CONNECTIONS: process.env.CORTEX_SC_CONNECTIONS,
-      }
-
-      process.env.CORTEX_API_URL = 'https://api.cortex.example'
-      delete process.env.CORTEX_JIRA_CONNECTIONS
-      delete process.env.CORTEX_JIRA_PROJECT_REPOS
-      delete process.env.CORTEX_SC_CONNECTIONS
-      process.env.CORTEX_NODE_NAME = 'worker'
-      process.env.CORTEX_NODE_VERSION = '1.0.0'
-
-      try {
-        const configuration = createNodeConfiguration()
-
-        expect(configuration.nodeName).toBe('worker')
-      } finally {
-        for (const [key, value] of Object.entries(previous)) {
-          if (value === undefined) {
-            delete process.env[key]
-          } else {
-            process.env[key] = value
-          }
-        }
-      }
+    expect(configuration.sourceControlConnections[0]?.apiBaseUrl).toBe(
+      'https://api.github.com',
+    )
+    expect(configuration.jiraConnections[0]?.baseUrl).toBe(
+      'https://example.atlassian.net',
+    )
+    expect(configuration.jiraProjectRepos[0]?.cloneUrl).toBe(
+      'https://github.com/PinkTech/cortex.git',
+    )
+    expect(configuration.jiraProjectRepos[0]?.suites?.unit).toEqual({
+      arguments: ['test', '--filter', 'cortex'],
+      executable: 'pnpm',
+      timeoutMilliseconds: 600000,
+      workingDirectory: '.',
     })
+    expect(Object.isFrozen(configuration)).toBe(true)
+    expect(Object.isFrozen(configuration.jiraProjectRepos[0]?.suites?.unit?.arguments)).toBe(
+      true,
+    )
+  })
 
-    it('maps raw environment names to application property names', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        CORTEX_POLL_INTERVAL_MS: '3500',
-      })
+  it('loads a minimal configuration and applies defaults', async () => {
+    const directory = await createConfigurationDirectory()
+    await writeMinimalConfiguration(directory)
 
-      expect(configuration).toEqual(
-        expect.objectContaining({
-          apiURL: 'https://api.cortex.example',
-          nodeName: 'worker',
-          pollingIntervalMilliseconds: 3500,
-          version: '1.0.0',
-        }),
+    const configuration = await new NodeConfigurationLoader(
+      secretEnvironment(),
+    ).loadFromRootDirectory(directory)
+
+    expect(configuration.pollingIntervalMilliseconds).toBe(2000)
+    expect(configuration.apiBaseURL).toBe('http://localhost:3000/api')
+    expect(configuration.jiraProjectRepos).toEqual([])
+  })
+
+  it('loads project files in deterministic filename order', async () => {
+    const directory = await createConfigurationDirectory()
+    await writeMinimalConfiguration(directory)
+    await writeToml(
+      path.join(directory, 'projects', 'z-project.toml'),
+      `
+schemaVersion = 1
+projectKey = "ZZZ"
+
+[repository]
+owner = "Org"
+name = "z"
+cloneUrl = "https://github.com/Org/z.git"
+`,
+    )
+    await writeToml(
+      path.join(directory, 'projects', 'a-project.toml'),
+      `
+schemaVersion = 1
+projectKey = "AAA"
+
+[repository]
+owner = "Org"
+name = "a"
+cloneUrl = "https://github.com/Org/a.git"
+`,
+    )
+
+    const configuration = await new NodeConfigurationLoader(
+      secretEnvironment(),
+    ).loadFromRootDirectory(directory)
+
+    expect(configuration.jiraProjectRepos.map((project) => project.projectKey)).toEqual([
+      'AAA',
+      'ZZZ',
+    ])
+  })
+
+  it('fails when required files or the projects directory are missing', async () => {
+    const missingNode = await createConfigurationDirectory()
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(missingNode),
+    ).rejects.toBeInstanceOf(NodeConfigurationError)
+
+    const missingConnections = await createConfigurationDirectory()
+    await writeToml(path.join(missingConnections, 'node.toml'), minimalNodeToml)
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(
+        missingConnections,
+      ),
+    ).rejects.toBeInstanceOf(NodeConfigurationError)
+
+    const missingProjects = await createConfigurationDirectory()
+    await writeMinimalConfiguration(missingProjects, { withProjectsDirectory: false })
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(missingProjects),
+    ).rejects.toBeInstanceOf(NodeConfigurationError)
+  })
+
+  it('rejects malformed TOML and unknown properties', async () => {
+    const malformed = await createConfigurationDirectory()
+    await writeToml(path.join(malformed, 'node.toml'), 'schemaVersion = [')
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(malformed),
+    ).rejects.toThrow(/Malformed TOML/)
+
+    const unknownProperty = await createConfigurationDirectory()
+    await writeToml(
+      path.join(unknownProperty, 'node.toml'),
+      `
+schemaVersion = 1
+unexpected = true
+
+[node]
+name = "cortex-local"
+version = "1.0.0"
+
+[api]
+baseUrl = "http://localhost:3000/api"
+`,
+    )
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(unknownProperty),
+    ).rejects.toBeInstanceOf(NodeConfigurationError)
+  })
+
+  it('rejects duplicate connection IDs and project keys', async () => {
+    const duplicateSourceControl = await createConfigurationDirectory()
+    await writeToml(path.join(duplicateSourceControl, 'node.toml'), minimalNodeToml)
+    await writeToml(
+      path.join(duplicateSourceControl, 'connections.toml'),
+      `
+schemaVersion = 1
+
+[[sourceControlConnections]]
+id = "github-primary"
+provider = "github"
+token = { source = "environment", name = "GITHUB_TOKEN" }
+
+[[sourceControlConnections]]
+id = "github-primary"
+provider = "github"
+token = { source = "environment", name = "GITHUB_TOKEN" }
+`,
+    )
+    await mkdir(path.join(duplicateSourceControl, 'projects'), { recursive: true })
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(
+        duplicateSourceControl,
+      ),
+    ).rejects.toThrow(/Duplicate source-control connection id/)
+
+    const duplicateJira = await createConfigurationDirectory()
+    await writeToml(path.join(duplicateJira, 'node.toml'), minimalNodeToml)
+    await writeToml(
+      path.join(duplicateJira, 'connections.toml'),
+      `
+schemaVersion = 1
+
+[[sourceControlConnections]]
+id = "github-primary"
+provider = "github"
+token = { source = "environment", name = "GITHUB_TOKEN" }
+
+[[jiraConnections]]
+id = "jira-primary"
+provider = "jira"
+baseUrl = "https://example.atlassian.net"
+email = "a@b.com"
+apiToken = { source = "environment", name = "JIRA_API_TOKEN" }
+
+[[jiraConnections]]
+id = "jira-primary"
+provider = "jira"
+baseUrl = "https://example.atlassian.net"
+email = "a@b.com"
+apiToken = { source = "environment", name = "JIRA_API_TOKEN" }
+`,
+    )
+    await mkdir(path.join(duplicateJira, 'projects'), { recursive: true })
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(duplicateJira),
+    ).rejects.toThrow(/Duplicate Jira connection id/)
+
+    const duplicateProjects = await createConfigurationDirectory()
+    await writeMinimalConfiguration(duplicateProjects)
+    for (const fileName of ['one.toml', 'two.toml']) {
+      await writeToml(
+        path.join(duplicateProjects, 'projects', fileName),
+        `
+schemaVersion = 1
+projectKey = "DUP"
+
+[repository]
+owner = "Org"
+name = "repo"
+cloneUrl = "https://github.com/Org/repo.git"
+`,
       )
-    })
-
-    it('trims string environment values', () => {
-      const configuration = createNodeConfiguration({
-        CORTEX_API_URL: '  https://api.cortex.example  ',
-        CORTEX_NODE_NAME: '  worker  ',
-        CORTEX_NODE_VERSION: '  1.0.0  ',
-      })
-
-      expect(configuration.apiURL).toBe('https://api.cortex.example')
-      expect(configuration.nodeName).toBe('worker')
-      expect(configuration.version).toBe('1.0.0')
-    })
+    }
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(
+        duplicateProjects,
+      ),
+    ).rejects.toThrow(/Duplicate key/)
   })
 
-  describe('polling interval', () => {
-    it('uses 2000 milliseconds when the polling interval is omitted', () => {
-      const configuration = createNodeConfiguration(validEnvironment)
+  it('rejects missing source-control references and missing suites', async () => {
+    const missingConnection = await createConfigurationDirectory()
+    await writeMinimalConfiguration(missingConnection)
+    await writeToml(
+      path.join(missingConnection, 'projects', 'a.toml'),
+      `
+schemaVersion = 1
+projectKey = "AAA"
 
-      expect(configuration.pollingIntervalMilliseconds).toBe(2_000)
-    })
+[repository]
+owner = "Org"
+name = "repo"
+cloneUrl = "https://github.com/Org/repo.git"
+sourceControlConnectionId = "missing-connection"
+`,
+    )
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(missingConnection),
+    ).rejects.toThrow(/missing source-control connection/)
 
-    it('coerces the polling interval from an environment string', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        CORTEX_POLL_INTERVAL_MS: '4500',
-      })
+    const missingSuite = await createConfigurationDirectory()
+    await writeMinimalConfiguration(missingSuite)
+    await writeToml(
+      path.join(missingSuite, 'projects', 'a.toml'),
+      `
+schemaVersion = 1
+projectKey = "AAA"
 
-      expect(configuration.pollingIntervalMilliseconds).toBe(4500)
-    })
+[repository]
+owner = "Org"
+name = "repo"
+cloneUrl = "https://github.com/Org/repo.git"
 
-    it('rejects a zero polling interval', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_POLL_INTERVAL_MS: '0',
-        }),
-      ).toThrow(/Invalid Cortex Node configuration/)
-    })
+[suites.unit]
+executable = "pnpm"
+arguments = ["test"]
 
-    it('rejects a negative polling interval', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_POLL_INTERVAL_MS: '-10',
-        }),
-      ).toThrow(/Invalid Cortex Node configuration/)
-    })
-
-    it('rejects a non-numeric polling interval', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_POLL_INTERVAL_MS: 'fast',
-        }),
-      ).toThrow(/Invalid Cortex Node configuration/)
-    })
-
-    it('rejects a non-integer polling interval', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_POLL_INTERVAL_MS: '12.5',
-        }),
-      ).toThrow(/Invalid Cortex Node configuration/)
-    })
+[areas.api]
+suiteKeys = ["missing"]
+`,
+    )
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(missingSuite),
+    ).rejects.toThrow(/missing suite/)
   })
 
-  describe('required-value validation', () => {
-    it('rejects a missing Cortex API URL', () => {
-      const { CORTEX_API_URL: _, ...environment } = validEnvironment
+  it('rejects missing or blank environment secrets without leaking values', async () => {
+    const directory = await createConfigurationDirectory()
+    await writeToml(
+      path.join(directory, 'node.toml'),
+      `
+schemaVersion = 1
 
-      expect(() => createNodeConfiguration(environment)).toThrow(/Invalid Cortex Node configuration/)
-    })
+[node]
+name = "cortex-local"
+version = "1.0.0"
 
-    it('rejects an invalid Cortex API URL', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_API_URL: 'not-a-url',
-        }),
-      ).toThrow(/Invalid Cortex Node configuration/)
-    })
+[api]
+baseUrl = "http://localhost:3000/api"
 
-    it('rejects a missing node name', () => {
-      const { CORTEX_NODE_NAME: _, ...environment } = validEnvironment
+[engines.cursor]
+apiKey = { source = "environment", name = "CURSOR_API_KEY" }
+`,
+    )
+    await writeToml(path.join(directory, 'connections.toml'), minimalConnectionsToml)
+    await mkdir(path.join(directory, 'projects'), { recursive: true })
 
-      expect(() => createNodeConfiguration(environment)).toThrow(/Invalid Cortex Node configuration/)
-    })
+    await expect(
+      new NodeConfigurationLoader({ GITHUB_TOKEN: 'github-secret' }).loadFromRootDirectory(
+        directory,
+      ),
+    ).rejects.toThrow(/CURSOR_API_KEY/)
 
-    it('rejects a blank node name', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_NODE_NAME: '   ',
-        }),
-      ).toThrow(/Invalid Cortex Node configuration/)
-    })
-
-    it('rejects a missing node version', () => {
-      const { CORTEX_NODE_VERSION: _, ...environment } = validEnvironment
-
-      expect(() => createNodeConfiguration(environment)).toThrow(/Invalid Cortex Node configuration/)
-    })
-
-    it('rejects a blank node version', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_NODE_VERSION: '   ',
-        }),
-      ).toThrow(/Invalid Cortex Node configuration/)
-    })
+    try {
+      await new NodeConfigurationLoader({
+        CURSOR_API_KEY: 'super-secret-value',
+        GITHUB_TOKEN: '   ',
+      }).loadFromRootDirectory(directory)
+      throw new Error('expected configuration load to fail')
+    } catch (error) {
+      expect(error).toBeInstanceOf(NodeConfigurationError)
+      const message = error instanceof Error ? error.message : String(error)
+      expect(message).toMatch(/GITHUB_TOKEN/)
+      expect(message).not.toContain('super-secret-value')
+    }
   })
 
-  describe('provider configurations', () => {
-    it('creates the OpenAI configuration when OPENAI_API_KEY is present', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        OPENAI_API_KEY: 'openai-key',
-      })
 
-      expect(configuration.llm.openAI).toEqual({ apiKey: 'openai-key' })
-      expect(configuration.llm.anthropic).toBeUndefined()
-    })
+  it('rejects inline secrets', async () => {
+    const directory = await createConfigurationDirectory()
+    await writeToml(path.join(directory, 'node.toml'), minimalNodeToml)
+    await writeToml(
+      path.join(directory, 'connections.toml'),
+      `
+schemaVersion = 1
 
-    it('creates the Anthropic configuration when ANTHROPIC_API_KEY is present', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        ANTHROPIC_API_KEY: 'anthropic-key',
-      })
+[[sourceControlConnections]]
+id = "github-primary"
+provider = "github"
+token = "inline-token"
+`,
+    )
+    await mkdir(path.join(directory, 'projects'), { recursive: true })
 
-      expect(configuration.llm.anthropic).toEqual({ apiKey: 'anthropic-key' })
-      expect(configuration.llm.openAI).toBeUndefined()
-    })
-
-    it('creates both provider configurations when both API keys are present', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        ANTHROPIC_API_KEY: 'anthropic-key',
-        OPENAI_API_KEY: 'openai-key',
-      })
-
-      expect(configuration.llm.openAI).toEqual({ apiKey: 'openai-key' })
-      expect(configuration.llm.anthropic).toEqual({ apiKey: 'anthropic-key' })
-    })
-
-    it('allows the Node to start without any LLM provider configured', () => {
-      const configuration = createNodeConfiguration(validEnvironment)
-
-      expect(configuration.llm.openAI).toBeUndefined()
-      expect(configuration.llm.anthropic).toBeUndefined()
-    })
-
-    it('omits the OpenAI configuration when OPENAI_API_KEY is absent', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        ANTHROPIC_API_KEY: 'anthropic-key',
-      })
-
-      expect(configuration.llm.openAI).toBeUndefined()
-    })
-
-    it('omits the Anthropic configuration when ANTHROPIC_API_KEY is absent', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        OPENAI_API_KEY: 'openai-key',
-      })
-
-      expect(configuration.llm.anthropic).toBeUndefined()
-    })
-
-    it('trims provider API keys', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        ANTHROPIC_API_KEY: '  anthropic-key  ',
-        OPENAI_API_KEY: '  openai-key  ',
-      })
-
-      expect(configuration.llm.openAI?.apiKey).toBe('openai-key')
-      expect(configuration.llm.anthropic?.apiKey).toBe('anthropic-key')
-    })
-
-    it('treats a blank OpenAI API key as unset', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        OPENAI_API_KEY: '   ',
-      })
-
-      expect(configuration.llm.openAI).toBeUndefined()
-    })
-
-    it('treats a blank Anthropic API key as unset', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        ANTHROPIC_API_KEY: '   ',
-      })
-
-      expect(configuration.llm.anthropic).toBeUndefined()
-    })
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(directory),
+    ).rejects.toBeInstanceOf(NodeConfigurationError)
   })
 
-  describe('Cursor and source-control configuration', () => {
-    it('includes an optional Cursor API key', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        CURSOR_API_KEY: 'cursor-key',
-      })
+  it('rejects a projects path that is not a directory', async () => {
+    const directory = await createConfigurationDirectory()
+    await writeToml(path.join(directory, 'node.toml'), minimalNodeToml)
+    await writeToml(path.join(directory, 'connections.toml'), minimalConnectionsToml)
+    await writeFile(path.join(directory, 'projects'), 'not-a-directory', 'utf8')
 
-      expect(configuration.cursorApiKey).toBe('cursor-key')
-    })
-
-    it('treats a blank Cursor API key as unset', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        CURSOR_API_KEY: '   ',
-      })
-
-      expect(configuration.cursorApiKey).toBeUndefined()
-    })
-
-    it('defaults source-control connections to an empty list', () => {
-      const configuration = createNodeConfiguration(validEnvironment)
-
-      expect(configuration.sourceControlConnections).toEqual([])
-    })
-
-    it('treats blank source-control connections as an empty list', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        CORTEX_SC_CONNECTIONS: '   ',
-      })
-
-      expect(configuration.sourceControlConnections).toEqual([])
-    })
-
-    it('parses source-control connections from JSON', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        CORTEX_SC_CONNECTIONS: JSON.stringify([
-          {
-            apiBaseUrl: 'https://api.github.com',
-            id: 'github-main',
-            provider: 'github',
-            token: 'ghp_test',
-          },
-        ]),
-      })
-
-      expect(configuration.sourceControlConnections).toEqual([
-        {
-          apiBaseUrl: 'https://api.github.com',
-          id: 'github-main',
-          provider: 'github',
-          token: 'ghp_test',
-        },
-      ])
-    })
-
-    it('rejects invalid source-control connection JSON', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_SC_CONNECTIONS: '{',
-        }),
-      ).toThrow(/CORTEX_SC_CONNECTIONS must be valid JSON/)
-    })
-
-    it('rejects source-control connections that fail schema validation', () => {
-      expect(() =>
-        createNodeConfiguration({
-          ...validEnvironment,
-          CORTEX_SC_CONNECTIONS: JSON.stringify([
-            {
-              id: 'github-main',
-              provider: 'gitlab',
-              token: 'token',
-            },
-          ]),
-        }),
-      ).toThrow(/Invalid CORTEX_SC_CONNECTIONS/)
-    })
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(directory),
+    ).rejects.toBeInstanceOf(NodeConfigurationError)
   })
 
-  describe('Jira configuration', () => {
-    it('defaults Jira connections and project repos to empty lists', () => {
-      const configuration = createNodeConfiguration(validEnvironment)
+  it('rejects unsafe suite working directories', async () => {
+    const directory = await createConfigurationDirectory()
+    await writeMinimalConfiguration(directory)
+    await writeToml(
+      path.join(directory, 'projects', 'escape.toml'),
+      `
+schemaVersion = 1
+projectKey = "ESC"
 
-      expect(configuration.jiraConnections).toEqual([])
-      expect(configuration.jiraProjectRepos).toEqual([])
-    })
+[repository]
+owner = "Org"
+name = "repo"
+cloneUrl = "https://github.com/Org/repo.git"
 
-    it('parses Jira connections and project repos from JSON', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        CORTEX_JIRA_CONNECTIONS: JSON.stringify([
-          {
-            apiToken: 'token',
-            baseUrl: 'https://example.atlassian.net/',
-            email: 'bot@example.com',
-            id: 'jira-main',
-            provider: 'jira',
-          },
-        ]),
-        CORTEX_JIRA_PROJECT_REPOS: JSON.stringify([
-          {
-            cloneUrl: 'https://github.com/acme/app.git',
-            name: 'app',
-            owner: 'acme',
-            projectKey: 'JC',
-            projectLead: {
-              displayName: 'Jorge',
-              email: 'jorge@pink-tech.io',
-            },
-            areas: {
-              App: {
-                aliases: ['TruVideoApp'],
-                suiteKeys: ['TruVideoSdkCore'],
-              },
-            },
-            suites: {
-              TruVideoSdkCore: {
-                command: 'xcodebuild test -scheme TruVideoSdkCore',
-              },
-              TruVideoSdkCamera: {
-                command: 'xcodebuild test -scheme TruVideoSdkCamera',
-              },
-            },
-            unitTestCommand: 'npm test',
-          },
-        ]),
-        JIRA_AUTOMATION_ASSIGNEE_ACCOUNT_ID: 'automation',
-      })
+[suites.unit]
+executable = "pnpm"
+workingDirectory = "../outside"
+`,
+    )
 
-      expect(configuration.jiraConnections).toEqual([
-        {
-          apiToken: 'token',
-          baseUrl: 'https://example.atlassian.net',
-          email: 'bot@example.com',
-          id: 'jira-main',
-          provider: 'jira',
-        },
-      ])
-      expect(configuration.jiraProjectRepos[0]).toMatchObject({
-        areas: {
-          App: {
-            aliases: ['TruVideoApp'],
-            suiteKeys: ['TruVideoSdkCore'],
-          },
-        },
-        defaultBranch: 'main',
-        projectKey: 'JC',
-        projectLead: {
-          displayName: 'Jorge',
-          email: 'jorge@pink-tech.io',
-        },
-        suites: {
-          TruVideoSdkCamera: {
-            command: 'xcodebuild test -scheme TruVideoSdkCamera',
-          },
-          TruVideoSdkCore: {
-            command: 'xcodebuild test -scheme TruVideoSdkCore',
-          },
-        },
-        unitTestCommand: 'npm test',
-      })
-      expect(configuration.jiraAutomationAssigneeAccountId).toBe('automation')
-    })
-  })
-
-  describe('immutability', () => {
-    it('freezes the root Node configuration', () => {
-      const configuration = createNodeConfiguration(validEnvironment)
-
-      expect(Object.isFrozen(configuration)).toBe(true)
-    })
-
-    it('freezes the LLM configuration', () => {
-      const configuration = createNodeConfiguration(validEnvironment)
-
-      expect(Object.isFrozen(configuration.llm)).toBe(true)
-    })
-
-    it('freezes the OpenAI configuration when present', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        OPENAI_API_KEY: 'openai-key',
-      })
-
-      expect(Object.isFrozen(configuration.llm.openAI)).toBe(true)
-    })
-
-    it('freezes the Anthropic configuration when present', () => {
-      const configuration = createNodeConfiguration({
-        ...validEnvironment,
-        ANTHROPIC_API_KEY: 'anthropic-key',
-      })
-
-      expect(Object.isFrozen(configuration.llm.anthropic)).toBe(true)
-    })
+    await expect(
+      new NodeConfigurationLoader(secretEnvironment()).loadFromRootDirectory(directory),
+    ).rejects.toThrow(/workingDirectory/)
   })
 })

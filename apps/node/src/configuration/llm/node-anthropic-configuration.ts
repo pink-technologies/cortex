@@ -14,12 +14,6 @@
  * results, or expose it through prompts, tool inputs, or agent definitions.
  */
 export interface NodeAnthropicConfiguration {
-  /**
-   * Secret used to authenticate requests to the Anthropic API.
-   *
-   * Passed through to {@link LLMFactory} when constructing the Anthropic
-   * provider client for this node. Must be a non-empty API key issued for the
-   * Anthropic account this node is authorized to use.
-   */
+  /** API key used to authenticate Anthropic requests. */
   readonly apiKey: string
 }

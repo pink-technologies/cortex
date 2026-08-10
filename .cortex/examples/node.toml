@@ -1,0 +1,23 @@
+schemaVersion = 1
+
+[node]
+name = "cortex-local"
+version = "1.0.0"
+pollingIntervalMilliseconds = 2000
+
+[api]
+# Complete Cortex API base URL, including Nest's global prefix.
+baseUrl = "http://localhost:3000/api"
+
+[jiraAutomation]
+assigneeAccountId = "jira-account-id"
+repoCustomFieldId = "customfield_10001"
+
+[engines.cursor]
+apiKey = { source = "environment", name = "CURSOR_API_KEY" }
+
+[llm.openAI]
+apiKey = { source = "environment", name = "OPENAI_API_KEY" }
+
+[llm.anthropic]
+apiKey = { source = "environment", name = "ANTHROPIC_API_KEY" }

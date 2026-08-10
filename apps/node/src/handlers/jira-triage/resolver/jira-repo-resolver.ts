@@ -31,7 +31,10 @@ export function parseGitHubRepositoryReference(
       return undefined
     }
 
-    const parts = url.pathname.replace(/\.git$/i, '').split('/').filter(Boolean)
+    const parts = url.pathname
+      .replace(/\.git$/i, '')
+      .split('/')
+      .filter(Boolean)
     if (parts.length < 2) {
       return undefined
     }
@@ -133,6 +136,7 @@ export function resolveJiraRepository(input: {
   return {
     kind: 'resolved',
     repository: {
+      areas: mapping.areas,
       cloneUrl: mapping.cloneUrl,
       defaultBranch: mapping.defaultBranch,
       escalateAccountId: mapping.escalateAccountId,
@@ -140,19 +144,13 @@ export function resolveJiraRepository(input: {
       owner: mapping.owner,
       projectLead: mapping.projectLead,
       source: 'project_map',
-      areas: mapping.areas,
       sourceControlConnectionId: mapping.sourceControlConnectionId,
       suites: mapping.suites,
-      uiTestCommand: mapping.uiTestCommand,
-      unitTestCommand: mapping.unitTestCommand,
     },
   }
 }
 
-function toHttpsClone(
-  owner: string,
-  name: string,
-): { cloneUrl: string; name: string; owner: string } {
+function toHttpsClone(owner: string, name: string): { cloneUrl: string; name: string; owner: string } {
   return {
     cloneUrl: `https://github.com/${owner}/${name}.git`,
     name,
@@ -174,13 +172,11 @@ function findProjectMapping(
  * defaults required for repro.
  */
 function applyProjectMapping(
-  repository: Pick<
-    ResolvedJiraRepository,
-    'cloneUrl' | 'defaultBranch' | 'name' | 'owner' | 'source'
-  >,
+  repository: Pick<ResolvedJiraRepository, 'cloneUrl' | 'defaultBranch' | 'name' | 'owner' | 'source'>,
   mapping: JiraProjectRepoMapping | undefined,
 ): ResolvedJiraRepository {
   return {
+    areas: mapping?.areas,
     cloneUrl: repository.cloneUrl,
     defaultBranch: repository.defaultBranch,
     escalateAccountId: mapping?.escalateAccountId,
@@ -188,11 +184,8 @@ function applyProjectMapping(
     owner: repository.owner,
     projectLead: mapping?.projectLead,
     source: repository.source,
-    areas: mapping?.areas,
     sourceControlConnectionId: mapping?.sourceControlConnectionId,
     suites: mapping?.suites,
-    uiTestCommand: mapping?.uiTestCommand,
-    unitTestCommand: mapping?.unitTestCommand,
   }
 }
 

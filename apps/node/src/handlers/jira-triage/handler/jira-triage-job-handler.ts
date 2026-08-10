@@ -15,6 +15,7 @@ import {
 import {
   ConfigJiraConnectionStore,
   ConfigSourceControlConnectionStore,
+  type CommandConfiguration,
   type JiraProjectRepoLead,
   type SourceControlConnection,
 } from '../../../connection'
@@ -447,7 +448,7 @@ export class JiraTriageJobHandler implements ExecutionJobHandler<JiraTriageJobRe
 
   private async runSuites(
     issueKey: string,
-    suites: Readonly<Record<string, string>>,
+    suites: Readonly<Record<string, CommandConfiguration>>,
     workingDirectory: string,
     signal: AbortSignal,
   ): Promise<JiraTriageTestSuiteResult[]> {
