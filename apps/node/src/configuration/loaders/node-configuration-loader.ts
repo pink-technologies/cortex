@@ -4,7 +4,7 @@
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { NodeConfigurationError } from '../error/error'
+import { NodeConfigurationError } from '../error/node-configuration-error'
 import { mapNodeConfiguration } from '../mapper/node-configuration.mapper'
 import type { NodeConfiguration } from '../node-configuration'
 import { validateNodeConfiguration, type LoadedProject } from '../validators/node-configuration.validator'

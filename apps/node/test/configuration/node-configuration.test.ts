@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { NodeConfigurationLoader } from '../../src/configuration/loaders/node-configuration-loader'
-import { NodeConfigurationError } from '../../src/configuration/error/error'
+import { NodeConfigurationError } from '../../src/configuration/error/node-configuration-error'
 
 async function createConfigurationDirectory(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), 'cortex-node-config-'))
@@ -435,9 +435,11 @@ apiKey = { source = "environment", name = "CURSOR_API_KEY" }
     } catch (error) {
       expect(error).toBeInstanceOf(NodeConfigurationError)
       const message = error instanceof Error ? error.message : String(error)
+      expect(message).toMatch(/GITHUB_TOKEN/)
       expect(message).not.toContain('super-secret-value')
     }
   })
+
 
   it('rejects inline secrets', async () => {
     const directory = await createConfigurationDirectory()

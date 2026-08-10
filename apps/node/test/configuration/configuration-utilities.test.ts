@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { NodeConfigurationError } from '../../src/configuration/error/error'
+import { NodeConfigurationError } from '../../src/configuration/error/node-configuration-error'
 import { deepFreeze } from '../../src/configuration/utilities/deep-freeze'
 
 describe('configuration utilities', () => {

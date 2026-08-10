@@ -25,7 +25,14 @@ export const EnvironmentVariableNameSchema = z
  */
 export const SecretReferenceSchema = z
   .object({
+    /**
+     * Environment variable name looked up at configuration load time.
+     */
     name: EnvironmentVariableNameSchema,
+
+    /**
+     * Secret provider. Only `environment` is supported today.
+     */
     source: z.literal('environment'),
   })
   .strict()

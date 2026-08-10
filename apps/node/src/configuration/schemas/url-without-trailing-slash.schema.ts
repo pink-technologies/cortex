@@ -4,7 +4,10 @@
 import { z } from 'zod'
 
 /**
- * URL string with trailing slashes removed after validation.
+ * Absolute URL string with trailing slashes removed after validation.
+ *
+ * Used for API bases, Jira Cloud bases, and repository clone URLs so callers
+ * can concatenate path segments without worrying about duplicate slashes.
  */
 export const UrlWithoutTrailingSlashSchema = z
   .string()

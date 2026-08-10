@@ -1,7 +1,7 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { NodeConfigurationError } from '../error/error'
+import { NodeConfigurationError } from '../error/node-configuration-error'
 import type { ConnectionsFile } from '../schemas/connections-file.schema'
 import type { ProjectFile } from '../schemas/project-file.schema'
 

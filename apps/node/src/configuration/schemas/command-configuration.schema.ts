@@ -41,9 +41,15 @@ const RelativeWorkingDirectorySchema = z
 
 /**
  * Validates a structured executable command used by suite runners.
+ *
+ * Commands are executed without a shell:
+ * `spawn(executable, arguments, { cwd, shell: false })`.
  */
 export const CommandConfigurationSchema = z
   .object({
+    /**
+     * Argument vector passed to `executable`.
+     */
     arguments: z
       .array(
         z
@@ -51,13 +57,25 @@ export const CommandConfigurationSchema = z
           .refine((value) => !value.includes('\0'), 'Command arguments must not contain null bytes.'),
       )
       .default([]),
+
+    /**
+     * Program to execute (for example `pnpm` or `xcodebuild`).
+     */
     executable: z.string().trim().min(1),
+
+    /**
+     * Optional positive timeout in milliseconds for this suite.
+     */
     timeoutMilliseconds: z
       .number()
       .int()
       .positive()
       .max(MaximumCommandTimeoutMilliseconds)
       .optional(),
+
+    /**
+     * Working directory relative to the checked-out repository root.
+     */
     workingDirectory: RelativeWorkingDirectorySchema.default('.'),
   })
   .strict()
