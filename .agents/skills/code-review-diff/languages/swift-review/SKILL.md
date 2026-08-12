@@ -1,241 +1,272 @@
 ---
-name: swift-review
-description: Reviews Swift changes for language correctness, ARC ownership, retain cycles, concurrency safety, lifecycle management, error handling, source and binary compatibility, platform availability, hardening, and tests. Use when a change set materially affects Swift files, Swift packages, Xcode targets, or public APIs exposed from Swift.
+name: swift
+description: "Applies reusable Swift language guidance for implementation, refactoring, debugging, testing, and review. Use when Swift source, packages, public APIs, ARC ownership, structured concurrency, errors, platform availability, Objective-C interoperability, or source and binary compatibility are materially involved."
+version: 1.0.0
+platforms: [linux, macos, windows]
+metadata:
+  cortex:
+    tags: [Swift, Language, Concurrency, ARC, API-Design, Compatibility]
+    related_skills: [code-review-diff]
 ---
 
-# Swift Review
+# Swift Engineering
 
-Apply this skill alongside the generic diff-review process and applicable
-project instructions.
+Use this skill as generic Swift language guidance. It complements the current
+engineering task; it does not define the task workflow, repository architecture,
+review format, severity model, or project-specific conventions.
 
-Use project-specific Swift rules when they conflict with generic Swift
-preferences. Preserve mandatory host safety and output requirements.
+## Apply project guidance first
 
-## Establish the Swift context
+Before applying these rules:
 
-Before reporting findings:
+- Use applicable host, organization, repository, and project instructions.
+- When repository access is available and project instructions have not already
+  been resolved by the host, discover instructions applicable to the affected
+  files before relying on this generic guidance.
+- Prefer project-specific guidance over this skill when the project explicitly
+  defines an architecture, API boundary, concurrency model, ownership policy,
+  compatibility requirement, or source convention.
+- Treat the configured Swift language mode, deployment targets, compiler flags,
+  package manifests, Xcode build settings, library-evolution configuration,
+  formatter, linter, and test configuration as executable sources of truth for
+  deterministic project behavior.
+- Do not replace an established project convention or architecture with generic
+  Swift guidance unless the task explicitly requests that change.
+- Preserve generated-code, interoperability, ABI, and externally required
+  conventions at their applicable boundaries.
 
-- Determine the Swift language version, supported platform versions, and
-  relevant compiler settings.
-- Inspect `Package.swift`, Xcode build settings, module boundaries, availability
-  annotations, and library-evolution settings when materially affected.
-- Determine whether the module is an application, internal library, distributed
-  SDK, binary framework, or mixed Swift/Objective-C module.
-- Inspect materially affected protocols, conformances, extensions, call sites,
-  and public declarations.
-- Load available framework-specific skills when imports and changed behavior
-  make them relevant, including SwiftUI, UIKit, AVFoundation, Combine,
-  persistence, or networking skills.
-- Do not load framework skills merely because the dependency exists somewhere
-  in the repository.
+## Establish Swift context
 
-## Review Swift correctness
+Before applying specialized guidance, determine the context that materially
+affects the task:
 
-- Check optional handling, force unwraps, forced casts, and assumptions about
-  collection indices or empty values.
-- Report forced operations only when supported inputs can violate the assumed
-  invariant.
-- Check value and reference semantics when mutations cross ownership boundaries.
-- Check copying behavior for mutable reference-backed values and
-  copy-on-write implementations.
-- Check `Equatable` and `Hashable` consistency when identities or mutable fields
-  change.
-- Check `Codable` changes for compatibility, missing defaults, renamed keys,
-  and decoding of previously persisted values.
-- Check escaping closures and callback cardinality.
-- Verify completions, continuations, and delegates are invoked exactly as their
-  contracts require.
-- Check that `defer` and cleanup behavior still execute across throwing and
-  early-return paths.
-- Check that platform availability matches deployment targets and every call
-  site.
+- Swift language mode and relevant compiler settings.
+- Supported platforms and deployment targets.
+- Package and module boundaries.
+- Whether library evolution or binary distribution is involved.
+- Whether the affected surface is private, internal, package, SPI, public, or
+  open.
+- Whether Objective-C interoperability is required.
+- Whether the component is an application, package, internal library, SDK,
+  framework, or mixed Swift/Objective-C module.
 
-## Review ARC and ownership
+Inspect `Package.swift`, Xcode build settings, module declarations, availability
+annotations, public declarations, protocols, conformances, extensions, and
+materially affected call sites when those details influence correctness.
 
-When the change affects references or long-lived work:
+Do not assume SDK, ABI, Objective-C, or library-evolution requirements merely
+because the repository contains those concepts elsewhere.
 
-- Trace strong ownership between objects, closures, tasks, delegates,
-  observers, subscriptions, timers, streams, and continuations.
-- Check for cycles such as owner → stored task or closure → owner.
-- Check closures stored by objects already owned by the captured instance.
-- Check indefinitely running tasks or sequences that strongly retain their
-  owner.
-- Check block-based notification observations and whether their tokens are
-  released.
-- Check Combine subscriptions and whether cancellables intentionally share the
-  owner’s lifecycle.
-- Check timers, display links, callbacks, and run-loop sources that retain their
-  targets or closures.
-- Check `AsyncStream` and `AsyncThrowingStream` continuation termination and
-  cancellation behavior.
-- Verify delegates are weak when the ownership contract requires it.
-- Verify `unowned` references cannot outlive the referenced object.
-- Do not recommend `[weak self]` mechanically.
-- Determine whether the operation should retain its owner until completion or
-  stop when the owner disappears.
-- Account for promotion of weak references to strong references across
-  suspension points.
-- Verify stored tasks, observers, subscriptions, and streams are cancelled or
-  terminated on stop, replacement, failure, and deinitialization.
-- Report a retain cycle only when the full ownership path and lifetime
-  consequence can be demonstrated.
+## Load related skills
 
-## Review Swift concurrency
+- When another skill defines the engineering workflow, preserve that workflow
+  and use this skill only as Swift-specific guidance.
+- Load framework-specific skills only when the framework is materially involved
+  in the task.
+- SwiftUI, UIKit, AVFoundation, Combine, persistence, networking, or other
+  frameworks should provide their own specialized guidance when corresponding
+  skills exist.
+- Do not infer framework requirements solely from dependencies that are present
+  elsewhere in the repository.
+- For a change-set review, combine this skill with the applicable review
+  methodology rather than introducing a Swift-specific review process here.
 
-When the change affects async/await, actors, tasks, callbacks, queues, locks,
-streams, continuations, or shared state:
+## Load references
 
-- Identify the actor, executor, serial queue, or lock responsible for each
-  mutable state transition.
-- Keep related validation and mutation within the same isolation boundary.
-- Check for check-then-act races across actor hops or separate queue operations.
-- Check actor reentrancy when state assumptions span an `await`.
-- Revalidate state after suspension when another task can change it.
-- Check whether callbacks from Objective-C or system frameworks arrive on the
-  expected executor.
-- Check isolation when bridging delegates, notifications, dispatch queues, and
-  completion handlers into async code.
-- Verify UI state and UI framework operations execute on `MainActor` when
-  required.
-- Check `Sendable` conformance for mutable reference types and captured values.
+Read only the references that materially apply to the task:
+
+- `references/language-and-correctness.md` for optionals, casts, value/reference
+  semantics, collections, `Codable`, `Equatable`, `Hashable`, closures,
+  continuations, and general Swift correctness.
+- `references/ownership-and-lifecycle.md` for ARC, closure capture, tasks,
+  delegates, observers, subscriptions, timers, streams, resource ownership, and
+  cleanup.
+- `references/concurrency.md` for actors, executors, isolation, `Sendable`,
+  structured concurrency, cancellation, tasks, locks, continuations, streams,
+  and event ordering.
+- `references/errors-and-cancellation.md` for error propagation, translation,
+  recovery, rollback, retries, cancellation, and throwing contracts.
+- `references/api-and-compatibility.md` for source compatibility, API evolution,
+  ABI/resilience, access control, protocols, enums, availability, SPI, and
+  public contracts.
+- `references/interoperability.md` for Objective-C exposure, selectors,
+  nullability, bridging, callbacks, delegates, and platform framework
+  boundaries.
+- `references/testing.md` for Swift-specific asynchronous, lifecycle,
+  concurrency, ownership, API, and compatibility testing.
+
+Load only references relevant to the affected code. Do not load a reference
+solely because it exists.
+
+## Engineering baseline
+
+- Prefer clear, idiomatic Swift over abstractions that do not solve a
+  demonstrated problem.
+- Make ownership and lifetime explicit when correctness depends on reference
+  semantics or long-lived work.
+- Make isolation, ordering, cancellation, and asynchronous ownership explicit
+  when correctness depends on concurrency.
+- Keep related validation and mutation within the same isolation boundary when
+  they form one logical state transition.
+- Revalidate assumptions after suspension when concurrent work can invalidate
+  them.
+- Prefer structured concurrency when child work belongs to the lifetime of a
+  parent operation.
+- Preserve original failure information and cancellation semantics unless the
+  public contract intentionally translates them.
+- Keep public APIs intentional and compatible with their supported consumers.
+- Respect source, ABI, Objective-C, SPI, and platform-availability boundaries
+  when they materially apply.
+- Ensure acquired resources have a deliberate release, cancellation, or
+  termination path.
+- Prefer deterministic compiler, analyzer, formatter, linter, and test results
+  over subjective style judgments.
+
+## Ownership principles
+
+Do not treat weak capture as a default solution.
+
+When references or long-lived work are involved:
+
+- Determine who should own the operation.
+- Determine how long that ownership should last.
+- Trace strong references through stored closures, tasks, delegates, observers,
+  subscriptions, timers, streams, and continuations.
+- Distinguish an intentional lifetime extension from a retain cycle.
+- Account for weak references promoted to strong references across suspension.
+- Ensure stop, replacement, failure, cancellation, and teardown paths release
+  resources according to the intended lifetime.
+
+Do not report or fix a retain cycle unless the ownership path and lifetime
+consequence can be demonstrated.
+
+## Concurrency principles
+
+When asynchronous or shared mutable state is involved:
+
+- Identify the actor, executor, queue, lock, or other isolation mechanism that
+  owns each mutable state transition.
+- Keep related check-and-mutate operations within one isolation boundary when
+  atomicity is required.
+- Consider actor reentrancy whenever an assumption spans an `await`.
+- Revalidate mutable assumptions after suspension when another task may have
+  changed them.
+- Verify UI-bound work executes on the appropriate main isolation boundary.
 - Treat `@unchecked Sendable`, `nonisolated`, unsafe isolation escapes, and
-  compiler-suppression annotations as explicit proof obligations.
-- Check whether `Task.detached` incorrectly discards actor context, task-local
-  values, priority, or cancellation.
-- Check whether unstructured tasks are owned, cancellable, and bounded by an
-  appropriate lifecycle.
-- Prefer structured concurrency when child work belongs to the parent
-  operation.
-- Verify cancellation is checked and propagated at meaningful boundaries.
-- Do not convert cancellation into failure unless the API contract requires it.
-- Do not swallow cancellation when it must stop later state mutations.
-- Check for locks held across suspension points.
-- Check lock ordering when multiple locks can be acquired.
-- Verify continuations resume exactly once on every reachable path.
-- Verify stream termination releases continuations, producers, and consumers.
-- Verify event ordering when independent tasks consume related events.
-- Consider Swift strict-concurrency behavior appropriate to the configured
-  language mode and deployment targets.
-- Do not assume an actor, serial queue, or lock makes a multi-step operation
-  atomic when the operation leaves that isolation boundary.
+  concurrency-suppression annotations as explicit proof obligations.
+- Use `Task.detached` only when discarding inherited actor context, task-local
+  values, priority, and cancellation is intentional.
+- Ensure unstructured tasks have an explicit owner and lifetime.
+- Propagate cancellation at boundaries where continued work would violate the
+  operation contract.
+- Do not hold synchronization primitives across suspension points unless the
+  primitive and design explicitly support that behavior.
+- Ensure checked continuations resume exactly once on every reachable path.
+- Ensure stream termination releases producers, continuations, consumers, and
+  other retained resources.
+- Do not assume an actor, queue, or lock makes a multi-step operation atomic if
+  execution leaves that isolation boundary.
 
-## Review lifecycle and state
+## API and compatibility principles
 
-When the change affects a controller, service, session, recorder, manager, or
-other stateful component:
+When changing externally visible Swift surface:
 
-- Enumerate valid stable and transitional states materially affected by the
-  change.
-- Verify each public operation validates and transitions state atomically.
-- Check success, failure, cancellation, interruption, retry, and cleanup
-  transitions.
-- Check repeated calls, out-of-order events, duplicate callbacks, and stale
-  asynchronous responses.
-- Verify stale work cannot mutate a replacement session, signed-out state, new
-  generation, or completed operation.
-- Check whether terminal failures can incorrectly recover into active states.
-- Check whether expected interruptions preserve enough state for safe recovery.
-- Verify stop and teardown behavior is idempotent when callers may invoke it
-  repeatedly.
-- Verify partially completed configuration is rolled back or reconciled.
-- Verify observation begins early enough to capture events required for
-  configuration and recovery.
-- Verify observation cannot silently terminate while the owner continues
-  reporting an active state.
-
-## Review errors and cancellation
-
-- Preserve the original error when callers require its domain and context.
-- Check broad `catch`, empty `catch`, `try?`, and error replacement for swallowed
-  failures.
-- Verify translated errors preserve actionable cause and operation context.
-- Avoid moving the owner into a terminal failure state for recoverable or
-  expected conditions.
-- Verify rollback failures do not hide the primary error.
-- Verify cancellation leaves state and resources consistent.
-- Check that callbacks and continuations do not report both cancellation and a
-  later success or failure.
-- Verify retry logic distinguishes transient, permanent, and cancelled
-  operations.
-- Check that public throwing and non-throwing behavior remains compatible with
-  documented contracts.
-
-## Review Swift API and ABI compatibility
-
-When public or package-facing declarations change:
-
-- Check source compatibility for names, argument labels, generic constraints,
-  overload resolution, return types, async/throws behavior, and isolation.
-- Check protocol requirement additions and conformer impact.
-- Check enum case additions when exhaustive consumers or frozen enums are
-  relevant.
-- Check access-level changes and do not use naming conventions as access
-  control.
-- Check `public`, `open`, `package`, SPI, and implementation-only boundaries
-  against the intended consumers.
-- Check Objective-C representability when the API must remain available to
-  Objective-C callers.
-- Check selectors, nullability, inherited exposure, and generated bridging
-  behavior when relevant.
-- Check availability annotations against supported operating systems.
-- When library evolution is enabled, inspect ABI and resilience implications.
+- Identify the intended consumers before deciding whether a change is
+  compatible.
+- Consider names, argument labels, generic constraints, overload resolution,
+  return types, optionality, async/throws behavior, and isolation.
+- Consider protocol requirement additions and their impact on existing
+  conformers.
+- Consider enum evolution when exhaustive consumers or frozen representations
+  are relevant.
+- Treat access control as part of the API contract; naming conventions do not
+  replace language-level access control.
+- Preserve `public`, `open`, `package`, SPI, and implementation-only boundaries
+  according to the intended consumer model.
+- Evaluate Objective-C representability only when Objective-C consumers are
+  part of the supported contract.
+- Evaluate availability against actual supported deployment targets.
+- When library evolution is enabled, account for ABI and resilience
+  implications.
 - Treat `@frozen`, `@inlinable`, `@usableFromInline`, exported imports, and
-  stored-layout changes as compatibility-sensitive.
-- Verify public documentation describes actual behavior, defaults, errors,
-  cancellation, ownership, and availability.
-- Require public API tests or baselines when the project uses them and the
-  change materially affects the surface.
+  layout-sensitive changes as compatibility-sensitive.
 
-## Review Swift hardening
+Do not classify an internal implementation change as a breaking public API
+change without establishing the affected consumer boundary.
 
-- Check malformed, missing, duplicated, stale, and out-of-order callback data.
-- Check repeated delegate events, notifications, stream elements, and completion
-  invocations.
-- Check partial configuration and partial resource-acquisition failures.
-- Verify timeout and retry behavior does not leave abandoned tasks.
-- Verify stale responses cannot update newer authentication, session, or
-  configuration state.
-- Check unbounded arrays, buffers, streams, caches, logs, and retained payloads.
-- Check sensitive values before they enter logs, telemetry, errors, or
-  attachments.
-- Verify diagnostic events include useful operation context without exposing
-  credentials or personal information.
-- Verify deinitialization is not the only required cleanup mechanism when the
-  owner can remain retained by its work.
-- Verify recovery paths do not duplicate observers, inputs, outputs,
-  subscriptions, or background operations.
+## Lifecycle and state principles
 
-## Review Swift tests
+When a stateful component is materially involved:
 
-- Verify tests cover observable behavior rather than implementation details.
-- Check new success, failure, cancellation, interruption, and recovery behavior
-  when materially changed.
-- Check asynchronous tests for deterministic completion.
-- Avoid timing-only sleeps when the test can await an event, state, expectation,
-  or clock.
-- Verify expectations cannot be fulfilled by unrelated callbacks.
-- Verify callbacks expected once fail when invoked multiple times.
-- Check actor and main-actor isolation in test helpers.
-- Check retain-cycle fixes with a deallocation test when the lifecycle is
-  deterministic.
-- Check public API and ABI baselines when required by the project.
-- For test-only changes, verify assertions exercise the production behavior they
-  claim to cover.
-- Do not duplicate compiler, SwiftLint, SwiftFormat, or test diagnostics unless
-  one higher-level defect explains multiple failures.
+- Make stable and transitional states explicit enough to reason about.
+- Keep state validation and mutation atomic when they represent one operation.
+- Consider success, failure, cancellation, interruption, retry, replacement,
+  and teardown paths.
+- Handle repeated calls, duplicate callbacks, stale asynchronous responses, and
+  out-of-order events when the underlying contract permits them.
+- Prevent stale work from mutating a newer session, generation, authentication
+  state, or completed operation.
+- Make stop and teardown idempotent when callers may invoke them repeatedly.
+- Reconcile or roll back partially completed configuration when required.
+- Ensure observation starts early enough and remains alive long enough to
+  satisfy the component's lifecycle contract.
 
-## Write Swift findings
+## Errors and cancellation principles
 
-For each Swift-specific finding:
+- Preserve actionable error context.
+- Treat broad `catch`, empty `catch`, `try?`, and error replacement carefully
+  when they can suppress required failure information.
+- Translate errors only at a boundary that owns the translated contract.
+- Preserve the primary error when cleanup or rollback also fails unless the
+  contract defines another priority.
+- Keep cancellation distinct from ordinary failure unless the API contract
+  explicitly unifies them.
+- Ensure cancellation leaves state and resources consistent.
+- Prevent callbacks or continuations from reporting multiple terminal outcomes.
+- Make retry policy distinguish transient failure, permanent failure, and
+  cancellation when that distinction affects behavior.
 
-- Identify the concrete ownership path, isolation boundary, state transition, or
-  compatibility contract involved.
-- Explain the reachable sequence that produces the failure.
-- Distinguish compiler-enforced problems from runtime or lifecycle problems.
-- Recommend the smallest safe direction consistent with project architecture.
-- Do not prescribe `[weak self]`, an actor, a lock, or `MainActor` without
-  explaining why it matches the required ownership or isolation contract.
-- Do not report generic Swift preferences as defects unless project guidance
-  makes them mandatory.
-- Follow the finding structure and output contract established by the generic
-  diff-review process.
+## Use with other skills
+
+Examples:
+
+```text
+Review Swift SDK change
+→ code-review-diff
+→ languages/swift
+→ applicable framework skills
+→ project guidance
+
+Implement Swift concurrency fix
+→ languages/swift
+→ applicable framework skills
+→ project guidance
+
+Debug Swift lifecycle issue
+→ debugging
+→ languages/swift
+→ applicable framework skills
+→ project guidance
+```
+
+When another skill defines the workflow, output contract, severity model,
+validation strategy, or change methodology, preserve that contract and use this
+skill only as specialized Swift guidance.
+
+## Validation
+
+When execution tools are available, prefer the project's own validation
+commands and configuration.
+
+Depending on the project, relevant checks may include:
+
+- Swift compilation.
+- Package or Xcode builds.
+- Swift tests.
+- Project-configured linting or formatting.
+- Strict-concurrency diagnostics.
+- Public API or ABI validation when the project uses those mechanisms.
+
+Run only checks relevant to the task and available environment.
+
+Do not claim a check passed unless it was executed successfully.
