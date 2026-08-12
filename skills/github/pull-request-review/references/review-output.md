@@ -8,6 +8,10 @@ verdict rendering
 
 required versus optional findings
 
+rule validation outcomes
+
+compliance and coverage reporting
+
 summary structure
 
 inline comment formatting
@@ -32,7 +36,9 @@ merge-blocking semantics
 
 technical review rules
 
-Those come from code-review-diff and the materially relevant technical skills.
+project rules themselves
+
+Those come from code-review-diff, repository/project guidance, and thematerially relevant technical skills.
 
 Pull Request Review
 
@@ -64,6 +70,26 @@ implementation detail.]
 
 [Explain the optional improvement and why it would help.]
 
+### Rule Validation
+
+**Compliance:** [N]% · **Coverage:** [N]%
+
+`[N] passed` · `[N] failed` · `[N] not reviewed` · `[N] not applicable`
+
+#### Failed rules
+
+- ❌ `[RULE-ID]` → `[finding-id]`
+
+<details>
+<summary>View all rule outcomes</summary>
+
+- ✅ `[RULE-ID]`
+- ❌ `[RULE-ID]` — Finding: `[finding-id]`
+- ⏭️ `[RULE-ID]` — [Why the applicable rule could not be reviewed]
+- ➖ `[RULE-ID]` — [Why the rule does not apply to this change]
+
+</details>
+
 ### ✅ Highlights
 
 - [Call out a meaningful design, test, architecture, or implementation strength.]
@@ -75,6 +101,8 @@ implementation detail.]
 - ⏭️ [check not run and why]
 
 Do not render empty sections.
+
+Do not render Rule Validation when no explicit rule set was evaluated.
 
 Findings
 
@@ -154,6 +182,246 @@ insufficient evidence for merge readiness
 explicitly requested comment-only review
 
 Do not use Reviewed merely to avoid making a decision when sufficient evidenceexists.
+
+Rule Validation
+
+Use this section when the review evaluates explicit project, organization,repository, language, framework, or policy rules with stable identifiers.
+
+Rule validation exists to make the review:
+
+auditable
+
+reproducible
+
+traceable
+
+easier to compare across runs
+
+It does not replace findings or determine the merge verdict.
+
+Use four outcomes:
+
+Outcome
+
+Meaning
+
+✅ pass
+
+The rule applies, was reviewed, and is satisfied
+
+❌ fail
+
+The rule applies, was reviewed, and is violated
+
+⏭️ not_reviewed
+
+The rule applies, but there is insufficient evidence to evaluate it
+
+➖ not_applicable
+
+The rule does not apply to the semantic scope of the change
+
+Do not count a rule as pass merely because the behavior it governs was notintroduced by the pull request.
+
+For example:
+
+No cancellation lifecycle introduced.
+
+should normally be:
+
+not_applicable
+
+for a cancellation-specific rule, not pass.
+
+Rule Summary
+
+Keep the visible rule summary compact.
+
+Prefer:
+
+### Rule Validation
+
+**Compliance:** 92% · **Coverage:** 88%
+
+`68 passed` · `6 failed` · `10 not reviewed` · `21 not applicable`
+
+When useful, add an area summary:
+
+| Area | Pass | Fail | Not reviewed |
+| --- | ---: | ---: | ---: |
+| Architecture | 8 | 0 | 0 |
+| BLoC | 14 | 2 | 0 |
+| Testing | 10 | 3 | 7 |
+| API | 3 | 0 | 0 |
+| UI | 4 | 1 | 0 |
+
+Do not render an area table when it adds more noise than signal.
+
+Compliance
+
+Calculate compliance using only rules that were applicable and reviewed:
+
+compliance =
+pass /
+(pass + fail)
+
+Example:
+
+68 pass
+6 fail
+
+68 / (68 + 6) = 91.9%
+
+Render:
+
+Compliance: 92%
+
+Do not include not_reviewed or not_applicable in the compliance denominator.
+
+If no applicable rule was reviewed, do not calculate compliance.
+
+Coverage
+
+Calculate coverage using applicable rules:
+
+coverage =
+(pass + fail) /
+(pass + fail + not_reviewed)
+
+Example:
+
+68 pass
+6 fail
+10 not_reviewed
+
+(68 + 6) / (68 + 6 + 10) = 88.1%
+
+Render:
+
+Coverage: 88%
+
+Do not include not_applicable rules in coverage.
+
+If no applicable rule exists, do not calculate coverage.
+
+Scoring Semantics
+
+Compliance and coverage are informational.
+
+They must never determine the review verdict.
+
+Do not create thresholds such as:
+
+>= 90% approve
+80–89% warning
+< 80% reject
+
+A review can legitimately be:
+
+Compliance: 98%
+Coverage: 100%
+
+Changes Requested 🔴
+
+when one failed rule maps to a merge-blocking finding.
+
+Likewise, a low coverage score can result in:
+
+Reviewed 💬
+
+when insufficient evidence prevents a merge recommendation.
+
+The relationship is:
+
+Rules
+  ↓
+outcomes
+  ↓
+traceability
+
+Failed rules
+  ↓
+findings
+  ↓
+merge-blocking semantics
+  ↓
+verdict
+
+Do not derive the verdict directly from the score.
+
+Failed Rules
+
+Show failed rules prominently because they represent actionable policy ortechnical violations.
+
+Prefer:
+
+#### Failed rules
+
+- ❌ `FL-BLOC-050` → `failure-state-infinite-spinner`
+- ❌ `FL-BLOC-031` → `failure-state-infinite-spinner`
+- ❌ `FL-TEST-040` → `missing-save-order-bloc-tests`
+- ❌ `FL-REVIEW-020` → `orphaned-stock-pagination-parameter`
+
+Every failed rule must reference at least one finding.
+
+A failed rule must not exist only as an isolated score deduction.
+
+Rule-to-Finding Mapping
+
+Multiple failed rules may map to the same finding when they represent the sameunderlying defect.
+
+Example:
+
+FL-BLOC-050 ─┐
+FL-BLOC-031 ─┼──> failure-state-infinite-spinner
+FL-REVIEW-001┘
+
+Do not create duplicate findings merely to preserve a one-rule-to-one-findingrelationship.
+
+Findings should remain consolidated by root cause.
+
+One finding may therefore satisfy several failed rules.
+
+A failed rule may reference multiple findings when distinct defects are requiredto explain the violation.
+
+Full Rule Outcomes
+
+Keep the complete rule list collapsed when the review evaluates many rules.
+
+Prefer:
+
+<details>
+<summary>View all rule outcomes</summary>
+
+- ✅ `FL-BLOC-001`
+- ✅ `FL-BLOC-002`
+- ❌ `FL-BLOC-050` — Finding: `failure-state-infinite-spinner`
+- ⏭️ `FL-TEST-051` — Widget-test harness completeness could not be evaluated.
+- ➖ `FL-TEST-091` — No cancellation lifecycle was introduced.
+
+</details>
+
+Use explanations for not_reviewed and not_applicable when the reason is notobvious.
+
+For pass, add explanatory text only when it materially improves traceability.
+
+Avoid verbose commentary on every passing rule.
+
+Rule Ordering
+
+Prefer a stable, understandable order.
+
+When available, use:
+
+repository-defined rule order
+
+rule-family/category order
+
+rule identifier order
+
+Do not order rules by pass/fail status inside the full outcome list if doing somakes it harder to compare runs.
+
+The compact Failed rules section already surfaces violations separately.
 
 Finding Titles
 
@@ -259,6 +527,10 @@ maintainability
 
 Do not invent a category merely to fill the label.
 
+Do not prefix inline comments with rule IDs unless doing so materially improvestraceability for the repository.
+
+Prefer keeping rule mapping in the review summary.
+
 Inline Comment Placement
 
 Use an inline comment when:
@@ -315,6 +587,18 @@ unless they communicate something useful to the author.
 
 Validation
 
+Validation reports execution evidence such as builds, tests, linters, staticanalysis, and CI checks.
+
+It is separate from rule validation.
+
+Use:
+
+Rule Validation
+    = which explicit review rules were evaluated and their outcomes
+
+Validation
+    = which deterministic checks ran and what happened
+
 Report only checks that were actually observed or executed.
 
 Use:
@@ -347,6 +631,22 @@ When there are no actionable findings, keep the output compact.
 **Approved ✅** · No actionable findings
 
 **#482** · Fix recording recovery after interruption · @author · 6 files · +184 −72
+
+### Rule Validation
+
+**Compliance:** 100% · **Coverage:** 96%
+
+`47 passed` · `0 failed` · `2 not reviewed` · `18 not applicable`
+
+<details>
+<summary>View all rule outcomes</summary>
+
+- ✅ `SDK-ARCH-001`
+- ✅ `SDK-CONC-004`
+- ⏭️ `SDK-TEST-021` — Integration environment unavailable.
+- ➖ `SDK-API-030` — No supported API surface changed.
+
+</details>
 
 ### Validation
 
@@ -400,6 +700,31 @@ publishing the terminal state.
 The same lifecycle condition is already represented by `canRecover`; reusing it
 would avoid duplicating the transition rule.
 
+### Rule Validation
+
+**Compliance:** 92% · **Coverage:** 88%
+
+`68 passed` · `6 failed` · `10 not reviewed` · `21 not applicable`
+
+#### Failed rules
+
+- ❌ `SDK-LIFE-020` → `stale-recovery-overwrites-state`
+- ❌ `SDK-CONC-031` → `stale-recovery-overwrites-state`
+- ❌ `SDK-CLEAN-010` → `failure-path-leaves-session-running`
+
+<details>
+<summary>View all rule outcomes</summary>
+
+- ✅ `SDK-LIFE-001`
+- ✅ `SDK-CONC-001`
+- ❌ `SDK-LIFE-020` — Finding: `stale-recovery-overwrites-state`
+- ❌ `SDK-CONC-031` — Finding: `stale-recovery-overwrites-state`
+- ❌ `SDK-CLEAN-010` — Finding: `failure-path-leaves-session-running`
+- ⏭️ `SDK-TEST-041` — Device interruption tests were not available.
+- ➖ `SDK-API-030` — No supported API surface changed.
+
+</details>
+
 ### Validation
 
 - ✅ Unit tests
@@ -430,15 +755,40 @@ controller's serialization/ownership contract.
 **Change:** Confirm or enforce exclusive recovery ownership before the terminal
 state transition.
 
+### Rule Validation
+
+**Compliance:** 100% · **Coverage:** 67%
+
+`12 passed` · `0 failed` · `6 not reviewed` · `9 not applicable`
+
+#### Failed rules
+
+None.
+
+<details>
+<summary>View all rule outcomes</summary>
+
+- ✅ `SDK-ARCH-001`
+- ✅ `SDK-LIFE-001`
+- ⏭️ `SDK-CONC-040` — Recovery serialization could not be established from the
+  available evidence.
+- ➖ `SDK-API-030` — No supported API surface changed.
+
+</details>
+
 ### Validation
 
 - ⏭️ Unit tests — not available in the current environment
 
 Use Reviewed 💬 only when withholding a merge recommendation is intentional.
 
+A review may contain a required finding while rule compliance remains 100% ifthe finding is based on a technical skill or contract not represented by anexplicit project rule.
+
+Rule validation must not be treated as the complete universe of review logic.
+
 Local Review
 
-For local or pre-push reviews, use the same finding structure without GitHub PRmetadata.
+For local or pre-push reviews, use the same finding and rule-validation structurewithout GitHub PR metadata.
 
 Example:
 
@@ -468,6 +818,28 @@ performing cleanup.
 The state is already available from the task snapshot; reusing it would avoid a
 second lookup.
 
+### Rule Validation
+
+**Compliance:** 95% · **Coverage:** 91%
+
+`38 passed` · `2 failed` · `4 not reviewed` · `12 not applicable`
+
+#### Failed rules
+
+- ❌ `CONC-021` → `stale-task-clears-replacement`
+- ❌ `LIFE-010` → `stale-task-clears-replacement`
+
+<details>
+<summary>View all rule outcomes</summary>
+
+- ✅ `ARCH-001`
+- ❌ `CONC-021` — Finding: `stale-task-clears-replacement`
+- ❌ `LIFE-010` — Finding: `stale-task-clears-replacement`
+- ⏭️ `TEST-031` — Integration test environment unavailable.
+- ➖ `API-020` — No supported API surface changed.
+
+</details>
+
 ### Validation
 
 - ✅ Unit tests
@@ -487,9 +859,23 @@ centered on root causes
 
 clear about blocking versus optional feedback
 
+traceable to explicit project rules when those rules exist
+
 Do not:
 
 render empty sections
+
+render rule validation when no explicit rules were evaluated
+
+count not_applicable as pass
+
+count not_reviewed as fail
+
+use compliance or coverage thresholds to determine the verdict
+
+create failed rules without corresponding findings
+
+create duplicate findings for multiple rules describing the same root cause
 
 create findings for personal preferences
 
@@ -509,5 +895,7 @@ The author should be able to understand within seconds:
 
 Can this merge?
 If not, what must change?
+Which explicit rules failed?
+How much of the applicable rule set was reviewed?
 What is optional?
 What validation supports the decision?
