@@ -2,7 +2,8 @@
 // https://pink-tech.io/
 
 import { z } from 'zod'
-import type { AgentTool } from '../../../src/tool'
+import type { AgentTool } from '../../../src/tools'
+import { AgentToolEffect, AgentToolIdempotency } from '../../../src/tools'
 
 /**
  * Creates a tool that always fails during execution.
@@ -21,7 +22,13 @@ export function createFailingAgentTool(
   return {
     description: 'A tool that always fails when executed.',
     inputSchema: z.object({}),
+    metadata: {
+      effect: AgentToolEffect.Execute,
+      idempotency: AgentToolIdempotency.NonIdempotent,
+      permissions: [],
+    },
     name: options.name ?? 'test.fail',
+    outputSchema: z.never(),
     async execute(): Promise<never> {
       throw new Error(message)
     },

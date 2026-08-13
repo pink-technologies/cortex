@@ -1,28 +1,29 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { bundledAgentCatalog } from '@cortex/agent-catalog'
 import { LLMFactoryImpl } from '@cortex/llm'
 import { Module } from '@nestjs/common'
-import { AgentRuntimeBootstrap } from './bootstrap'
-import { AgentProcessResolver } from './agent-process-resolver'
-import { NODE_CONFIGURATION, NodeConfiguration } from '../configuration'
+import { NODE_CONFIGURATION, type NodeConfiguration } from '../configuration'
 import { NodeConfigurationModule } from '../configuration/node-configuration.module'
+import { AgentProcessResolver } from './agent-process-resolver'
+import { AgentRuntimeBootstrap } from './bootstrap'
 import { NodeAgentLLMResolver } from './provider'
 import {
-  AgentFactory,
+  AgentDefinitionLoader,
   AgentDefinitionRegistry,
+  AgentFactory,
   AgentRuntime,
+  AgentToolAvailabilityResolver,
   AgentToolExecutor,
+  AgentToolPermissionAuthorizationPolicy,
   AgentToolRegistry,
-  CapabilityAgentExecutionScopeResolver,
+  AgentToolResultContentMapper,
   CapabilityDefinitionLoader,
   CapabilityRegistry,
-  Kernel,
   DECODER,
-  AgentDefinitionLoader,
-  Decoder,
+  type Decoder,
+  Kernel,
   SkillDefinitionLoader,
   SkillRegistry,
   TomlDecoder,
@@ -95,17 +96,42 @@ import {
       },
     },
     {
-      inject: [AgentToolRegistry],
-      provide: AgentToolExecutor,
-      useFactory: (toolRegistry: AgentToolRegistry): AgentToolExecutor => {
-        return new AgentToolExecutor(toolRegistry)
+      provide: AgentToolPermissionAuthorizationPolicy,
+      useFactory: (): AgentToolPermissionAuthorizationPolicy => {
+        return new AgentToolPermissionAuthorizationPolicy()
       },
     },
     {
-      inject: [AgentToolExecutor],
+      inject: [AgentToolRegistry, AgentToolPermissionAuthorizationPolicy],
+      provide: AgentToolAvailabilityResolver,
+      useFactory: (
+        toolRegistry: AgentToolRegistry,
+        authorizationPolicy: AgentToolPermissionAuthorizationPolicy,
+      ): AgentToolAvailabilityResolver => {
+        return new AgentToolAvailabilityResolver(toolRegistry, authorizationPolicy)
+      },
+    },
+    {
+      inject: [AgentToolRegistry, AgentToolPermissionAuthorizationPolicy],
+      provide: AgentToolExecutor,
+      useFactory: (
+        toolRegistry: AgentToolRegistry,
+        authorizationPolicy: AgentToolPermissionAuthorizationPolicy,
+      ): AgentToolExecutor => {
+        return new AgentToolExecutor(toolRegistry, authorizationPolicy)
+      },
+    },
+    {
+      provide: AgentToolResultContentMapper,
+      useFactory: (): AgentToolResultContentMapper => {
+        return new AgentToolResultContentMapper()
+      },
+    },
+    {
+      inject: [AgentToolExecutor, AgentToolResultContentMapper],
       provide: Kernel,
-      useFactory: (toolExecutor: AgentToolExecutor): Kernel => {
-        return new Kernel(toolExecutor)
+      useFactory: (toolExecutor: AgentToolExecutor, toolResultContentMapper: AgentToolResultContentMapper): Kernel => {
+        return new Kernel(toolExecutor, toolResultContentMapper)
       },
     },
     {
@@ -121,38 +147,15 @@ import {
       },
     },
     {
-      inject: [CapabilityRegistry, SkillRegistry],
-      provide: CapabilityAgentExecutionScopeResolver,
-      useFactory: (
-        capabilityRegistry: CapabilityRegistry,
-        skillRegistry: SkillRegistry,
-      ): CapabilityAgentExecutionScopeResolver => {
-        return new CapabilityAgentExecutionScopeResolver(capabilityRegistry, skillRegistry)
-      },
-    },
-    {
-      inject: [
-        AgentFactory,
-        AgentDefinitionRegistry,
-        CapabilityAgentExecutionScopeResolver,
-        Kernel,
-        AgentToolRegistry,
-      ],
+      inject: [AgentFactory, AgentDefinitionRegistry, Kernel, AgentToolAvailabilityResolver],
       provide: AgentRuntime,
       useFactory: (
         agentFactory: AgentFactory,
         definitionRegistry: AgentDefinitionRegistry,
-        executionScopeResolver: CapabilityAgentExecutionScopeResolver,
         kernel: Kernel,
-        toolRegistry: AgentToolRegistry,
+        toolResolver: AgentToolAvailabilityResolver,
       ): AgentRuntime => {
-        return new AgentRuntime(
-          agentFactory,
-          definitionRegistry,
-          executionScopeResolver,
-          kernel,
-          toolRegistry,
-        )
+        return new AgentRuntime(agentFactory, definitionRegistry, kernel, toolResolver)
       },
     },
     {
@@ -184,9 +187,9 @@ import {
         skillRegistry: SkillRegistry,
       ): AgentRuntimeBootstrap => {
         return new AgentRuntimeBootstrap(
-          resolveAgentsCatalogDirectory('agents'),
-          resolveAgentsCatalogDirectory('capabilities'),
-          resolveAgentsCatalogDirectory('skills'),
+          bundledAgentCatalog.agentsDirectory,
+          bundledAgentCatalog.capabilitiesDirectory,
+          bundledAgentCatalog.skillsDirectory,
           agentDefinitionLoader,
           agentDefinitionRegistry,
           capabilityDefinitionLoader,
@@ -199,30 +202,3 @@ import {
   ],
 })
 export class AgentModule {}
-
-/**
- * Resolves a directory under the monorepo-root `.agents/` catalog.
- *
- * Walks from `process.cwd()` upward until `.agents/<name>` is found so the
- * Node can boot from the repo root or from `apps/node`.
- */
-function resolveAgentsCatalogDirectory(
-  name: 'agents' | 'capabilities' | 'skills',
-): string {
-  let directory = process.cwd()
-
-  for (;;) {
-    const candidate = join(directory, '.agents', name)
-    if (existsSync(candidate)) {
-      return candidate
-    }
-
-    const parent = join(directory, '..')
-    if (parent === directory) {
-      break
-    }
-    directory = parent
-  }
-
-  return join(process.cwd(), '.agents', name)
-}

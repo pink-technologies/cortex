@@ -2,11 +2,11 @@
 // https://pink-tech.io/
 
 import z, { type ZodType } from 'zod'
-import { LLMToolDefinition } from '@cortex/llm'
+import { type LLMToolDefinition } from '@cortex/llm'
 import type { AgentExecutionContext } from '@/execution/agent-execution-context'
-import { AgentToolAlreadyRegisteredError, AgentToolNotFoundError } from '@/tool/error/error'
-import type { AgentTool } from '@/tool/models/agent-tool'
-import type { RegisteredAgentTool } from '@/tool/models/'
+import { AgentToolAlreadyRegisteredError, AgentToolNotFoundError } from '@/tools/error/error'
+import type { AgentTool } from '@/tools/models/agent-tool'
+import type { RegisteredAgentTool } from '@/tools/models'
 
 /**
  * Stores and resolves tools available to the agent runtime.
@@ -34,6 +34,25 @@ export class AgentToolRegistry<Context extends AgentExecutionContext = AgentExec
   // MARK: - Instance methods
 
   /**
+   * Returns language-model definitions for every registered tool.
+   *
+   * Definitions follow registration order from {@link values}. Each entry
+   * exposes the tool name, description, and JSON Schema for the input
+   * parameters derived from the tool's input schema.
+   *
+   * @returns Language-model tool definitions for all registered tools.
+   */
+  definitions(): readonly LLMToolDefinition[] {
+    return this.values().map((tool) => ({
+      description: tool.description,
+      name: tool.name,
+      parameters: z.toJSONSchema(tool.inputSchema, {
+        io: 'input',
+      }),
+    }))
+  }
+
+  /**
    * Returns language-model definitions for the specified registered tools.
    *
    * Definitions are returned in the same order as the provided names. Every
@@ -44,7 +63,7 @@ export class AgentToolRegistry<Context extends AgentExecutionContext = AgentExec
    * @throws {@link AgentToolNotFoundError} when a requested tool is not registered.
    */
   definitionsFor(names: readonly string[]): readonly LLMToolDefinition[] {
-    let definitions: LLMToolDefinition[] = []
+    const definitions: LLMToolDefinition[] = []
 
     for (const name of names) {
       const tool = this.resolve(name)
@@ -120,7 +139,9 @@ export class AgentToolRegistry<Context extends AgentExecutionContext = AgentExec
     return {
       description: tool.description,
       inputSchema: tool.inputSchema as ZodType<unknown>,
+      metadata: tool.metadata,
       name: tool.name,
+      outputSchema: tool.outputSchema,
       execute: async (input: unknown, context: Context): Promise<unknown> => tool.execute(input as Input, context),
     }
   }

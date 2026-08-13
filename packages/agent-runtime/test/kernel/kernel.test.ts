@@ -21,11 +21,13 @@ import {
 } from '../../src/kernel/error/error'
 import { Kernel } from '../../src/kernel/kernel'
 import {
+  AgentToolEffect,
   AgentToolExecutor,
+  AgentToolIdempotency,
   AgentToolInputValidationError,
   AgentToolRegistry,
   type AgentTool,
-} from '../../src/tool'
+} from '../../src/tools'
 import { createAgentDefinitionFixture } from '../fixtures/agent'
 import { createAgentExecutionContextFixture } from '../fixtures/execution'
 import { ScriptedLLM } from '../fixtures/llm'
@@ -487,7 +489,13 @@ describe('Kernel', () => {
         const tool: AgentTool<Record<string, never>, undefined> = {
           description: 'Returns undefined.',
           inputSchema: z.object({}),
+          metadata: {
+            effect: AgentToolEffect.Read,
+            idempotency: AgentToolIdempotency.Idempotent,
+            permissions: [],
+          },
           name: 'test.undefined',
+          outputSchema: z.undefined(),
           async execute(): Promise<undefined> {
             return undefined
           },

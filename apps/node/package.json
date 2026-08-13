@@ -9,6 +9,7 @@
     "test:watch": "jest --config jest.config.js --watch"
   },
   "dependencies": {
+    "@cortex/agent-catalog": "workspace:*",
     "@cortex/agent-runtime": "workspace:*",
     "@cortex/integrations": "workspace:*",
     "@cortex/llm": "workspace:*",

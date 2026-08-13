@@ -1,0 +1,29 @@
+# Copyright (c) 2026, PinkTech
+# https://pink-tech.io/
+
+id = "coder"
+name = "Coder"
+description = "Language-agnostic coding agent for Cortex repository.review and related code capabilities."
+
+role = "specialist"
+prompt_file = "prompt.md"
+
+skills = ["code-review-diff", "minimal-fix"]
+capabilities = ["repository.review"]
+delegates_to = []
+
+[safety]
+allow_skill_use = true
+allow_capability_use = true
+allow_delegation = false
+max_delegation_depth = 0
+
+[execution]
+timeout_ms = 600000
+max_iterations = 32
+
+[llm]
+provider = "openai"
+model = "gpt-4o-mini"
+maximum_output_tokens = 4096
+temperature = 0

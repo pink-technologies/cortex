@@ -2,7 +2,7 @@
 // https://pink-tech.io/
 
 import type { AgentExecutionContext } from '@/execution/agent-execution-context'
-import type { AgentToolExecutor } from '@/tool'
+import { AgentToolResultContentMapper, type AgentToolExecutor } from '@/tools/execution'
 import type { KernelRequest, KernelResult } from './models'
 import {
   ContentKind,
@@ -43,10 +43,11 @@ import {
  * content. Unexpected stop reasons, empty completions, unauthorized tools, and
  * budget exhaustion surface as {@link KernelError} subclasses.
  */
-export class Kernel {
+export class Kernel<Context extends AgentExecutionContext = AgentExecutionContext> {
   // MARK: - Private Properties
 
-  private readonly toolExecutor: AgentToolExecutor
+  private readonly agentToolResultContentMapper: AgentToolResultContentMapper
+  private readonly toolExecutor: AgentToolExecutor<Context>
 
   // MARK: - Constructor
 
@@ -55,8 +56,11 @@ export class Kernel {
    *
    * @param toolExecutor - Executor used to resolve, validate, and run tool
    *   requests exposed on {@link KernelRequest.tools}.
+   * @param agentToolResultContentMapper - Mapper that converts successful tool
+   *   execution results into {@link ToolResultContent} for the conversation.
    */
-  constructor(toolExecutor: AgentToolExecutor) {
+  constructor(toolExecutor: AgentToolExecutor, agentToolResultContentMapper: AgentToolResultContentMapper) {
+    this.agentToolResultContentMapper = agentToolResultContentMapper
     this.toolExecutor = toolExecutor
   }
 
@@ -97,7 +101,7 @@ export class Kernel {
    *   stop reason disagree, or when the stop reason is not completed after a
    *   non-tool turn.
    */
-  async execute(request: KernelRequest, context: AgentExecutionContext): Promise<KernelResult> {
+  async execute(request: KernelRequest, context: Context): Promise<KernelResult> {
     context.signal.throwIfAborted()
 
     const abortController = new AbortController()
@@ -119,8 +123,8 @@ export class Kernel {
       abortController.abort(new KernelTimeoutError(timeoutMilliseconds))
     }, timeoutMilliseconds)
 
-    const executionContext: AgentExecutionContext = {
-      executionId: context.executionId,
+    const executionContext: Context = {
+      ...context,
       signal: abortController.signal,
     }
 
@@ -145,11 +149,11 @@ export class Kernel {
 
   // MARK: - Private methods
 
-  private async executeRequest(request: KernelRequest, context: AgentExecutionContext): Promise<KernelResult> {
+  private async executeRequest(request: KernelRequest, context: Context): Promise<KernelResult> {
     const conversation: LLMMessage[] = [...request.messages]
     const allowedToolNames = new Set(request.tools.map((tool) => tool.name))
     const maximumIterations = request.agent.definition.execution.maximumIterations
-    
+
     let usage: TokenUsage = {
       inputTokens: 0,
       outputTokens: 0,
@@ -230,7 +234,7 @@ export class Kernel {
   private async executeTools(
     toolUses: readonly ToolUseContent[],
     allowedToolNames: ReadonlySet<string>,
-    context: AgentExecutionContext,
+    context: Context,
   ): Promise<ToolResultContent[]> {
     const results: ToolResultContent[] = []
 
@@ -241,14 +245,10 @@ export class Kernel {
         throw new KernelToolNotAllowedError(toolUse.name, toolUse.id)
       }
 
-      const result = await this.toolExecutor.execute(toolUse, context)
-      const content = typeof result.output === 'string' ? result.output : (JSON.stringify(result.output) ?? 'null')
+      const executionResult = await this.toolExecutor.execute(toolUse, context)
+      const toolResultContent = this.agentToolResultContentMapper.map(executionResult)
 
-      results.push({
-        content: content,
-        toolUseId: result.toolUseId,
-        type: ContentKind.ToolResult,
-      })
+      results.push(toolResultContent)
     }
 
     return results

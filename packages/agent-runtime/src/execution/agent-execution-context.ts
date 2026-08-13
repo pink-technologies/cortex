@@ -1,6 +1,8 @@
 // Copyright (c) 2026, PinkTech
 // https://pink-tech.io/
 
+import { AgentToolPermission } from "@/tools/datatypes"
+
 /**
  * Runtime information for one agent execution run.
  *
@@ -20,6 +22,14 @@ export interface AgentExecutionContext {
    * runs, delegations). Distinct from agent ids and provider completion ids.
    */
   readonly executionId: string
+
+  /**
+   * Permission identifiers granted for this execution.
+   *
+   * Compared against {@link AgentToolMetadata.permissions} before a tool may
+   * run. An empty set grants no permission-gated tools.
+   */
+  readonly permissions: ReadonlySet<AgentToolPermission>
 
   /**
    * Abort signal for cooperative cancellation of this execution.

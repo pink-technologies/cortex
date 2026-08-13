@@ -4,80 +4,81 @@
 import { AgentFactory } from '@/agent'
 import { AgentDefinitionRegistry } from '@/definition/registry/agent-definition-registry'
 import type { AgentExecutionContext } from '@/execution/agent-execution-context'
-import type { AgentExecutionScopeResolver } from '@/execution/'
 import { Kernel, type KernelResult } from '@/kernel'
-import { AgentToolRegistry } from '@/tool'
+import { AgentToolAvailabilityResolver } from '@/tools/resolver'
 import type { AgentRuntimeRequest } from './models'
 
 /**
- * Provides the primary facade for executing registered Cortex agents.
+ * Primary facade for executing registered Cortex agents.
  *
- * The runtime resolves an agent definition, determines the resources
- * authorized for the execution, creates the executable agent, and delegates
- * the multi-turn lifecycle to the {@link Kernel}.
+ * Resolves an {@link AgentDefinition} by id, creates an executable agent,
+ * resolves authorized tool definitions for the requested names via
+ * {@link AgentToolAvailabilityResolver}, and delegates the multi-turn
+ * lifecycle to the {@link Kernel}.
  */
-export class AgentRuntime {
+export class AgentRuntime<Context extends AgentExecutionContext = AgentExecutionContext> {
   // MARK: - Private Properties
 
   private readonly agentFactory: AgentFactory
   private readonly definitionRegistry: AgentDefinitionRegistry
-  private readonly executionScopeResolver: AgentExecutionScopeResolver
-  private readonly kernel: Kernel
-  private readonly toolRegistry: AgentToolRegistry
+  private readonly kernel: Kernel<Context>
+  private readonly toolResolver: AgentToolAvailabilityResolver<Context>
 
   // MARK: - Constructor
 
   /**
    * Creates an agent runtime.
    *
-   * @param agentFactory - Factory used to create executable agents.
-   * @param definitionRegistry - Registry containing loaded agent definitions.
-   * @param executionScopeResolver - Resolver that determines the resources
-   *   authorized for each execution.
-   * @param kernel - Kernel responsible for the execution loop.
-   * @param toolRegistry - Registry containing executable tools.
+   * @param agentFactory - Factory used to create executable agents from
+   *   definitions.
+   * @param definitionRegistry - Registry of loaded agent definitions.
+   * @param kernel - Kernel that owns the multi-turn execution loop.
+   * @param toolResolver - Resolver that maps requested tool names to
+   *   authorized language-model tool definitions for the execution.
    */
   constructor(
     agentFactory: AgentFactory,
     definitionRegistry: AgentDefinitionRegistry,
-    executionScopeResolver: AgentExecutionScopeResolver,
     kernel: Kernel,
-    toolRegistry: AgentToolRegistry,
+    toolResolver: AgentToolAvailabilityResolver,
   ) {
     this.agentFactory = agentFactory
     this.definitionRegistry = definitionRegistry
-    this.executionScopeResolver = executionScopeResolver
     this.kernel = kernel
-    this.toolRegistry = toolRegistry
+    this.toolResolver = toolResolver
   }
 
-  // MARK: - Instance Methods
+  // MARK: - Instance methods
 
   /**
-   * Executes a registered agent.
+   * Executes a registered agent for one request.
    *
-   * Tool names supplied by the request are treated as requested resources.
-   * The execution-scope resolver determines which tools are authorized before
-   * the runtime exposes their definitions to the agent.
+   * Flow:
+   * 1. Resolve {@link AgentRuntimeRequest.agentId} from the definition registry.
+   * 2. Create an executable agent via {@link AgentFactory.create}.
+   * 3. Resolve authorized tool definitions for
+   *    {@link AgentRuntimeRequest.toolNames} through
+   *    {@link AgentToolAvailabilityResolver.resolve}.
+   * 4. Hand the agent, messages, and tools to {@link Kernel.execute}.
    *
-   * @param request - Agent identifier, initial conversation, and requested
-   *   tools.
-   * @param context - Execution correlation and cancellation information.
-   * @returns The completed kernel result.
+   * Cancellation is checked before definition resolution, after agent and
+   * tool resolution, and is otherwise honored via {@link AgentExecutionContext.signal}.
+   *
+   * @param request - Agent id, initial conversation, and requested tool names.
+   * @param context - Execution correlation, permissions, and cancellation.
+   * @returns The completed kernel result for the run.
+   * @throws {@link AgentDefinitionNotFoundError} when the agent id is unknown.
+   * @throws {@link AgentToolNotFoundError} when a requested tool name is not
+   *   registered.
    */
-  async execute(request: AgentRuntimeRequest, context: AgentExecutionContext): Promise<KernelResult> {
+  async execute(request: AgentRuntimeRequest, context: Context): Promise<KernelResult> {
     context.signal.throwIfAborted()
 
     const definition = this.definitionRegistry.resolve(request.agentId)
-    const scope = await this.executionScopeResolver.resolve(definition, request.toolNames)
-
-    context.signal.throwIfAborted()
-
     const agent = await this.agentFactory.create(definition)
+    const tools = await this.toolResolver.resolve(request.toolNames, context)
 
     context.signal.throwIfAborted()
-
-    const tools = this.toolRegistry.definitionsFor(scope.toolNames)
 
     return this.kernel.execute(
       {
