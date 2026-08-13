@@ -3,6 +3,10 @@
 Near-term product follow-ups that are intentionally out of the current
 implementation slice.
 
+Cross-cutting Node work (client tools on integrations, capability-scoped
+`github.*` / `jira.*` tools, handler thinning) lives in
+[`apps/node/ROADMAP.md`](../../../ROADMAP.md) under **P0 — Client tools**.
+
 ## Suite secrets (production)
 
 **Current (local/dev):** allowlisted suite subprocesses inherit the node

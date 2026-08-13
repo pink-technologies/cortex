@@ -3,6 +3,7 @@
 
 import type { LLMMessage, LLMToolDefinition } from '@cortex/llm'
 import type { Agent } from '@/agent'
+import { AgentToolExecutor } from '@/tools'
 
 /**
  * Describes an execution request handled by the {@link Kernel}.

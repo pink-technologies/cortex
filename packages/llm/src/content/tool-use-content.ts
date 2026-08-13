@@ -30,8 +30,7 @@ export interface ToolUseContent {
   /**
    * Registered tool name the model selected.
    *
-   * Must match a tool exposed on the request (for example via
-   * {@link LLMToolDefinition.name}).
+   * Must match a tool exposed on the request.
    */
   readonly name: string
 
